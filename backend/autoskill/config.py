@@ -31,6 +31,16 @@ class Settings(BaseSettings):
     registration_open: bool = True
     log_level: str = "INFO"
 
+    # install bundles (/dl/...): default lifetime of a version download link, max artifact upload size
+    download_link_days: int = 30
+    library_artifact_max_mb: int = 64
+    # where built wheels of autoskill-local are served from (deploy/install.sh fills it); default data_dir/dist
+    local_dist_dir: Path | None = None
+
+    @property
+    def dist_dir(self) -> Path:
+        return self.local_dist_dir or (self.data_dir / "dist")
+
     @property
     def is_sqlite(self) -> bool:
         return self.database_url.startswith("sqlite")

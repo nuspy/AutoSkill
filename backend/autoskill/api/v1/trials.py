@@ -2,17 +2,19 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Response
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, Header, Request, Response
 from sqlalchemy import select
 
-from autoskill.api.v1.deps import AnyAuthUser, CurrentUser, SessionDep
+from autoskill.api.v1.deps import AnyAuthUser, CurrentUser, SessionDep, get_optional_user, get_user_any_auth
 from autoskill.api.v1.skills import get_skill_for
-from autoskill.api.v1.versions import _install_context
-from autoskill.core.errors import NotFound
-from autoskill.models.project import ProjectRole
+from autoskill.core.errors import Forbidden, NotFound
+from autoskill.models.project import Project, ProjectRole
 from autoskill.models.skill import Skill
 from autoskill.models.skill_version import SkillVersion
 from autoskill.models.trial import Checkpoint, Run, TrialSession
+from autoskill.models.user import User
 from autoskill.schemas.common import OkResponse
 from autoskill.schemas.draft import InstallDoc, StepOut
 from autoskill.schemas.trial import (
@@ -25,7 +27,7 @@ from autoskill.schemas.trial import (
     TrialOut,
     TrialOutcomeIn,
 )
-from autoskill.services.packaging.store import load_package
+from autoskill.services.distribution import bundle as bundles
 from autoskill.services.targets import get_adapter
 from autoskill.services.trials import service
 
@@ -59,11 +61,14 @@ async def create(body: TrialCreate, session: SessionDep, user: AnyAuthUser):
     )
     await session.commit()
     await session.refresh(trial)
+    bundle_url, manifest_url = await service.bundle_urls(session, trial)
     return TrialCreated(
         **TrialOut.model_validate(trial).model_dump(),
         session_token=token,
-        cli_command=service.cli_command(trial, skill, version, token),
+        cli_command=service.cli_command(trial, skill, version, token, manifest_url),
         package_url=service.package_url(trial),
+        bundle_url=bundle_url,
+        manifest_url=manifest_url,
     )
 
 
@@ -100,6 +105,7 @@ async def detail(trial_id: str, session: SessionDep, user: AnyAuthUser):
     )
     pending = await service.pending_checkpoint(session, trial)
     await session.commit()
+    bundle_url, manifest_url = await service.bundle_urls(session, trial)
     return TrialDetail(
         trial=TrialOut.model_validate(trial),
         skill_name=skill.name if skill else "",
@@ -110,12 +116,34 @@ async def detail(trial_id: str, session: SessionDep, user: AnyAuthUser):
         pending_checkpoint=CheckpointOut.model_validate(pending).model_dump() if pending else None,
         checkpoints=[CheckpointOut.model_validate(c).model_dump() for c in cps],
         package_url=service.package_url(trial),
+        bundle_url=bundle_url,
+        manifest_url=manifest_url,
     )
 
 
+async def _trial_for_client(
+    request: Request, session, trial_id: str, header_token: str | None, user: User | None
+) -> TrialSession:
+    """The CLI or the agent may act on a trial with the trial token alone (X-AutoSkill-Trial)."""
+    if header_token:
+        trial = await service.trial_from_token(session, header_token)
+        if trial.id != trial_id:
+            raise Forbidden("trial_mismatch")
+        return trial
+    actor = await get_user_any_auth(request, session, user)
+    return await _get(session, actor, trial_id)
+
+
 @router.post("/{trial_id}/installed", response_model=TrialOut)
-async def installed(trial_id: str, body: TrialInstalled, session: SessionDep, user: AnyAuthUser):
-    trial = await _get(session, user, trial_id)
+async def installed(
+    trial_id: str,
+    body: TrialInstalled,
+    request: Request,
+    session: SessionDep,
+    user: Annotated[User | None, Depends(get_optional_user)],
+    x_autoskill_trial: Annotated[str | None, Header()] = None,
+):
+    trial = await _trial_for_client(request, session, trial_id, x_autoskill_trial, user)
     await service.mark_installed(session, trial, body.install_manifest, body.build)
     await session.commit()
     await session.refresh(trial)
@@ -163,9 +191,15 @@ async def outcome(trial_id: str, body: TrialOutcomeIn, session: SessionDep, user
 
 
 @router.get("/{trial_id}/sync")
-async def sync_state(trial_id: str, session: SessionDep, user: AnyAuthUser) -> dict:
+async def sync_state(
+    trial_id: str,
+    request: Request,
+    session: SessionDep,
+    user: Annotated[User | None, Depends(get_optional_user)],
+    x_autoskill_trial: Annotated[str | None, Header()] = None,
+) -> dict:
     """Polled by the CLI: tells whether the installed build is stale and what state the trial is in."""
-    trial = await _get(session, user, trial_id)
+    trial = await _trial_for_client(request, session, trial_id, x_autoskill_trial, user)
     version = await session.get(SkillVersion, trial.skill_version_id)
     installed_build = int((trial.install_manifest or {}).get("build") or 0)
     return {
@@ -178,49 +212,51 @@ async def sync_state(trial_id: str, session: SessionDep, user: AnyAuthUser) -> d
     }
 
 
+async def _trial_bundle(session, trial: TrialSession):
+    skill = await session.get(Skill, trial.skill_id)
+    version = await session.get(SkillVersion, trial.skill_version_id)
+    grant = await bundles.trial_grant(session, trial)
+    if grant is None:  # trials created before download links existed
+        grant, _ = await bundles.create_grant(
+            session, skill=skill, version=version, kind="trial", created_by=trial.user_id, trial=trial
+        )
+    bundle = await bundles.build_bundle(
+        session,
+        skill=skill,
+        version=version,
+        base_url=bundles.grant_base_url(bundles.grant_token(grant)),
+        kind="trial",
+        trial=trial,
+    )
+    return skill, version, bundle
+
+
 @router.get("/{trial_id}/install/{target}", response_model=InstallDoc)
 async def install_doc(trial_id: str, target: str, session: SessionDep, user: AnyAuthUser):
     trial = await _get(session, user, trial_id)
-    skill = await session.get(Skill, trial.skill_id)
-    version = await session.get(SkillVersion, trial.skill_version_id)
-    ctx = await _install_context(session, skill, version, trial=True)
-    ctx.zip_url = service.package_url(trial)
-    return InstallDoc(target=target, markdown=get_adapter(target).render_install_md(ctx))
+    try:
+        get_adapter(target)
+    except KeyError:
+        raise NotFound("unknown_target") from None
+    skill, _version, bundle = await _trial_bundle(session, trial)
+    project = await session.get(Project, skill.project_id)
+    await session.commit()
+    return InstallDoc(
+        target=target,
+        markdown=bundles.render_install_md(bundle, target, project.slug if project else ""),
+        bundle_url=bundle.install_md_urls.get(target, bundle.bundle_url),
+        manifest_url=bundle.manifest_url,
+    )
 
 
 @router.get("/{trial_id}/package.zip")
 async def package(trial_id: str, session: SessionDep, user: AnyAuthUser):
     trial = await _get(session, user, trial_id)
-    skill = await session.get(Skill, trial.skill_id)
-    version = await session.get(SkillVersion, trial.skill_version_id)
-    pkg = load_package(skill.name, version)
-    fm = pkg.frontmatter()
-    fm.setdefault("metadata", {})["autoskill_trial"] = trial.id
-    fm["metadata"]["build"] = str(version.build)
-    pkg.set_frontmatter(fm)
-    ctx = await _install_context(session, skill, version, trial=True)
-    ctx.zip_url = service.package_url(trial)
-    from autoskill.api.v1.versions import _mcp_files
-
-    extra = {f"INSTALL.{trial.target_agent}.md": get_adapter(trial.target_agent).render_install_md(ctx).encode()}
-    extra.update(await _mcp_files(session, skill, version))
-    import json
-
-    extra["autoskill.json"] = json.dumps(
-        {
-            "skill_id": skill.id,
-            "skill_name": skill.name,
-            "version_id": version.id,
-            "version": version.version,
-            "build": version.build,
-            "trial_session_id": trial.id,
-            "mcp_servers": [m.name for m in ctx.mcp_servers],
-            "server_url": ctx.server_url,
-        },
-        indent=2,
-    ).encode()
+    skill, version, bundle = await _trial_bundle(session, trial)
+    data = await bundles.skill_zip(session, skill, version, bundle, trial=trial)
+    await session.commit()
     return Response(
-        content=pkg.to_zip(extra),
+        content=data,
         media_type="application/zip",
         headers={"Content-Disposition": f'attachment; filename="{skill.name}-{version.version}-trial.zip"'},
     )

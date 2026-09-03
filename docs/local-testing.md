@@ -29,3 +29,45 @@ person  <---- explain / preview / verify cards ----  agent (Hermes, OpenClaw, ..
 
 Async mode auto-continues every phase (except real execution of irreversible steps) so agents with
 short tool timeouts never block; the person reviews the recorded checkpoints afterwards.
+
+## Install bundles: one online address for the agent
+
+Every trial, every version you create a download link for, and every public skill on a public hub has an
+**install bundle** served under `/dl/...` on the AutoSkill server. Nothing there requires a login: the
+token in the URL (or the skill's public visibility) is the authorization, and nothing there can write.
+
+| URL | Content |
+|---|---|
+| `…/INSTALL.md`, `…/INSTALL.<target>.md` | human-readable installation description (per agent) |
+| `…/install.json` | the same, machine-readable (`autoskill-install/1`): every artifact with URL + SHA-256, MCP registration snippets per agent, catalog components, trial callback |
+| `…/skill.zip` | the skill folder (trial copies carry `autoskill_trial` in the metadata) with `INSTALL.*.md`, `autoskill.json` (= `install.json`) and the generated MCP sources |
+| `…/mcp/<skill>-tools.zip` | the generated MCP server, `pipx install <url>`-able (pyproject at the archive root) |
+| `…/components/<slug>/<file>` | the package an administrator uploaded for a catalog component this version depends on |
+| `/dl/autoskill-local/latest` | the CLI + companion wheel built by `deploy/install.sh` (or `make local-wheel`) |
+
+Where the addresses come from:
+
+- **Trial**: created with the trial; shown in the launcher dialog and on the trial page (`bundle_url`,
+  `manifest_url`). Valid while the trial is open or kept installed. The trial *token* is never inside the
+  bundle: the person gives it to the agent (companion env `AUTOSKILL_SESSION_TOKEN`, header
+  `X-AutoSkill-Trial` for the `installed` callback).
+- **Version**: "Online install links" in the Install tab (`POST /api/v1/versions/{id}/download-links`,
+  default 30 days, revocable). The install guide switches to those addresses as soon as a link exists.
+- **Public skill on a public hub**: stable `/dl/hub/<project>/<skill>/<version|latest>/...`.
+
+What the agent (or the CLI) does with it:
+
+```bash
+autoskill trial install --from <manifest_url> --target hermes --token <trial-token>
+autoskill install --from <manifest_url> --target openclaw
+```
+
+`--from` downloads `install.json`, verifies every SHA-256, installs catalog components (copied skills,
+`pipx`/venv for Python servers), the generated MCP server and the companion, registers all MCP servers in
+the agent configuration, asks for the environment values, copies the skill, and reports `installed`.
+Removal (`autoskill trial remove`, `autoskill remove`) undoes all of it from the recorded manifest.
+
+Catalog components (admin → Library) can carry an **uploaded package** (zip / wheel / tar.gz, validated
+on upload: MCP servers need `pyproject.toml`/`package.json` at the root or a wheel, skills a valid
+`SKILL.md` whose name equals the slug) or point to pip / npm / git / a direct URL; either way the bundle
+gives the agent a concrete download address and install command, plus the component's own notes.

@@ -271,7 +271,29 @@
     "envJson": "Environment requirements (JSON)",
     "kinds": {
       "skill": "Skill",
-      "mcp_server": "MCP server"
+      "mcp_server": "MCP server",
+      "plugin": "Agent plugin"
+    },
+    "source": "Source",
+    "artifact": "artifact",
+    "noArtifact": "no uploaded artifact",
+    "uploadArtifact": "Upload package",
+    "removeArtifact": "Remove package",
+    "artifactUploaded": "Package uploaded and validated",
+    "sourceType": "Source type",
+    "sourceHint": "Uploaded packages are served by this server in every install bundle; other sources are referenced by URL or package name.",
+    "sourcePackage": "Package name",
+    "sourceUrl": "URL",
+    "sourceRef": "Git ref (tag/branch)",
+    "pathsJson": "Install folders per agent (JSON)",
+    "docs": "Installation notes (markdown, included in INSTALL.md)",
+    "sourceTypes": {
+      "package_upload": "Uploaded package (served by AutoSkill)",
+      "pip": "PyPI package",
+      "npm": "npm package",
+      "git_url": "Git repository",
+      "url": "Direct URL",
+      "manual": "Manual instructions"
     }
   },
   "trials": {
@@ -293,7 +315,7 @@
       "interactive": "Recommended: the agent pauses at every step until you decide.",
       "async": "For agents whose tool timeout is too short; steps are recorded and you review them after."
     },
-    "createdHelp": "Run this command on your machine (after `pipx install autoskill-local` and `autoskill login`). It installs the trial copy and registers the companion.",
+    "createdHelp": "Run the command on your machine (after `pipx install autoskill-local` and `autoskill login`), or hand the online address below to your agent: it can download and install everything by itself.",
     "tokenWarning": "The command contains a one-time trial token: do not share it.",
     "openPage": "Open trial",
     "waitingInstall": "Waiting for the installation",
@@ -375,7 +397,13 @@
       "major_rework": "Major rework",
       "removed": "Remove",
       "abandoned": "abandoned"
-    }
+    },
+    "cliCommand": "CLI command",
+    "bundleUrl": "Installation file (online address)",
+    "bundleUrlHint": "Anyone with this address can download the installation description and every component it cites (skill, MCP servers, shared components) without logging in, until the trial is closed. It does not contain the trial token.",
+    "manifestUrl": "Machine-readable manifest (install.json)",
+    "tellAgent": "What to tell your agent",
+    "tellAgentText": "Install the AutoSkill skill described at {{url}} (machine-readable manifest: {{manifest}}). Download every component from the addresses given there, verify the checksums, register the MCP servers and ask me for the environment values and the trial token."
   },
   "runs": {
     "title": "Runs",
@@ -597,6 +625,24 @@
       "issue_reports": "automatic: reported issues",
       "manual": "requested by a person",
       "scheduled": "scheduled scan"
+    }
+  },
+  "install": {
+    "links": {
+      "title": "Online install links",
+      "hint": "Create an address from which your agent (or anyone you give it to) can download INSTALL.md, install.json and every artifact without logging in. Links expire and can be revoked.",
+      "publicHint": "This skill is public on a public hub: the addresses in the guide work without a token. You can still create a private link with its own expiry.",
+      "bundleUrl": "Active link (INSTALL.md)",
+      "manifestUrl": "Manifest (install.json)",
+      "agentHint": "Tell your agent: “install the skill described at this address”.",
+      "expires": "Expires in (days)",
+      "label": "Label",
+      "labelPlaceholder": "e.g. laptop of Anna",
+      "create": "Create link",
+      "created": "Link created",
+      "downloads": "{{n}} downloads",
+      "expiresAt": "expires {{when}}",
+      "revoke": "Revoke"
     }
   }
 }

@@ -17,10 +17,11 @@ from autoskill.llm.structured import structured
 from autoskill.llm.usage import record_usage
 from autoskill.models.interview import KnowledgeDoc
 from autoskill.models.skill import Skill
-from autoskill.models.skill_version import LibraryComponent, SkillDependency, SkillVersion, StepDefinition
+from autoskill.models.skill_version import SkillDependency, SkillVersion, StepDefinition
 from autoskill.prompts import render
 from autoskill.schemas.draft import DraftSpec
 from autoskill.services.drafting.assemble import assemble_package, trial_mode_for
+from autoskill.services.library.catalog import library_catalog
 from autoskill.services.memory.context import memory_context
 from autoskill.services.memory.store import list_entries
 from autoskill.services.packaging.skill_package import SkillPackage, ValidationReport
@@ -42,24 +43,6 @@ async def _latest_frozen_knowledge(session: AsyncSession, skill_id: str) -> Know
     if knowledge is None:
         raise Conflict("knowledge_not_frozen", message="Finish the interview before drafting.")
     return knowledge
-
-
-async def _library_catalog(session: AsyncSession) -> list[dict]:
-    res = await session.execute(
-        select(LibraryComponent).where(LibraryComponent.is_enabled.is_(True)).order_by(LibraryComponent.slug)
-    )
-    return [
-        {
-            "slug": c.slug,
-            "kind": c.kind,
-            "name": c.name,
-            "description": c.description,
-            "tools": c.tools,
-            "env_requirements": c.env_requirements,
-            "install": c.install,
-        }
-        for c in res.scalars()
-    ]
 
 
 def _repair_prompt(report: ValidationReport) -> str:
@@ -89,7 +72,7 @@ async def generate_draft(
     knowledge = await _latest_frozen_knowledge(session, skill_id)
     memory_text = await memory_context(session, skill_id, budget_tokens=2500)
     memory_ids = [e.id for e in await list_entries(session, skill_id, status="active")]
-    library = await _library_catalog(session)
+    library = await library_catalog(session)
     previous: SkillVersion | None = None
     previous_md: str | None = None
     if mode == "patch":

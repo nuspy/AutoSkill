@@ -7,20 +7,24 @@ from sqlalchemy import select
 
 from autoskill.api.v1.deps import AnyAuthUser, CurrentUser, SessionDep
 from autoskill.api.v1.skills import get_skill_for
-from autoskill.config import get_settings
+from autoskill.core.audit import record_audit
 from autoskill.core.errors import Conflict, NotFound, ValidationFailed
 from autoskill.core.jobs import get_job_runner
+from autoskill.db.base import utcnow
+from autoskill.models.hub import DownloadGrant
 from autoskill.models.project import Project, ProjectRole
 from autoskill.models.review import Authorization, VersionTransition
 from autoskill.models.skill import Skill
-from autoskill.models.skill_version import LibraryComponent, SkillDependency, SkillVersion, StepDefinition
+from autoskill.models.skill_version import SkillDependency, SkillVersion, StepDefinition
+from autoskill.schemas.bundle import DownloadLinkIn, DownloadLinkOut
 from autoskill.schemas.draft import FileContent, GenerateRequest, InstallDoc, StepOut, VersionDetail, VersionOut
 from autoskill.schemas.review import AuthorizationOut, AuthorizeIn, TransitionIn, TransitionOut
+from autoskill.services.distribution import bundle as bundles
 from autoskill.services.packaging.skill_package import TEXT_EXTENSIONS
 from autoskill.services.packaging.store import load_package
 from autoskill.services.review.service import authorize as authorize_version
 from autoskill.services.targets import get_adapter, list_targets
-from autoskill.services.targets.base import InstallContext, McpServerSpec
+from autoskill.services.targets.base import InstallContext
 from autoskill.services.versioning.changes import compare
 from autoskill.services.versioning.state_machine import allowed_targets, transition
 
@@ -117,98 +121,92 @@ async def file_content(version_id: str, path: str, session: SessionDep, user: Cu
     )
 
 
-async def _install_context(session, skill: Skill, version: SkillVersion, trial: bool = False) -> InstallContext:
-    settings = get_settings()
+async def _bundle_for(session, skill: Skill, version: SkillVersion, user, *, trial=None):
+    """Bundle with URLs a reader can actually use: the user's active download link when one exists,
+    otherwise the public hub address (valid only for public skills)."""
     project = await session.get(Project, skill.project_id)
-    deps = (
-        (await session.execute(select(SkillDependency).where(SkillDependency.skill_version_id == version.id)))
-        .scalars()
-        .all()
-    )
-    dep_specs: list[dict] = []
-    mcp_servers = [
-        McpServerSpec(
-            name="autoskill-companion",
-            command="autoskill-companion",
-            args=[],
-            env_requirements=[
-                {"name": "AUTOSKILL_URL", "description": f"AutoSkill server, {settings.public_url}", "secret": False},
-                {
-                    "name": "AUTOSKILL_API_KEY",
-                    "description": "key from `autoskill login` or a project API key (telemetry:write)",
-                    "secret": True,
-                },
-            ],
-            description="checkpoints and run telemetry for AutoSkill",
-            install_hint="pipx install autoskill-local",
-        )
-    ]
-    from autoskill.models.mcp import McpServerVersion
-
-    mv = (
-        await session.execute(select(McpServerVersion).where(McpServerVersion.skill_version_id == version.id))
-    ).scalar_one_or_none()
-    if mv is not None:
-        server_name = f"{skill.name}-tools"
-        mcp_servers.append(
-            McpServerSpec(
-                name=server_name,
-                command=server_name,
-                args=[],
-                env_requirements=list(mv.env_requirements),
-                description=f"deterministic tools for {skill.title} ({len(mv.tools)} tools)",
-                install_hint=f"pipx install ./mcp/{server_name}",
+    if trial is not None:
+        grant = await bundles.trial_grant(session, trial)
+        if grant is not None:
+            return await bundles.build_bundle(
+                session,
+                skill=skill,
+                version=version,
+                base_url=bundles.grant_base_url(bundles.grant_token(grant)),
+                kind="trial",
+                trial=trial,
             )
-        )
-    for dep in deps:
-        comp = (
-            await session.execute(select(LibraryComponent).where(LibraryComponent.slug == dep.component_slug))
-        ).scalar_one_or_none()
-        if comp is None:
-            continue
-        install = comp.install or {}
-        dep_specs.append(
-            {
-                "slug": comp.slug,
-                "name": comp.name,
-                "kind": comp.kind,
-                "install_hint": install.get("hint") or comp.description,
-            }
-        )
-        if comp.kind == "mcp_server" and (install.get("command") or install.get("url")):
-            mcp_servers.append(
-                McpServerSpec(
-                    name=comp.slug,
-                    command=install.get("command"),
-                    args=install.get("args", []),
-                    url=install.get("url"),
-                    env_requirements=comp.env_requirements,
-                    description=comp.description,
-                    install_hint=install.get("hint", ""),
+    grant = (
+        (
+            await session.execute(
+                select(DownloadGrant)
+                .where(
+                    DownloadGrant.skill_version_id == version.id,
+                    DownloadGrant.kind == "version",
+                    DownloadGrant.created_by == user.id,
+                    DownloadGrant.revoked_at.is_(None),
                 )
+                .order_by(DownloadGrant.created_at.desc())
             )
-    return InstallContext(
-        skill_name=skill.name,
-        skill_title=skill.title,
-        version=version.version,
-        server_url=settings.public_url,
-        project_slug=project.slug if project else "",
-        mcp_servers=mcp_servers,
-        dependencies=dep_specs,
-        trial=trial,
-        zip_url=f"{settings.public_url}/api/v1/versions/{version.id}/package.zip",
+        )
+        .scalars()
+        .first()
     )
+    if grant is not None and bundles.grant_active(grant, None):
+        return await bundles.build_bundle(
+            session,
+            skill=skill,
+            version=version,
+            base_url=bundles.grant_base_url(bundles.grant_token(grant)),
+            kind="version",
+            expires_at=grant.expires_at,
+            trial=trial,
+        )
+    return await bundles.build_bundle(
+        session,
+        skill=skill,
+        version=version,
+        base_url=bundles.hub_base_url(project.slug if project else "", skill.name, version.version),
+        kind="hub",
+        trial=trial,
+    )
+
+
+async def _install_context(
+    session, skill: Skill, version: SkillVersion, trial: bool = False, user=None
+) -> InstallContext:
+    """Kept for callers that only need a rendering context (hub git publish)."""
+    project = await session.get(Project, skill.project_id)
+    bundle = await bundles.build_bundle(
+        session,
+        skill=skill,
+        version=version,
+        base_url=bundles.hub_base_url(project.slug if project else "", skill.name, version.version),
+        kind="hub",
+    )
+    ctx = bundles.install_context(bundle, "hermes", project.slug if project else "")
+    ctx.trial = trial
+    return ctx
 
 
 @router.get("/versions/{version_id}/install/{target}", response_model=InstallDoc)
 async def install_doc(version_id: str, target: str, session: SessionDep, user: CurrentUser, trial: bool = False):
     version, skill = await _version(session, user, version_id)
     try:
-        adapter = get_adapter(target)
+        get_adapter(target)
     except KeyError:
         raise ValidationFailed("unknown_target", targets=[t["id"] for t in list_targets()]) from None
-    ctx = await _install_context(session, skill, version, trial=trial)
-    return InstallDoc(target=target, markdown=adapter.render_install_md(ctx))
+    bundle = await _bundle_for(session, skill, version, user)
+    project = await session.get(Project, skill.project_id)
+    ctx = bundles.install_context(bundle, target, project.slug if project else "")
+    ctx.trial = trial
+    return InstallDoc(
+        target=target,
+        markdown=get_adapter(target).render_install_md(ctx),
+        bundle_url=bundle.install_md_urls.get(target, bundle.bundle_url),
+        manifest_url=bundle.manifest_url,
+        public=bundle.kind == "hub",
+    )
 
 
 @router.get("/versions/{version_id}/package.zip")
@@ -235,18 +233,9 @@ async def package_zip(
             state="downloaded",
         )
         await session.commit()
-    pkg = load_package(skill.name, version)
-    extra: dict[str, bytes] = {}
-    for target in targets.split(",") if targets else ["hermes", "openclaw"]:
-        try:
-            adapter = get_adapter(target.strip())
-        except KeyError:
-            continue
-        ctx = await _install_context(session, skill, version)
-        extra[f"INSTALL.{adapter.id}.md"] = adapter.render_install_md(ctx).encode()
-    extra["autoskill.json"] = _autoskill_json(skill, version, pkg).encode()
-    extra.update(await _mcp_files(session, skill, version))
-    data = pkg.to_zip(extra)
+    bundle = await _bundle_for(session, skill, version, user)
+    wanted = [t.strip() for t in targets.split(",")] if targets else None
+    data = await bundles.skill_zip(session, skill, version, bundle, targets=wanted)
     return Response(
         content=data,
         media_type="application/zip",
@@ -254,34 +243,85 @@ async def package_zip(
     )
 
 
-async def _mcp_files(session, skill: Skill, version: SkillVersion) -> dict[str, bytes]:
-    from autoskill.models.mcp import McpServerVersion
-    from autoskill.services.mcpgen.generator import load_mcp_files
-
-    mv = (
-        await session.execute(select(McpServerVersion).where(McpServerVersion.skill_version_id == version.id))
-    ).scalar_one_or_none()
-    if mv is None:
-        return {}
-    return {f"mcp/{skill.name}-tools/{path}": content for path, content in load_mcp_files(mv).items()}
+# --- download links (capability URLs for agents) ----------------------------------------
 
 
-def _autoskill_json(skill: Skill, version: SkillVersion, pkg) -> str:
-    import json
-
-    return json.dumps(
-        {
-            "skill_id": skill.id,
-            "skill_name": skill.name,
-            "version_id": version.id,
-            "version": version.version,
-            "signature": version.signature,
-            "files": version.manifest.get("files", []),
-            "mcp_servers": ["autoskill-companion"],
-            "server_url": get_settings().public_url,
-        },
-        indent=2,
+def _link_out(grant: DownloadGrant) -> DownloadLinkOut:
+    bundle_url, manifest_url = bundles.grant_urls(grant)
+    return DownloadLinkOut(
+        id=grant.id,
+        kind=grant.kind,
+        label=grant.label,
+        target_agent=grant.target_agent,
+        bundle_url=bundle_url,
+        manifest_url=manifest_url,
+        expires_at=grant.expires_at,
+        revoked_at=grant.revoked_at,
+        download_count=grant.download_count,
+        last_used_at=grant.last_used_at,
+        created_at=grant.created_at,
     )
+
+
+@router.post("/versions/{version_id}/download-links", response_model=DownloadLinkOut, status_code=201)
+async def create_download_link(version_id: str, body: DownloadLinkIn, session: SessionDep, user: CurrentUser):
+    """Create an online address from which an agent can fetch INSTALL.md, install.json and every artifact."""
+    version, skill = await _version(session, user, version_id, ProjectRole.viewer)
+    if version.state in ("discarded", "rejected"):
+        raise Conflict("version_not_installable", state=version.state)
+    if body.target_agent:
+        try:
+            get_adapter(body.target_agent)
+        except KeyError:
+            raise ValidationFailed("unknown_target") from None
+    grant, _token = await bundles.create_grant(
+        session,
+        skill=skill,
+        version=version,
+        kind="version",
+        created_by=user.id,
+        expires_in_days=body.expires_in_days,
+        label=body.label,
+        target_agent=body.target_agent,
+    )
+    await record_audit(
+        session,
+        "download_link.create",
+        actor_user_id=user.id,
+        subject_type="skill_version",
+        subject_id=version.id,
+        after={"grant_id": grant.id, "expires_at": grant.expires_at.isoformat() if grant.expires_at else None},
+    )
+    await session.commit()
+    await session.refresh(grant)
+    return _link_out(grant)
+
+
+@router.get("/versions/{version_id}/download-links", response_model=list[DownloadLinkOut])
+async def list_download_links(version_id: str, session: SessionDep, user: CurrentUser):
+    version, _ = await _version(session, user, version_id)
+    res = await session.execute(
+        select(DownloadGrant)
+        .where(DownloadGrant.skill_version_id == version.id, DownloadGrant.kind == "version")
+        .order_by(DownloadGrant.created_at.desc())
+    )
+    return [_link_out(g) for g in res.scalars()]
+
+
+@router.delete("/download-links/{grant_id}", response_model=DownloadLinkOut)
+async def revoke_download_link(grant_id: str, session: SessionDep, user: CurrentUser):
+    grant = await session.get(DownloadGrant, grant_id)
+    if grant is None:
+        raise NotFound("link_not_found")
+    await _version(session, user, grant.skill_version_id, ProjectRole.editor)
+    if grant.revoked_at is None:
+        grant.revoked_at = utcnow()
+        await record_audit(
+            session, "download_link.revoke", actor_user_id=user.id, subject_type="download_grant", subject_id=grant.id
+        )
+    await session.commit()
+    await session.refresh(grant)
+    return _link_out(grant)
 
 
 @router.post("/versions/{version_id}/discard", response_model=VersionOut)

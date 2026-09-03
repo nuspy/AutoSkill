@@ -59,3 +59,30 @@ class SkillRepo(Base):
     head_version_id: Mapped[str | None] = mapped_column(String(36))
     last_pushed_at: Mapped[datetime | None] = mapped_column(TZDateTime)
     public_clone: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
+
+class DownloadGrant(IdMixin, TimestampMixin, Base):
+    """Capability token that lets anyone holding the URL download one install bundle (no login).
+
+    The token is stored hashed (lookup) and encrypted (so the UI can show the URL again); a grant
+    never gives write access. Trial grants live as long as the trial is open or kept installed;
+    version grants expire at `expires_at` or when revoked.
+    """
+
+    __tablename__ = "download_grants"
+
+    kind: Mapped[str] = mapped_column(String(16), nullable=False)  # trial | version
+    token_hash: Mapped[str] = mapped_column(String(128), unique=True, index=True, nullable=False)
+    token_encrypted: Mapped[str] = mapped_column(Text, nullable=False)
+    skill_id: Mapped[str] = mapped_column(ForeignKey("skills.id", ondelete="CASCADE"), index=True, nullable=False)
+    skill_version_id: Mapped[str] = mapped_column(
+        ForeignKey("skill_versions.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    trial_session_id: Mapped[str | None] = mapped_column(String(36), index=True)
+    target_agent: Mapped[str | None] = mapped_column(String(32))
+    created_by: Mapped[str | None] = mapped_column(String(36))
+    label: Mapped[str | None] = mapped_column(String(120))
+    expires_at: Mapped[datetime | None] = mapped_column(TZDateTime)
+    revoked_at: Mapped[datetime | None] = mapped_column(TZDateTime)
+    download_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    last_used_at: Mapped[datetime | None] = mapped_column(TZDateTime)

@@ -9,3 +9,12 @@ natural, offer 2-6 short options and set expects to "choice"; use "yes_no" for b
 
 Knowledge document:
 {{ knowledge_json }}
+{% if library %}
+
+Shared components available in this AutoSkill server (skills, plugins and MCP servers provided by the
+administrator). When an integration (email, database, directory, calendar...) is covered by one of them,
+prefer it: note it under `integrations[].protocol` as "component:<slug>" and do not ask how to build it.
+{% for c in library %}
+- {{ c.slug }} ({{ c.kind }}): {{ c.description }}{% if c.tools %} — tools: {% for t in c.tools %}{{ t.name }}{% if not loop.last %}, {% endif %}{% endfor %}{% endif %}
+{% endfor %}
+{% endif %}

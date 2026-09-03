@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, API_BASE } from "@/api/client";
-import type { LibraryComponent, SkillVersion, SkillVersionDetail, TargetInfo } from "@/api/types";
+import type { DownloadLink, InstallDoc, LibraryComponent, SkillVersion, SkillVersionDetail, TargetInfo } from "@/api/types";
 import { useSession } from "@/stores/session";
 
 export function useVersions(skillId: string) {
@@ -22,7 +22,7 @@ export function useVersionFile(versionId: string, path: string | null) {
 export function useInstallDoc(versionId: string, target: string, trial = false) {
   return useQuery({
     queryKey: ["versions", versionId, "install", target, trial],
-    queryFn: () => api<{ target: string; markdown: string }>(`/versions/${versionId}/install/${target}?trial=${trial}`),
+    queryFn: () => api<InstallDoc>(`/versions/${versionId}/install/${target}?trial=${trial}`),
     enabled: !!versionId && !!target,
   });
 }
@@ -71,4 +71,42 @@ export function useLibraryMutations() {
   const update = useMutation({ mutationFn: ({ id, ...body }: Partial<LibraryComponent> & { id: string }) => api<LibraryComponent>(`/library/${id}`, { method: "PUT", body }), onSuccess: invalidate });
   const remove = useMutation({ mutationFn: (id: string) => api(`/library/${id}`, { method: "DELETE" }), onSuccess: invalidate });
   return { create, update, remove };
+}
+
+export function useDownloadLinks(versionId: string) {
+  return useQuery({ queryKey: ["versions", versionId, "download-links"], queryFn: () => api<DownloadLink[]>(`/versions/${versionId}/download-links`), enabled: !!versionId });
+}
+
+export function useDownloadLinkMutations(versionId: string) {
+  const qc = useQueryClient();
+  const invalidate = () => { qc.invalidateQueries({ queryKey: ["versions", versionId, "download-links"] }); qc.invalidateQueries({ queryKey: ["versions", versionId, "install"] }); };
+  const create = useMutation({ mutationFn: (body: { expires_in_days?: number; label?: string; target_agent?: string }) => api<DownloadLink>(`/versions/${versionId}/download-links`, { method: "POST", body }), onSuccess: invalidate });
+  const revoke = useMutation({ mutationFn: (id: string) => api<DownloadLink>(`/download-links/${id}`, { method: "DELETE" }), onSuccess: invalidate });
+  return { create, revoke };
+}
+
+async function multipart<T>(path: string, file: File): Promise<T> {
+  const token = useSession.getState().accessToken;
+  const form = new FormData();
+  form.append("file", file, file.name);
+  const res = await fetch(`${API_BASE}${path}`, { method: "POST", body: form, headers: token ? { Authorization: `Bearer ${token}` } : {}, credentials: "include" });
+  if (!res.ok) {
+    let message = `HTTP ${res.status}`;
+    try {
+      const body = (await res.json()) as { error?: { message?: string; code?: string } };
+      message = body.error?.message || body.error?.code || message;
+    } catch {
+      /* no body */
+    }
+    throw new Error(message);
+  }
+  return (await res.json()) as T;
+}
+
+export function useArtifactMutations() {
+  const qc = useQueryClient();
+  const invalidate = () => qc.invalidateQueries({ queryKey: ["library"] });
+  const upload = useMutation({ mutationFn: ({ id, file }: { id: string; file: File }) => multipart<LibraryComponent>(`/library/${id}/artifact`, file), onSuccess: invalidate });
+  const remove = useMutation({ mutationFn: (id: string) => api<LibraryComponent>(`/library/${id}/artifact`, { method: "DELETE" }), onSuccess: invalidate });
+  return { upload, remove };
 }

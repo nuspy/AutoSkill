@@ -349,7 +349,7 @@ export interface TargetInfo {
 
 export interface LibraryComponent {
   id: string;
-  kind: "skill" | "mcp_server";
+  kind: "skill" | "mcp_server" | "plugin";
   slug: string;
   name: string;
   description: string;
@@ -360,6 +360,8 @@ export interface LibraryComponent {
   install: Record<string, unknown>;
   docs: string | null;
   tags: string[];
+  artifact: { filename: string; sha256: string; size: number; content_type?: string } | null;
+  install_paths: Record<string, string>;
   is_enabled: boolean;
   added_by: string | null;
   created_at: string;
@@ -395,6 +397,30 @@ export interface TrialCreated extends Trial {
   session_token: string;
   cli_command: string;
   package_url: string;
+  bundle_url: string | null;
+  manifest_url: string | null;
+}
+
+export interface InstallDoc {
+  target: string;
+  markdown: string;
+  bundle_url: string | null;
+  manifest_url: string | null;
+  public: boolean;
+}
+
+export interface DownloadLink {
+  id: string;
+  kind: string;
+  label: string | null;
+  target_agent: string | null;
+  bundle_url: string;
+  manifest_url: string;
+  expires_at: string | null;
+  revoked_at: string | null;
+  download_count: number;
+  last_used_at: string | null;
+  created_at: string;
 }
 
 export interface Checkpoint {
@@ -465,6 +491,8 @@ export interface TrialDetail {
   pending_checkpoint: Checkpoint | null;
   checkpoints: Checkpoint[];
   package_url: string;
+  bundle_url: string | null;
+  manifest_url: string | null;
 }
 
 export interface Discussion {

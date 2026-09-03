@@ -19,7 +19,11 @@ LANGUAGE_NAMES = {"en": "English", "it": "Italian", "hu": "Hungarian", "de": "Ge
 OPEN_STATES = ("requested", "installing", "installed", "testing", "suspended", "reviewing")
 
 
-def cli_command(trial: TrialSession, skill: Skill, version: SkillVersion, token: str) -> str:
+def cli_command(
+    trial: TrialSession, skill: Skill, version: SkillVersion, token: str, manifest_url: str | None = None
+) -> str:
+    if manifest_url:
+        return f"autoskill trial install --from {manifest_url} --target {trial.target_agent} --token {token}"
     return (
         f"autoskill trial install {skill.name}@{version.version} "
         f"--target {trial.target_agent} --session {trial.id} --token {token}"
@@ -28,6 +32,16 @@ def cli_command(trial: TrialSession, skill: Skill, version: SkillVersion, token:
 
 def package_url(trial: TrialSession) -> str:
     return f"{get_settings().public_url}/api/v1/trials/{trial.id}/package.zip"
+
+
+async def bundle_urls(session: AsyncSession, trial: TrialSession) -> tuple[str | None, str | None]:
+    """(INSTALL.md url, install.json url) of the trial's download grant, reachable without login."""
+    from autoskill.services.distribution import bundle as bundles
+
+    grant = await bundles.trial_grant(session, trial)
+    if grant is None:
+        return None, None
+    return bundles.grant_urls(grant)
 
 
 async def create_trial(
@@ -76,6 +90,9 @@ async def create_trial(
     )
     session.add(trial)
     await session.flush()
+    from autoskill.services.distribution import bundle as bundles
+
+    await bundles.create_grant(session, skill=skill, version=version, kind="trial", created_by=user_id, trial=trial)
     if version.state == "draft":
         from autoskill.services.versioning.state_machine import transition
 

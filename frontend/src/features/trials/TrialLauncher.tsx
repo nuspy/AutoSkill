@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Copy, FlaskConical } from "lucide-react";
-import { toast } from "sonner";
+import { FlaskConical } from "lucide-react";
 import { useCreateTrial } from "@/api/hooks/trials";
 import { useTargets } from "@/api/hooks/versions";
 import { useDevices } from "@/api/hooks/me";
 import type { TrialCreated } from "@/api/types";
 import { Button } from "@/components/ui/button";
+import { CopyRow } from "@/components/ui/copy-row";
 import { Dialog } from "@/components/ui/dialog";
 import { Field, Select } from "@/components/ui/input";
 import { ErrorState } from "@/components/ui/misc";
@@ -54,11 +54,13 @@ export function TrialLauncher({ versionId, projectId, skillId, purpose = "develo
         ) : (
           <div className="space-y-3 text-sm">
             <p>{t("skills:trials.createdHelp")}</p>
-            <div className="flex items-start gap-2">
-              <pre className="flex-1 overflow-x-auto rounded-lg bg-accent p-3 font-mono text-xs">{created.cli_command}</pre>
-              <Button size="icon" variant="outline" aria-label={t("common:actions.copy")} onClick={() => { navigator.clipboard.writeText(created.cli_command); toast.success(t("common:actions.copied")); }}><Copy className="h-4 w-4" /></Button>
-            </div>
-            <p className="text-xs text-muted">{t("skills:trials.tokenWarning")}</p>
+            <CopyRow label={t("skills:trials.cliCommand")} value={created.cli_command} hint={t("skills:trials.tokenWarning")} />
+            {created.bundle_url && (
+              <>
+                <CopyRow label={t("skills:trials.bundleUrl")} value={created.bundle_url} hint={t("skills:trials.bundleUrlHint")} />
+                <CopyRow label={t("skills:trials.tellAgent")} value={t("skills:trials.tellAgentText", { url: created.bundle_url, manifest: created.manifest_url ?? "" })} />
+              </>
+            )}
           </div>
         )}
       </Dialog>

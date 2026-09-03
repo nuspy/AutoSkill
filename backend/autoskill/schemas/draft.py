@@ -116,10 +116,13 @@ class GenerateRequest(BaseModel):
 class InstallDoc(BaseModel):
     target: str
     markdown: str
+    bundle_url: str | None = None  # online address of this INSTALL.md (token link or public hub)
+    manifest_url: str | None = None
+    public: bool = False  # True when the URLs only work for public skills (no download link yet)
 
 
 class LibraryComponentIn(BaseModel):
-    kind: Literal["skill", "mcp_server"]
+    kind: Literal["skill", "mcp_server", "plugin"]
     slug: str = Field(pattern=r"^[a-z0-9]+(-[a-z0-9]+)*$", max_length=80)
     name: str = Field(min_length=1, max_length=120)
     description: str = Field(min_length=1, max_length=4000)
@@ -131,6 +134,7 @@ class LibraryComponentIn(BaseModel):
     docs: str | None = None
     tags: list[str] = Field(default_factory=list)
     is_enabled: bool = True
+    install_paths: dict[str, str] = Field(default_factory=dict)
 
 
 class LibraryComponentOut(ORMModel):
@@ -148,5 +152,7 @@ class LibraryComponentOut(ORMModel):
     tags: list
     is_enabled: bool
     added_by: str | None
+    artifact: dict | None = None
+    install_paths: dict = Field(default_factory=dict)
     created_at: datetime
     updated_at: datetime

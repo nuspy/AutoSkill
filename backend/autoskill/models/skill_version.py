@@ -84,7 +84,7 @@ class LibraryComponent(IdMixin, TimestampMixin, Base):
 
     __tablename__ = "library_components"
 
-    kind: Mapped[str] = mapped_column(String(16), nullable=False)  # skill | mcp_server
+    kind: Mapped[str] = mapped_column(String(16), nullable=False)  # skill | mcp_server | plugin
     slug: Mapped[str] = mapped_column(String(80), unique=True, index=True, nullable=False)
     name: Mapped[str] = mapped_column(String(120), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)
@@ -103,6 +103,10 @@ class LibraryComponent(IdMixin, TimestampMixin, Base):
     tags: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
     is_enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     added_by: Mapped[str | None] = mapped_column(String(36))
+    # artifact uploaded by the admin and served by this server: {filename, hash, sha256, size, content_type}
+    artifact: Mapped[dict | None] = mapped_column(JSON)
+    # for kind=skill|plugin: where the files go, per target agent {"hermes": "~/.hermes/skills/<slug>", ...}
+    install_paths: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
 
 
 class SkillDependency(IdMixin, Base):

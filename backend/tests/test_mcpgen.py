@@ -179,7 +179,8 @@ async def test_generate_mcp_end_to_end(app_client):
         assert (
             "invoice-check-tools" in install
             and "SMTP_HOST" in install
-            and "pipx install ./mcp/invoice-check-tools" in install
+            and "/mcp/invoice-check-tools.zip" in install
+            and "pipx install http" in install
         )
         # local check report
         rep = await app_client.post(

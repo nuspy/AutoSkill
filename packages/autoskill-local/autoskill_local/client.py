@@ -127,6 +127,37 @@ class Client:
         return sent
 
 
+# --- plain downloads of install bundles (capability URLs, no auth headers) --------------
+
+TRANSPORT = None  # tests inject an httpx transport here
+
+
+def fetch_url(url: str, retries: int = 3, timeout: float = 120.0) -> bytes:
+    """GET a bundle URL (INSTALL.md, install.json, skill.zip, ...). The URL itself is the authorization."""
+    last: Exception | None = None
+    with httpx.Client(timeout=timeout, follow_redirects=True, transport=TRANSPORT) as http:
+        for attempt in range(retries):
+            try:
+                res = http.get(url)
+            except httpx.HTTPError as exc:
+                last = exc
+                time.sleep(min(2**attempt, 8))
+                continue
+            if res.status_code >= 500:
+                last = ServerError(res.status_code, _safe_json(res))
+                time.sleep(min(2**attempt, 8))
+                continue
+            if res.status_code >= 400:
+                raise ServerError(res.status_code, _safe_json(res))
+            return res.content
+    assert last is not None
+    raise last
+
+
+def fetch_json(url: str) -> Any:
+    return json.loads(fetch_url(url).decode())
+
+
 def _safe_json(res: httpx.Response) -> Any:
     try:
         return res.json()

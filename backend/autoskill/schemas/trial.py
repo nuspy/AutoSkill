@@ -45,6 +45,8 @@ class TrialCreated(TrialOut):
     session_token: str
     cli_command: str
     package_url: str
+    bundle_url: str | None = None  # INSTALL.md reachable online without login (download grant)
+    manifest_url: str | None = None  # install.json, same grant
 
 
 class TrialInstalled(BaseModel):
@@ -68,6 +70,8 @@ class TrialDetail(BaseModel):
     pending_checkpoint: dict | None
     checkpoints: list[dict]
     package_url: str
+    bundle_url: str | None = None
+    manifest_url: str | None = None
 
 
 # --- telemetry -------------------------------------------------------------------------

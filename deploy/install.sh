@@ -20,6 +20,10 @@ python3 -m venv "${TARGET}/venv"
 "${TARGET}/venv/bin/pip" install --upgrade pip wheel >/dev/null
 "${TARGET}/venv/bin/pip" install "${TARGET}/app"
 
+echo "==> Building the autoskill-local wheel (served to agents at /dl/autoskill-local/)"
+mkdir -p "${TARGET}/data/dist"
+"${TARGET}/venv/bin/pip" wheel --no-deps -q -w "${TARGET}/data/dist" "${TARGET}/app/packages/autoskill-local"
+
 if [ ! -f "${TARGET}/autoskill.env" ]; then
   echo "==> Creating ${TARGET}/autoskill.env (edit it before starting the services)"
   cat > "${TARGET}/autoskill.env" <<ENV

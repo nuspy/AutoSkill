@@ -28,6 +28,7 @@ from autoskill.schemas.knowledge import (
     SupervisorDecision,
 )
 from autoskill.services.interview.gates import all_passed, completeness, compute_gates, first_failing
+from autoskill.services.library.catalog import library_catalog
 from autoskill.services.memory.store import add_entry
 from autoskill.services.procedures.engine import (
     Done,
@@ -148,6 +149,7 @@ async def intake(ctx: ProcedureContext):
         attachments=ctx.state.get("attachments", []),
         data_sources=sources,
         language_name=_lang(interview),
+        library=await library_catalog(ctx.session),
     )
     result = await _llm(ctx, interview, "interviewer", prompt, KnowledgeDocModel)
     doc: KnowledgeDocModel = result.value
@@ -186,6 +188,7 @@ async def supervise(ctx: ProcedureContext):
         knowledge_json=json.dumps(knowledge.doc, ensure_ascii=False),
         turn_count=interview.turn_count,
         max_turns=max_turns,
+        library=await library_catalog(ctx.session),
     )
     result = await _llm(ctx, interview, "supervisor", prompt, SupervisorDecision, temperature=0.0)
     decision: SupervisorDecision = result.value
@@ -228,6 +231,7 @@ async def ask(ctx: ProcedureContext):
                 guidance=ctx.state.get("guidance", ""),
                 suggested=ctx.state.get("suggested"),
                 knowledge_json=json.dumps(knowledge.doc, ensure_ascii=False),
+                library=await library_catalog(ctx.session),
             )
             result = await _llm(ctx, interview, "interviewer", prompt, QuestionSpec, temperature=0.3)
             q: QuestionSpec = result.value

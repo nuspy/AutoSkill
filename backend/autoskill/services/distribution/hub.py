@@ -2,13 +2,11 @@
 
 from __future__ import annotations
 
-import json
 import logging
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from autoskill.config import get_settings
 from autoskill.db.base import utcnow
 from autoskill.models.hub import Installation, SkillRepo
 from autoskill.models.project import Project
@@ -56,25 +54,20 @@ async def after_publish(session: AsyncSession, skill: Skill, version: SkillVersi
     if project is None:
         return
     try:
-        from autoskill.api.v1.versions import _install_context
-        from autoskill.services.targets import get_adapter
+        from autoskill.services.distribution import bundle as bundles
 
         pkg = load_package(skill.name, version)
         files = dict(pkg.files)
-        ctx = await _install_context(session, skill, version)
-        ctx.git_url = f"{get_settings().public_url.split('://', 1)[-1]}/git/{project.slug}/{skill.name}.git"
+        bundle = await bundles.build_bundle(
+            session,
+            skill=skill,
+            version=version,
+            base_url=bundles.hub_base_url(project.slug, skill.name, version.version),
+            kind="hub",
+        )
         for target in list_targets():
-            files[f"INSTALL.{target['id']}.md"] = get_adapter(target["id"]).render_install_md(ctx).encode()
-        files["autoskill.json"] = json.dumps(
-            {
-                "skill_id": skill.id,
-                "skill_name": skill.name,
-                "version_id": version.id,
-                "version": version.version,
-                "server_url": get_settings().public_url,
-            },
-            indent=2,
-        ).encode()
+            files[f"INSTALL.{target['id']}.md"] = bundles.render_install_md(bundle, target["id"], project.slug).encode()
+        files["autoskill.json"] = bundles.bundle_json(bundle)
         sha = git_repo.publish_to_repo(
             project.slug,
             skill.name,

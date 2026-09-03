@@ -73,3 +73,10 @@ All planned phases are implemented and covered by tests (backend 58, local packa
 
 Not yet done: translations beyond English and Italian (the other four locales fall back to English),
 ratings, "contribute back" from a variant to its origin, e-mail notifications, browser end-to-end tests.
+
+## Install bundles for agents
+
+Each trial, download link and public skill exposes an online-reachable bundle under `/dl/...`:
+`INSTALL.<agent>.md`, `install.json`, `skill.zip`, the generated MCP server and the catalog components the
+skill depends on, all with absolute URLs and SHA-256 checksums, no login required. Hand the address to your
+agent or run `autoskill install --from <install.json url>`. See `docs/local-testing.md`.

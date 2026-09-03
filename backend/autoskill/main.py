@@ -11,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from autoskill import __version__
+from autoskill.api.dl import router as dl_router
 from autoskill.api.git import router as git_router
 from autoskill.api.v1.router import api_router
 from autoskill.config import get_settings
@@ -60,6 +61,7 @@ def create_app() -> FastAPI:
 
     app.include_router(api_router)
     app.include_router(git_router)
+    app.include_router(dl_router)
     return app
 
 

@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { useTrial, useTrialActions } from "@/api/hooks/trials";
 import type { Checkpoint, Discussion, StepDefinition } from "@/api/types";
 import { Button } from "@/components/ui/button";
+import { CopyRow } from "@/components/ui/copy-row";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Field, Textarea } from "@/components/ui/input";
 import { Markdown } from "@/components/ui/markdown";
@@ -47,8 +48,26 @@ export default function TrialPage() {
           {tr.state === "requested" && (
             <Card>
               <CardHeader title={t("skills:trials.waitingInstall")} description={t("skills:trials.waitingInstallHelp")} />
-              <CardBody><InstallGuide versionId={tr.skill_version_id} trial /></CardBody>
+              <CardBody className="space-y-4">
+                {d.bundle_url && (
+                  <div className="space-y-3 rounded-lg border border-border p-3">
+                    <CopyRow label={t("skills:trials.bundleUrl")} value={d.bundle_url} hint={t("skills:trials.bundleUrlHint")} />
+                    {d.manifest_url && <CopyRow label={t("skills:trials.manifestUrl")} value={d.manifest_url} />}
+                    <CopyRow label={t("skills:trials.tellAgent")} value={t("skills:trials.tellAgentText", { url: d.bundle_url, manifest: d.manifest_url ?? "" })} />
+                  </div>
+                )}
+                <InstallGuide versionId={tr.skill_version_id} trial />
+              </CardBody>
             </Card>
+          )}
+          {!done && tr.state !== "requested" && d.bundle_url && (
+            <details className="rounded-lg border border-border p-3 text-sm">
+              <summary className="cursor-pointer font-medium">{t("skills:trials.bundleUrl")}</summary>
+              <div className="mt-3 space-y-3">
+                <CopyRow label={t("skills:trials.bundleUrl")} value={d.bundle_url} hint={t("skills:trials.bundleUrlHint")} />
+                {d.manifest_url && <CopyRow label={t("skills:trials.manifestUrl")} value={d.manifest_url} />}
+              </div>
+            </details>
           )}
           {d.pending_checkpoint ? (
             <CheckpointCard checkpoint={d.pending_checkpoint} step={d.steps.find((s) => s.key === d.pending_checkpoint!.step_key)} actions={actions} />

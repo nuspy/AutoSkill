@@ -36,9 +36,11 @@ async def test_interactive_trial_full_cycle(app_client):
         assert created.status_code == 201, created.text
         trial = created.json()
         token = trial["session_token"]
+        assert trial["state"] == "requested"
+        assert trial["bundle_url"].endswith("/INSTALL.md") and trial["manifest_url"].endswith("/install.json")
         assert (
-            trial["state"] == "requested"
-            and "autoskill trial install invoice-check@0.1.0 --target hermes" in trial["cli_command"]
+            f"autoskill trial install --from {trial['manifest_url']} --target hermes --token {token}"
+            == trial["cli_command"]
         )
         assert (await app_client.get(f"/api/v1/skills/{skill_id}/versions", headers=headers)).json()[0][
             "state"

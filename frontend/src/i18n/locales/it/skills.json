@@ -271,7 +271,29 @@
     "envJson": "Variabili d'ambiente richieste (JSON)",
     "kinds": {
       "skill": "Skill",
-      "mcp_server": "MCP server"
+      "mcp_server": "MCP server",
+      "plugin": "Plugin dell'agente"
+    },
+    "source": "Sorgente",
+    "artifact": "artefatto",
+    "noArtifact": "nessun pacchetto caricato",
+    "uploadArtifact": "Carica pacchetto",
+    "removeArtifact": "Rimuovi pacchetto",
+    "artifactUploaded": "Pacchetto caricato e validato",
+    "sourceType": "Tipo di sorgente",
+    "sourceHint": "I pacchetti caricati vengono serviti da questo server in ogni bundle di installazione; le altre sorgenti sono citate per URL o nome del pacchetto.",
+    "sourcePackage": "Nome del pacchetto",
+    "sourceUrl": "URL",
+    "sourceRef": "Ref git (tag/branch)",
+    "pathsJson": "Cartelle di installazione per agente (JSON)",
+    "docs": "Note di installazione (markdown, incluse in INSTALL.md)",
+    "sourceTypes": {
+      "package_upload": "Pacchetto caricato (servito da AutoSkill)",
+      "pip": "Pacchetto PyPI",
+      "npm": "Pacchetto npm",
+      "git_url": "Repository git",
+      "url": "URL diretto",
+      "manual": "Istruzioni manuali"
     }
   },
   "trials": {
@@ -293,7 +315,7 @@
       "interactive": "Consigliata: l'agente si ferma a ogni passo finché non decidi.",
       "async": "Per agenti con timeout dei tool troppo brevi; i passi vengono registrati e li rivedi dopo."
     },
-    "createdHelp": "Esegui questo comando sulla tua macchina (dopo `pipx install autoskill-local` e `autoskill login`). Installa la copia di prova e registra il companion.",
+    "createdHelp": "Esegui il comando sulla tua macchina (dopo `pipx install autoskill-local` e `autoskill login`), oppure passa al tuo agente l'indirizzo online qui sotto: può scaricare e installare tutto da solo.",
     "tokenWarning": "Il comando contiene un token di prova monouso: non condividerlo.",
     "openPage": "Apri la prova",
     "waitingInstall": "In attesa dell'installazione",
@@ -375,7 +397,13 @@
       "major_rework": "Rilavorazione maggiore",
       "removed": "Rimuovi",
       "abandoned": "abbandonata"
-    }
+    },
+    "cliCommand": "Comando CLI",
+    "bundleUrl": "File di installazione (indirizzo online)",
+    "bundleUrlHint": "Chi ha questo indirizzo può scaricare la descrizione dell'installazione e ogni componente citato (skill, MCP server, componenti condivisi) senza login, finché la prova non viene chiusa. Non contiene il token di prova.",
+    "manifestUrl": "Manifest leggibile dalla macchina (install.json)",
+    "tellAgent": "Cosa dire al tuo agente",
+    "tellAgentText": "Installa la skill AutoSkill descritta in {{url}} (manifest leggibile dalla macchina: {{manifest}}). Scarica ogni componente dagli indirizzi indicati, verifica i checksum, registra gli MCP server e chiedimi i valori delle variabili d'ambiente e il token di prova."
   },
   "runs": {
     "title": "Esecuzioni",
@@ -597,6 +625,24 @@
       "issue_reports": "automatica: problemi segnalati",
       "manual": "richiesta da una persona",
       "scheduled": "scansione programmata"
+    }
+  },
+  "install": {
+    "links": {
+      "title": "Link di installazione online",
+      "hint": "Crea un indirizzo da cui il tuo agente (o chiunque tu voglia) può scaricare INSTALL.md, install.json e ogni artefatto senza login. I link scadono e si possono revocare.",
+      "publicHint": "La skill è pubblica su un hub pubblico: gli indirizzi nella guida funzionano senza token. Puoi comunque creare un link privato con una propria scadenza.",
+      "bundleUrl": "Link attivo (INSTALL.md)",
+      "manifestUrl": "Manifest (install.json)",
+      "agentHint": "Di' al tuo agente: “installa la skill descritta a questo indirizzo”.",
+      "expires": "Scade tra (giorni)",
+      "label": "Etichetta",
+      "labelPlaceholder": "es. portatile di Anna",
+      "create": "Crea link",
+      "created": "Link creato",
+      "downloads": "{{n}} download",
+      "expiresAt": "scade {{when}}",
+      "revoke": "Revoca"
     }
   }
 }
