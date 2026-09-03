@@ -1,0 +1,19 @@
+You supervise the interview. Decide whether the knowledge document is complete enough to draft the skill.
+
+Deterministic gate results (computed by code, authoritative):
+{% for g in gates %}
+- {{ g.id }} {{ g.title }}: {{ "PASS" if g.passed else "FAIL" }}{% if g.detail %} — {{ g.detail }}{% endif %}
+{% endfor %}
+
+Knowledge document:
+{{ knowledge_json }}
+
+Turns so far: {{ turn_count }} (budget {{ max_turns }}).
+
+Rules:
+- If any deterministic gate fails, decision must be "need_more" and `missing` must explain it in plain words.
+- Ask for the single most valuable next question, targeting the lowest failing gate.
+- Prefer questions whose answer would unblock several gates. Questions must be answerable by a
+  non-technical worker in one or two sentences, or by choosing an option, or by sharing a file.
+- Decision "block" only when the task is impossible or unsafe to automate as described (explain why).
+Reply with the structured decision.

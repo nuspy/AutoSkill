@@ -1,5 +1,5 @@
 {
-  "title": "Administration", "users": "Users", "settings": "Settings", "audit": "Audit log", "jobs": "Jobs", "projects": "All projects",
+  "title": "Administration", "users": "Users", "settings": "Settings", "providers": "AI providers", "audit": "Audit log", "jobs": "Jobs", "projects": "All projects",
   "stats": { "users": "Users", "projects": "Projects", "devices": "Devices", "jobsRunning": "Jobs running" },
   "user": { "role": "Role", "active": "Active", "disabled": "Disabled", "updated": "User updated" },
   "setting": {

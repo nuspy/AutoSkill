@@ -39,8 +39,9 @@ def create_admin(email: str, password: str, name: str = "Admin") -> None:
             res = await session.execute(select(User).where(User.email == email.lower()))
             user = res.scalar_one_or_none()
             if user is None:
-                user = User(email=email.lower(), password_hash=hash_password(password),
-                            display_name=name, role=UserRole.admin)
+                user = User(
+                    email=email.lower(), password_hash=hash_password(password), display_name=name, role=UserRole.admin
+                )
                 session.add(user)
             else:
                 user.role = UserRole.admin

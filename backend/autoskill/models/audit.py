@@ -20,6 +20,4 @@ class AuditLog(IdMixin, Base):
     before: Mapped[dict | None] = mapped_column(JSON)
     after: Mapped[dict | None] = mapped_column(JSON)
     ip: Mapped[str | None] = mapped_column(String(64))
-    created_at: Mapped[datetime] = mapped_column(
-        TZDateTime, default=utcnow, nullable=False
-    )
+    created_at: Mapped[datetime] = mapped_column(TZDateTime, default=utcnow, nullable=False)

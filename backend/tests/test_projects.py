@@ -7,9 +7,7 @@ async def test_project_lifecycle_and_membership(app_client):
     carol = await register(app_client, "carol@example.com")
     a, b, c = auth(alice["access_token"]), auth(bob["access_token"]), auth(carol["access_token"])
 
-    created = await app_client.post(
-        "/api/v1/projects", json={"name": "Invoices Ops"}, headers=b
-    )
+    created = await app_client.post("/api/v1/projects", json={"name": "Invoices Ops"}, headers=b)
     assert created.status_code == 201
     project = created.json()
     assert project["slug"] == "invoices-ops" and project["my_role"] == "owner"
@@ -44,9 +42,7 @@ async def test_project_lifecycle_and_membership(app_client):
     )
     assert demote.status_code == 422
 
-    removed = await app_client.delete(
-        f"/api/v1/projects/{project['id']}/members/{member_id}", headers=b
-    )
+    removed = await app_client.delete(f"/api/v1/projects/{project['id']}/members/{member_id}", headers=b)
     assert removed.status_code == 200
     listing = await app_client.get("/api/v1/projects", headers=c)
     assert listing.json() == []

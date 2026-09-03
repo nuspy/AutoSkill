@@ -1,0 +1,11 @@
+Ask the person ONE question in {{ language_name }} to make progress on gate {{ target_gate }}.
+Supervisor guidance: {{ guidance }}
+{% if suggested %}
+Suggested question (you may improve its wording): {{ suggested }}
+{% endif %}
+Include a one-sentence "why" that explains what the answer helps with. If a small set of options is
+natural, offer 2-6 short options and set expects to "choice"; use "yes_no" for binary questions;
+"file" when a sample document would answer best; otherwise "text".
+
+Knowledge document:
+{{ knowledge_json }}

@@ -48,8 +48,13 @@ def create_app() -> FastAPI:
     async def validation_handler(_: Request, exc: RequestValidationError) -> JSONResponse:
         return JSONResponse(
             status_code=422,
-            content={"error": {"code": "validation_failed", "message": "Invalid request",
-                               "details": {"errors": exc.errors()}}},
+            content={
+                "error": {
+                    "code": "validation_failed",
+                    "message": "Invalid request",
+                    "details": {"errors": exc.errors()},
+                }
+            },
         )
 
     app.include_router(api_router)

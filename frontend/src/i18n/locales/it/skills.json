@@ -1,0 +1,60 @@
+{
+  "title": "Skill", "new": "Nuova skill", "empty": "Nessuna skill. Descrivi un task per iniziare.",
+  "state": {
+    "active": "In sviluppo", "suspended": "Sospesa", "archived": "Archiviata",
+    "created": "Avvio", "intake": "Sto leggendo la descrizione", "exploring": "Sto pensando", "gating": "Verifico la completezza",
+    "awaiting_answer": "In attesa della tua risposta", "awaiting_confirmation": "In attesa della tua conferma",
+    "complete": "Comprensione completata", "drafting_requested": "Bozza in preparazione", "abandoned": "Abbandonata", "failed": "Serve attenzione"
+  },
+  "start": {
+    "title": "Descrivi il tuo task", "subtitle": "Raccontalo come a un nuovo collega: cosa fai, quando, con quali file o sistemi, e com'è un buon risultato. L'assistente farà domande finché non avrà capito tutto.",
+    "skillTitle": "Dai un nome breve a questa skill", "description": "Come svolgi questo task oggi?", "language": "Lingua dell'intervista",
+    "placeholder": "Ogni lunedì apro il foglio delle fatture fornitori, confronto gli importi con gli ordini nel gestionale, segnalo quelli fuori budget e mando la lista alla contabilità…",
+    "submit": "Avvia l'intervista"
+  },
+  "interview": {
+    "title": "Intervista", "you": "Tu", "assistant": "AutoSkill", "why": "Perché te lo chiedo", "answer": "La tua risposta", "send": "Invia",
+    "yes": "Sì", "no": "No", "thinking": "AutoSkill sta pensando…", "confirm": "Sì, è corretto", "correct": "C'è qualcosa da correggere…",
+    "correctionPlaceholder": "Dimmi cosa cambiare", "sendCorrection": "Invia correzione", "summaryTitle": "Ecco cosa ho capito",
+    "completeTitle": "Comprensione completata", "completeBody": "Il documento di conoscenza è congelato e la memoria della skill è stata scritta. Il prossimo passo è la bozza della skill.",
+    "failedTitle": "L'intervista si è fermata", "abandon": "Abbandona l'intervista", "supervisor": "Supervisore", "supervisorDecision": "Decisione: {{decision}}",
+    "turns": "{{count}} scambi", "gate": "controllo {{id}}", "resume": "Continua l'intervista", "newSession": "Avvia una nuova intervista"
+  },
+  "knowledge": {
+    "title": "Cosa ho capito finora", "completeness": "{{passed}} controlli su {{total}}", "goal": "Obiettivo", "trigger": "Quando", "sources": "Sorgenti dati",
+    "steps": "Passi", "rules": "Regole", "edgeCases": "Eccezioni", "criteria": "Com'è un buon risultato", "integrations": "Altri sistemi",
+    "openQuestions": "Domande aperte", "revision": "revisione {{n}}", "sideEffects": { "read_only": "solo lettura", "reversible": "modifica reversibile", "irreversible": "irreversibile", "unknown": "effetti sconosciuti" },
+    "kind": { "deterministic": "meccanico", "generative": "richiede giudizio", "human_gate": "richiede approvazione" }
+  },
+  "gates": {
+    "G1": "Obiettivo e quando", "G2": "Sorgenti dati note", "G3": "Passi con esempi", "G4": "Regole decisionali", "G5": "Eccezioni confermate",
+    "G6": "Criteri di accettazione", "G7": "Nessuna domanda aperta", "G8": "Confermato da te", "G9": "Integrazioni documentate", "G10": "Effetti collaterali noti"
+  },
+  "memory": {
+    "title": "Memoria della skill", "subtitle": "Razionale, necessità di business, come lo fai oggi, note tecniche e di integrazione. Per chi manterrà questa skill.",
+    "add": "Aggiungi nota", "kind": "Tipo", "titleField": "Titolo", "body": "Testo", "step": "Passo (opzionale)", "empty": "Nessuna memoria. Le note vengono aggiunte dopo l'intervista e durante le prove.",
+    "supersede": "Aggiorna", "archive": "Archivia", "showAll": "Mostra storico", "showActive": "Mostra correnti",
+    "kinds": {
+      "rationale": "Razionale", "business_need": "Necessità di business", "human_procedure": "Come si fa oggi", "technical_note": "Nota tecnica",
+      "integration_note": "Integrazione", "data_note": "Nota sui dati", "decision": "Decisione", "lesson_learned": "Lezione appresa"
+    },
+    "status": { "active": "corrente", "superseded": "sostituita", "archived": "archiviata", "proposed": "proposta" },
+    "source": { "interview": "dall'intervista", "trial_discussion": "dalla prova", "manual": "manuale", "improvement": "da miglioramento", "import": "importata" }
+  },
+  "tabs": { "overview": "Panoramica", "interview": "Intervista", "knowledge": "Conoscenza", "memory": "Memoria", "versions": "Versioni", "trials": "Prove", "runs": "Esecuzioni" },
+  "suspend": { "action": "Sospendi lo sviluppo", "resume": "Riprendi lo sviluppo", "note": "Perché metti in pausa? (opzionale)", "banner": "Lo sviluppo è sospeso. {{note}}" },
+  "dataSources": {
+    "title": "Sorgenti dati", "subtitle": "File, fogli, caselle email, sistemi usati dai task di questo progetto. L'intervistatore li referenzia.",
+    "add": "Aggiungi sorgente", "name": "Nome", "kind": "Tipo", "description": "Descrizione", "access": "Dove si trova e come si apre", "sensitivity": "Sensibilità", "empty": "Nessuna sorgente dati.",
+    "kinds": { "file": "File", "spreadsheet": "Foglio di calcolo", "email": "Casella email", "web_app": "Applicazione web", "database": "Database", "api": "API", "folder": "Cartella", "other": "Altro" },
+    "sensitivities": { "none": "Pubblico", "internal": "Interno", "pii": "Dati personali", "secret": "Segreto" }
+  },
+  "providers": {
+    "title": "Provider AI", "subtitle": "Modelli locali (Ollama, LM Studio, llama.cpp, vLLM) o cloud usati da intervistatore, autore e supervisore.",
+    "system": "Provider di sistema", "project": "Provider del progetto", "add": "Aggiungi provider", "name": "Nome", "adapter": "Tipo", "model": "Modello", "baseUrl": "URL base",
+    "apiKey": "Chiave API", "apiKeyHint": "Salvata cifrata. Lascia vuoto per i server locali.", "purposes": "Usa per", "default": "Predefinito", "enabled": "Abilitato",
+    "test": "Prova connessione", "testOk": "Connesso in {{ms}} ms", "testFail": "Connessione fallita: {{message}}", "empty": "Nessun provider configurato. Le interviste ne hanno bisogno.",
+    "adapters": { "openai_compat": "Compatibile OpenAI (Ollama, LM Studio, vLLM…)", "anthropic": "Anthropic", "openai": "OpenAI", "google": "Google", "openrouter": "OpenRouter" },
+    "purposeNames": { "interviewer": "Intervistatore", "supervisor": "Supervisore", "author": "Autore", "coach": "Coach", "analyst": "Analista" }
+  }
+}

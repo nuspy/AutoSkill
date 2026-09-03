@@ -38,9 +38,7 @@ async def _unique_slug(session, base: str) -> str:
 async def _to_out(session, project: Project, user: User) -> ProjectOut:
     membership = await get_membership(session, project.id, user)
     count = (
-        await session.execute(
-            select(func.count(ProjectMember.id)).where(ProjectMember.project_id == project.id)
-        )
+        await session.execute(select(func.count(ProjectMember.id)).where(ProjectMember.project_id == project.id))
     ).scalar_one()
     out = ProjectOut.model_validate(project)
     out.my_role = membership.role if membership else (ProjectRole.owner if is_admin(user) else None)
@@ -75,8 +73,13 @@ async def create_project(body: ProjectCreate, session: SessionDep, user: Current
     await session.flush()
     session.add(ProjectMember(project_id=project.id, user_id=user.id, role=ProjectRole.owner))
     await record_audit(
-        session, "project.create", actor_user_id=user.id, project_id=project.id,
-        subject_type="project", subject_id=project.id, after={"name": project.name},
+        session,
+        "project.create",
+        actor_user_id=user.id,
+        project_id=project.id,
+        subject_type="project",
+        subject_id=project.id,
+        after={"name": project.name},
     )
     await session.commit()
     await session.refresh(project)
@@ -100,8 +103,13 @@ async def update_project(project_id: str, body: ProjectUpdate, session: SessionD
     if body.settings is not None:
         project.settings = {**project.settings, **body.settings}
     await record_audit(
-        session, "project.update", actor_user_id=user.id, project_id=project.id,
-        subject_type="project", subject_id=project.id, before=before,
+        session,
+        "project.update",
+        actor_user_id=user.id,
+        project_id=project.id,
+        subject_type="project",
+        subject_id=project.id,
+        before=before,
         after={"name": project.name, "description": project.description},
     )
     await session.commit()
@@ -113,8 +121,13 @@ async def update_project(project_id: str, body: ProjectUpdate, session: SessionD
 async def delete_project(project_id: str, session: SessionDep, user: CurrentUser):
     project = await require_project_role(session, project_id, user, ProjectRole.owner)
     await record_audit(
-        session, "project.delete", actor_user_id=user.id, project_id=project.id,
-        subject_type="project", subject_id=project.id, before={"name": project.name},
+        session,
+        "project.delete",
+        actor_user_id=user.id,
+        project_id=project.id,
+        subject_type="project",
+        subject_id=project.id,
+        before={"name": project.name},
     )
     await session.delete(project)
     await session.commit()
@@ -135,8 +148,12 @@ async def list_members(project_id: str, session: SessionDep, user: CurrentUser):
     )
     return [
         MemberOut(
-            id=m.id, user_id=u.id, email=u.email, display_name=u.display_name,
-            role=m.role, created_at=m.created_at,
+            id=m.id,
+            user_id=u.id,
+            email=u.email,
+            display_name=u.display_name,
+            role=m.role,
+            created_at=m.created_at,
         )
         for m, u in res.all()
     ]
@@ -154,14 +171,23 @@ async def add_member(project_id: str, body: MemberAdd, session: SessionDep, user
     member = ProjectMember(project_id=project_id, user_id=target.id, role=body.role)
     session.add(member)
     await record_audit(
-        session, "project.member_add", actor_user_id=user.id, project_id=project_id,
-        subject_type="user", subject_id=target.id, after={"role": body.role.value},
+        session,
+        "project.member_add",
+        actor_user_id=user.id,
+        project_id=project_id,
+        subject_type="user",
+        subject_id=target.id,
+        after={"role": body.role.value},
     )
     await session.commit()
     await session.refresh(member)
     return MemberOut(
-        id=member.id, user_id=target.id, email=target.email, display_name=target.display_name,
-        role=member.role, created_at=member.created_at,
+        id=member.id,
+        user_id=target.id,
+        email=target.email,
+        display_name=target.display_name,
+        role=member.role,
+        created_at=member.created_at,
     )
 
 
@@ -178,9 +204,7 @@ async def _owner_count(session, project_id: str) -> int:
 
 
 @router.patch("/{project_id}/members/{member_id}", response_model=MemberOut)
-async def update_member(
-    project_id: str, member_id: str, body: MemberUpdate, session: SessionDep, user: CurrentUser
-):
+async def update_member(project_id: str, member_id: str, body: MemberUpdate, session: SessionDep, user: CurrentUser):
     await require_project_role(session, project_id, user, ProjectRole.owner)
     member = await session.get(ProjectMember, member_id)
     if member is None or member.project_id != project_id:
@@ -192,8 +216,12 @@ async def update_member(
     await session.commit()
     target = await session.get(User, member.user_id)
     return MemberOut(
-        id=member.id, user_id=target.id, email=target.email, display_name=target.display_name,
-        role=member.role, created_at=member.created_at,
+        id=member.id,
+        user_id=target.id,
+        email=target.email,
+        display_name=target.display_name,
+        role=member.role,
+        created_at=member.created_at,
     )
 
 

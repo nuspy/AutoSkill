@@ -14,9 +14,7 @@ router = APIRouter(tags=["devices"])
 
 @router.get("/me/devices", response_model=list[DeviceOut])
 async def list_devices(session: SessionDep, user: AnyAuthUser):
-    res = await session.execute(
-        select(Device).where(Device.user_id == user.id).order_by(Device.created_at.desc())
-    )
+    res = await session.execute(select(Device).where(Device.user_id == user.id).order_by(Device.created_at.desc()))
     return res.scalars().all()
 
 

@@ -1,0 +1,24 @@
+The person described their task like this:
+
+"""
+{{ description }}
+"""
+{% if attachments %}
+They also shared these files (name, type, first lines):
+{% for a in attachments %}
+- {{ a.name }} ({{ a.media_type }}): {{ a.preview }}
+{% endfor %}
+{% endif %}
+{% if data_sources %}
+Known data sources in this project (you may reference them by name):
+{% for ds in data_sources %}
+- {{ ds.name }} [{{ ds.kind }}]: {{ ds.description or "" }}
+{% endfor %}
+{% endif %}
+
+Build the first version of the knowledge document. Fill only what is clearly stated; put everything
+unclear into open_questions as short questions in {{ language_name }}. Give each step a short lowercase
+`key` (letters, digits, hyphens). Set `kind_hint` to "deterministic" when the step is mechanical
+(copy, filter, compute, send with a fixed template), "generative" when it needs judgement or writing,
+"human_gate" when a person must approve. For every step estimate `side_effects`
+("read_only", "reversible", "irreversible") and `restore_strategy` when you can infer it.

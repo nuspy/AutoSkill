@@ -51,9 +51,5 @@ class IdMixin:
 
 
 class TimestampMixin:
-    created_at: Mapped[datetime] = mapped_column(
-        TZDateTime, default=utcnow, nullable=False
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        TZDateTime, default=utcnow, onupdate=utcnow, nullable=False
-    )
+    created_at: Mapped[datetime] = mapped_column(TZDateTime, default=utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(TZDateTime, default=utcnow, onupdate=utcnow, nullable=False)

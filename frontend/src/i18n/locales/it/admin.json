@@ -1,5 +1,5 @@
 {
-  "title": "Amministrazione", "users": "Utenti", "settings": "Impostazioni", "audit": "Registro attività", "jobs": "Job", "projects": "Tutti i progetti",
+  "title": "Amministrazione", "users": "Utenti", "settings": "Impostazioni", "providers": "Provider AI", "audit": "Registro attività", "jobs": "Job", "projects": "Tutti i progetti",
   "stats": { "users": "Utenti", "projects": "Progetti", "devices": "Dispositivi", "jobsRunning": "Job in esecuzione" },
   "user": { "role": "Ruolo", "active": "Attivo", "disabled": "Disabilitato", "updated": "Utente aggiornato" },
   "setting": {

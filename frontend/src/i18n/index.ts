@@ -25,7 +25,7 @@ i18n
     resources,
     fallbackLng: "en",
     supportedLngs: [...SUPPORTED_LOCALES],
-    ns: ["common", "auth", "projects", "admin", "me"],
+    ns: ["common", "auth", "projects", "admin", "me", "skills"],
     defaultNS: "common",
     interpolation: { escapeValue: false },
     detection: { order: ["localStorage", "navigator"], lookupLocalStorage: "autoskill.locale", caches: ["localStorage"] },

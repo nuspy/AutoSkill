@@ -19,15 +19,9 @@ class ApiKey(IdMixin, TimestampMixin, Base):
     __tablename__ = "api_keys"
 
     name: Mapped[str] = mapped_column(String(120), nullable=False)
-    project_id: Mapped[str | None] = mapped_column(
-        ForeignKey("projects.id", ondelete="CASCADE"), index=True
-    )
-    user_id: Mapped[str | None] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"), index=True
-    )
-    device_id: Mapped[str | None] = mapped_column(
-        ForeignKey("devices.id", ondelete="SET NULL"), index=True
-    )
+    project_id: Mapped[str | None] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[str | None] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    device_id: Mapped[str | None] = mapped_column(ForeignKey("devices.id", ondelete="SET NULL"), index=True)
     key_prefix: Mapped[str] = mapped_column(String(16), index=True, nullable=False)
     key_hash: Mapped[str] = mapped_column(String(128), unique=True, nullable=False)
     scopes: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)

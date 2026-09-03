@@ -56,9 +56,7 @@ def _set_refresh_cookie(response: Response, token: str) -> None:
     )
 
 
-async def _issue_tokens(
-    session, user: User, response: Response, request: Request
-) -> TokenResponse:
+async def _issue_tokens(session, user: User, response: Response, request: Request) -> TokenResponse:
     settings = get_settings()
     raw = generate_opaque_token()
     session.add(
@@ -96,9 +94,7 @@ async def register(body: RegisterRequest, session: SessionDep, response: Respons
     )
     session.add(user)
     await session.flush()
-    await record_audit(
-        session, "user.register", actor_user_id=user.id, subject_type="user", subject_id=user.id
-    )
+    await record_audit(session, "user.register", actor_user_id=user.id, subject_type="user", subject_id=user.id)
     return await _issue_tokens(session, user, response, request)
 
 
@@ -119,9 +115,7 @@ async def refresh(session: SessionDep, response: Response, request: Request):
     raw = request.cookies.get(REFRESH_COOKIE)
     if not raw:
         raise Unauthorized("no_refresh_token")
-    res = await session.execute(
-        select(RefreshToken).where(RefreshToken.token_hash == hash_token(raw))
-    )
+    res = await session.execute(select(RefreshToken).where(RefreshToken.token_hash == hash_token(raw)))
     token = res.scalar_one_or_none()
     if token is None or token.revoked_at is not None or token.expires_at < utcnow():
         raise Unauthorized("invalid_refresh_token")
@@ -181,9 +175,7 @@ async def device_start(body: DeviceStartRequest, session: SessionDep):
 @router.post("/device/token", response_model=DeviceTokenResponse)
 async def device_token(body: DeviceTokenRequest, session: SessionDep):
     res = await session.execute(
-        select(DeviceAuthorization).where(
-            DeviceAuthorization.device_code_hash == hash_token(body.device_code)
-        )
+        select(DeviceAuthorization).where(DeviceAuthorization.device_code_hash == hash_token(body.device_code))
     )
     auth = res.scalar_one_or_none()
     if auth is None:
@@ -263,8 +255,6 @@ async def device_confirm(body: DeviceConfirmRequest, session: SessionDep, user: 
     auth.user_id = user.id
     auth.api_key_id = key.id
     auth.issued_key = full
-    await record_audit(
-        session, "device.authorized", actor_user_id=user.id, subject_type="device", subject_id=device.id
-    )
+    await record_audit(session, "device.authorized", actor_user_id=user.id, subject_type="device", subject_id=device.id)
     await session.commit()
     return OkResponse()

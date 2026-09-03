@@ -33,8 +33,11 @@ async def stats(session: SessionDep, _: AdminUser):
 
 @router.get("/users", response_model=Page[UserOut])
 async def list_users(
-    session: SessionDep, _: AdminUser, q: str | None = None,
-    limit: int = Query(default=50, ge=1, le=200), offset: int = Query(default=0, ge=0),
+    session: SessionDep,
+    _: AdminUser,
+    q: str | None = None,
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
 ):
     stmt = select(User)
     if q:
@@ -62,8 +65,13 @@ async def update_user(user_id: str, body: AdminUserUpdate, session: SessionDep, 
     if body.display_name is not None:
         user.display_name = body.display_name
     await record_audit(
-        session, "admin.user_update", actor_user_id=admin.id, subject_type="user",
-        subject_id=user.id, before=before, after={"role": user.role.value, "is_active": user.is_active},
+        session,
+        "admin.user_update",
+        actor_user_id=admin.id,
+        subject_type="user",
+        subject_id=user.id,
+        before=before,
+        after={"role": user.role.value, "is_active": user.is_active},
     )
     await session.commit()
     await session.refresh(user)
@@ -90,8 +98,11 @@ async def write_settings(body: SettingsUpdate, session: SessionDep, admin: Admin
     for key, value in body.values.items():
         await set_setting(session, key, value)
     await record_audit(
-        session, "admin.settings_update", actor_user_id=admin.id,
-        before={k: before.get(k) for k in body.values}, after=body.values,
+        session,
+        "admin.settings_update",
+        actor_user_id=admin.id,
+        before={k: before.get(k) for k in body.values},
+        after=body.values,
     )
     await session.commit()
     return await get_all_settings(session)
@@ -99,8 +110,11 @@ async def write_settings(body: SettingsUpdate, session: SessionDep, admin: Admin
 
 @router.get("/audit", response_model=Page[AuditOut])
 async def list_audit(
-    session: SessionDep, _: AdminUser, limit: int = Query(default=50, ge=1, le=200),
-    offset: int = Query(default=0, ge=0), action: str | None = None,
+    session: SessionDep,
+    _: AdminUser,
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+    action: str | None = None,
 ):
     stmt = select(AuditLog)
     if action:
@@ -109,8 +123,14 @@ async def list_audit(
     res = await session.execute(stmt.order_by(AuditLog.created_at.desc()).limit(limit).offset(offset))
     items = [
         AuditOut(
-            id=a.id, actor_user_id=a.actor_user_id, project_id=a.project_id, action=a.action,
-            subject_type=a.subject_type, subject_id=a.subject_id, before=a.before, after=a.after,
+            id=a.id,
+            actor_user_id=a.actor_user_id,
+            project_id=a.project_id,
+            action=a.action,
+            subject_type=a.subject_type,
+            subject_id=a.subject_id,
+            before=a.before,
+            after=a.after,
             created_at=a.created_at.isoformat(),
         )
         for a in res.scalars()
@@ -120,8 +140,11 @@ async def list_audit(
 
 @router.get("/jobs", response_model=Page[JobOut])
 async def list_jobs(
-    session: SessionDep, _: AdminUser, status: str | None = None,
-    limit: int = Query(default=50, ge=1, le=200), offset: int = Query(default=0, ge=0),
+    session: SessionDep,
+    _: AdminUser,
+    status: str | None = None,
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
 ):
     stmt = select(Job)
     if status:
@@ -130,8 +153,14 @@ async def list_jobs(
     res = await session.execute(stmt.order_by(Job.created_at.desc()).limit(limit).offset(offset))
     items = [
         JobOut(
-            id=j.id, type=j.type, status=j.status, progress=j.progress, message=j.message,
-            error=j.error, project_id=j.project_id, user_id=j.user_id,
+            id=j.id,
+            type=j.type,
+            status=j.status,
+            progress=j.progress,
+            message=j.message,
+            error=j.error,
+            project_id=j.project_id,
+            user_id=j.user_id,
             created_at=j.created_at.isoformat(),
             finished_at=j.finished_at.isoformat() if j.finished_at else None,
         )

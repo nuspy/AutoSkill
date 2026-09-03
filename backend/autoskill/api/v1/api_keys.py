@@ -27,9 +27,7 @@ async def list_project_keys(project_id: str, session: SessionDep, user: CurrentU
 
 
 @router.post("/projects/{project_id}/api-keys", response_model=ApiKeyCreated, status_code=201)
-async def create_project_key(
-    project_id: str, body: ApiKeyCreate, session: SessionDep, user: CurrentUser
-):
+async def create_project_key(project_id: str, body: ApiKeyCreate, session: SessionDep, user: CurrentUser):
     await require_project_role(session, project_id, user, ProjectRole.owner)
     bad = set(body.scopes) - ALL_SCOPES
     if bad:
@@ -46,8 +44,13 @@ async def create_project_key(
     session.add(key)
     await session.flush()
     await record_audit(
-        session, "api_key.create", actor_user_id=user.id, project_id=project_id,
-        subject_type="api_key", subject_id=key.id, after={"name": key.name, "scopes": key.scopes},
+        session,
+        "api_key.create",
+        actor_user_id=user.id,
+        project_id=project_id,
+        subject_type="api_key",
+        subject_id=key.id,
+        after={"name": key.name, "scopes": key.scopes},
     )
     await session.commit()
     await session.refresh(key)
@@ -65,8 +68,12 @@ async def revoke_key(key_id: str, session: SessionDep, user: CurrentUser):
         raise NotFound("api_key_not_found")
     key.revoked_at = utcnow()
     await record_audit(
-        session, "api_key.revoke", actor_user_id=user.id, project_id=key.project_id,
-        subject_type="api_key", subject_id=key.id,
+        session,
+        "api_key.revoke",
+        actor_user_id=user.id,
+        project_id=key.project_id,
+        subject_type="api_key",
+        subject_id=key.id,
     )
     await session.commit()
     return OkResponse()
@@ -74,7 +81,5 @@ async def revoke_key(key_id: str, session: SessionDep, user: CurrentUser):
 
 @router.get("/me/api-keys", response_model=list[ApiKeyOut])
 async def list_my_keys(session: SessionDep, user: CurrentUser):
-    res = await session.execute(
-        select(ApiKey).where(ApiKey.user_id == user.id).order_by(ApiKey.created_at.desc())
-    )
+    res = await session.execute(select(ApiKey).where(ApiKey.user_id == user.id).order_by(ApiKey.created_at.desc()))
     return res.scalars().all()

@@ -17,6 +17,4 @@ class Blob(Base):
     size: Mapped[int] = mapped_column(BigInteger, nullable=False)
     media_type: Mapped[str | None] = mapped_column(String(120))
     ref_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(
-        TZDateTime, default=utcnow, nullable=False
-    )
+    created_at: Mapped[datetime] = mapped_column(TZDateTime, default=utcnow, nullable=False)

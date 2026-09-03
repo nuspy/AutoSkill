@@ -1,0 +1,20 @@
+The person answered the question "{{ question }}" (gate {{ target_gate }}) with:
+
+"""
+{{ answer }}
+"""
+{% if attachments %}
+Attached files (name, type, preview):
+{% for a in attachments %}
+- {{ a.name }} ({{ a.media_type }}): {{ a.preview }}
+{% endfor %}
+{% endif %}
+
+Update the knowledge document accordingly. Return the COMPLETE updated document (all fields), keeping
+everything that is still valid, changing only what the answer clarifies, and removing resolved entries
+from open_questions. Never drop steps or sources unless the person said they are wrong. Add or refine
+edge cases, decision rules, acceptance criteria, integrations (systems, credentials names, authorizations)
+and side effects when the answer reveals them.
+
+Current knowledge document:
+{{ knowledge_json }}

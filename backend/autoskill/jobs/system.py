@@ -24,8 +24,6 @@ async def cleanup(ctx: JobContext, **_) -> dict:
     cutoff = utcnow() - timedelta(days=7)
     async with get_session_factory()() as session:
         r1 = await session.execute(delete(RefreshToken).where(RefreshToken.expires_at < cutoff))
-        r2 = await session.execute(
-            delete(DeviceAuthorization).where(DeviceAuthorization.expires_at < cutoff)
-        )
+        r2 = await session.execute(delete(DeviceAuthorization).where(DeviceAuthorization.expires_at < cutoff))
         await session.commit()
     return {"refresh_tokens": r1.rowcount, "device_authorizations": r2.rowcount}

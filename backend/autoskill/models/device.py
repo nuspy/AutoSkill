@@ -13,9 +13,7 @@ class Device(IdMixin, TimestampMixin, Base):
 
     __tablename__ = "devices"
 
-    user_id: Mapped[str] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False
-    )
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
     name: Mapped[str] = mapped_column(String(120), nullable=False)
     os: Mapped[str | None] = mapped_column(String(80))
     agent_targets: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)

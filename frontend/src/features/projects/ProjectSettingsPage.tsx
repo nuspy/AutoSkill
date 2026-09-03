@@ -14,6 +14,8 @@ import { Field, Input, Select, Textarea } from "@/components/ui/input";
 import { Badge, ErrorState, PageHeader, Skeleton } from "@/components/ui/misc";
 import { errorMessage } from "@/lib/errors";
 import { formatDate } from "@/lib/format";
+import { DataSourcesCard } from "@/features/datasources/DataSourcesCard";
+import { ProvidersCard } from "@/features/providers/ProvidersCard";
 
 const ROLES: ProjectRole[] = ["owner", "editor", "viewer"];
 
@@ -68,6 +70,9 @@ export default function ProjectSettingsPage() {
             </form>
           </CardBody>
         </Card>
+
+        <DataSourcesCard projectId={projectId} />
+        <ProvidersCard projectId={projectId} canEdit={p.my_role === "owner"} />
 
         <Card>
           <CardHeader title={t("projects:members")} />

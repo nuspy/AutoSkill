@@ -30,20 +30,14 @@ def require_reviewer(user: User) -> None:
         raise Forbidden("reviewer_required")
 
 
-async def get_membership(
-    session: AsyncSession, project_id: str, user: User
-) -> ProjectMember | None:
+async def get_membership(session: AsyncSession, project_id: str, user: User) -> ProjectMember | None:
     res = await session.execute(
-        select(ProjectMember).where(
-            ProjectMember.project_id == project_id, ProjectMember.user_id == user.id
-        )
+        select(ProjectMember).where(ProjectMember.project_id == project_id, ProjectMember.user_id == user.id)
     )
     return res.scalar_one_or_none()
 
 
-async def require_project_role(
-    session: AsyncSession, project_id: str, user: User, minimum: ProjectRole
-) -> Project:
+async def require_project_role(session: AsyncSession, project_id: str, user: User, minimum: ProjectRole) -> Project:
     project = await session.get(Project, project_id)
     if project is None:
         raise NotFound("project_not_found")

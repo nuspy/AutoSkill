@@ -13,8 +13,9 @@ import { Badge, ErrorState, PageHeader, Skeleton } from "@/components/ui/misc";
 import { errorMessage } from "@/lib/errors";
 import { formatDate } from "@/lib/format";
 import { cn } from "@/lib/cn";
+import { ProvidersCard } from "@/features/providers/ProvidersCard";
 
-const TABS = ["users", "projects", "settings", "audit", "jobs"] as const;
+const TABS = ["users", "projects", "providers", "settings", "audit", "jobs"] as const;
 
 export default function AdminPage() {
   const { t } = useTranslation(["admin", "common"]);
@@ -36,6 +37,7 @@ export default function AdminPage() {
         <Route index element={<Navigate to="users" replace />} />
         <Route path="users" element={<UsersTab />} />
         <Route path="projects" element={<ProjectsTab />} />
+        <Route path="providers" element={<ProvidersCard canEdit />} />
         <Route path="settings" element={<SettingsTab />} />
         <Route path="audit" element={<AuditTab />} />
         <Route path="jobs" element={<JobsTab />} />

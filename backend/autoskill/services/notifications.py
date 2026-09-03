@@ -42,8 +42,6 @@ async def notify(
 
 async def unread_count(session: AsyncSession, user_id: str) -> int:
     res = await session.execute(
-        select(func.count(Notification.id)).where(
-            Notification.user_id == user_id, Notification.read_at.is_(None)
-        )
+        select(func.count(Notification.id)).where(Notification.user_id == user_id, Notification.read_at.is_(None))
     )
     return int(res.scalar_one())

@@ -18,9 +18,7 @@ async def test_admin_endpoints_and_role_guards(app_client):
     users = await app_client.get("/api/v1/admin/users", headers=a)
     assert users.status_code == 200 and users.json()["total"] == 2
 
-    promoted = await app_client.patch(
-        f"/api/v1/admin/users/{bob['user']['id']}", json={"role": "reviewer"}, headers=a
-    )
+    promoted = await app_client.patch(f"/api/v1/admin/users/{bob['user']['id']}", json={"role": "reviewer"}, headers=a)
     assert promoted.status_code == 200 and promoted.json()["role"] == "reviewer"
     self_demote = await app_client.patch(
         f"/api/v1/admin/users/{alice['user']['id']}", json={"role": "member"}, headers=a

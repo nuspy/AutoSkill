@@ -16,13 +16,9 @@ async def test_first_user_is_admin_then_members(app_client):
 
 async def test_login_refresh_logout(app_client):
     await register(app_client, "alice@example.com")
-    bad = await app_client.post(
-        "/api/v1/auth/login", json={"email": "alice@example.com", "password": "wrong-password"}
-    )
+    bad = await app_client.post("/api/v1/auth/login", json={"email": "alice@example.com", "password": "wrong-password"})
     assert bad.status_code == 401
-    ok = await app_client.post(
-        "/api/v1/auth/login", json={"email": "alice@example.com", "password": "password123"}
-    )
+    ok = await app_client.post("/api/v1/auth/login", json={"email": "alice@example.com", "password": "password123"})
     assert ok.status_code == 200
     token = ok.json()["access_token"]
     me = await app_client.get("/api/v1/auth/me", headers=auth(token))
@@ -62,9 +58,7 @@ async def test_device_code_flow(app_client):
     data = start.json()
     pending = await app_client.post("/api/v1/auth/device/token", json={"device_code": data["device_code"]})
     assert pending.json()["status"] == "pending"
-    info = await app_client.get(
-        f"/api/v1/auth/device/pending/{data['user_code']}", headers=auth(user["access_token"])
-    )
+    info = await app_client.get(f"/api/v1/auth/device/pending/{data['user_code']}", headers=auth(user["access_token"]))
     assert info.status_code == 200 and info.json()["device_name"] == "laptop"
     confirm = await app_client.post(
         "/api/v1/auth/device/confirm",

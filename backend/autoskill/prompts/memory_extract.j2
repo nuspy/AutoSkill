@@ -1,0 +1,19 @@
+From the interview transcript and knowledge document below, extract durable memory entries about this
+skill for future maintainers. Write in {{ language_name }}. Kinds:
+- rationale: why the task is done this way, choices and their reasons
+- business_need: who needs the result, what for, deadlines, consequences of errors
+- human_procedure: how the person does a step today (tools, tricks, timing); set step_key
+- technical_note: formats, paths, quirks, naming conventions
+- integration_note: other systems involved (email, databases, web apps): what is read/written, which
+  credentials or authorizations are needed (names only, never values), who grants access
+- data_note: facts about the data (fields, volumes, quality issues)
+- decision: an explicit decision taken during the interview
+Only include facts stated by the person or clearly implied. 3 to 12 entries. Keep bodies under 80 words.
+
+Knowledge document:
+{{ knowledge_json }}
+
+Transcript:
+{% for m in transcript %}
+{{ m.role }}: {{ m.content }}
+{% endfor %}
