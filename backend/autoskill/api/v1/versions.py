@@ -143,6 +143,23 @@ async def _install_context(session, skill: Skill, version: SkillVersion, trial: 
             install_hint="pipx install autoskill-local",
         )
     ]
+    from autoskill.models.mcp import McpServerVersion
+
+    mv = (
+        await session.execute(select(McpServerVersion).where(McpServerVersion.skill_version_id == version.id))
+    ).scalar_one_or_none()
+    if mv is not None:
+        server_name = f"{skill.name}-tools"
+        mcp_servers.append(
+            McpServerSpec(
+                name=server_name,
+                command=server_name,
+                args=[],
+                env_requirements=list(mv.env_requirements),
+                description=f"deterministic tools for {skill.title} ({len(mv.tools)} tools)",
+                install_hint=f"pipx install ./mcp/{server_name}",
+            )
+        )
     for dep in deps:
         comp = (
             await session.execute(select(LibraryComponent).where(LibraryComponent.slug == dep.component_slug))
@@ -228,12 +245,25 @@ async def package_zip(
         ctx = await _install_context(session, skill, version)
         extra[f"INSTALL.{adapter.id}.md"] = adapter.render_install_md(ctx).encode()
     extra["autoskill.json"] = _autoskill_json(skill, version, pkg).encode()
+    extra.update(await _mcp_files(session, skill, version))
     data = pkg.to_zip(extra)
     return Response(
         content=data,
         media_type="application/zip",
         headers={"Content-Disposition": f'attachment; filename="{skill.name}-{version.version}.zip"'},
     )
+
+
+async def _mcp_files(session, skill: Skill, version: SkillVersion) -> dict[str, bytes]:
+    from autoskill.models.mcp import McpServerVersion
+    from autoskill.services.mcpgen.generator import load_mcp_files
+
+    mv = (
+        await session.execute(select(McpServerVersion).where(McpServerVersion.skill_version_id == version.id))
+    ).scalar_one_or_none()
+    if mv is None:
+        return {}
+    return {f"mcp/{skill.name}-tools/{path}": content for path, content in load_mcp_files(mv).items()}
 
 
 def _autoskill_json(skill: Skill, version: SkillVersion, pkg) -> str:

@@ -26,7 +26,14 @@ class ServerError(Exception):
 
 
 class Client:
-    def __init__(self, server_url: str, api_key: str | None = None, trial_token: str | None = None, timeout: float = 60.0, transport=None):
+    def __init__(
+        self,
+        server_url: str,
+        api_key: str | None = None,
+        trial_token: str | None = None,
+        timeout: float = 60.0,
+        transport=None,
+    ):
         self.base = server_url.rstrip("/") + "/api/v1"
         self.headers: dict[str, str] = {}
         if api_key:
@@ -36,11 +43,28 @@ class Client:
         self._http = httpx.Client(timeout=timeout, transport=transport)
         self.queue_path = HOME / "queue.jsonl"
 
-    def request(self, method: str, path: str, *, json_body: Any = None, params: dict | None = None, headers: dict | None = None, retries: int = 3, timeout: float | None = None) -> Any:
+    def request(
+        self,
+        method: str,
+        path: str,
+        *,
+        json_body: Any = None,
+        params: dict | None = None,
+        headers: dict | None = None,
+        retries: int = 3,
+        timeout: float | None = None,
+    ) -> Any:
         last: Exception | None = None
         for attempt in range(retries):
             try:
-                res = self._http.request(method, self.base + path, json=json_body, params=params, headers={**self.headers, **(headers or {})}, timeout=timeout)
+                res = self._http.request(
+                    method,
+                    self.base + path,
+                    json=json_body,
+                    params=params,
+                    headers={**self.headers, **(headers or {})},
+                    timeout=timeout,
+                )
             except httpx.HTTPError as exc:
                 last = exc
                 time.sleep(min(2**attempt, 8))
@@ -73,7 +97,9 @@ class Client:
                 raise
             self.queue_path.parent.mkdir(parents=True, exist_ok=True)
             with self.queue_path.open("a") as fh:
-                fh.write(json.dumps({"path": path, "body": json_body, "headers": headers or {}, "at": time.time()}) + "\n")
+                fh.write(
+                    json.dumps({"path": path, "body": json_body, "headers": headers or {}, "at": time.time()}) + "\n"
+                )
             return {"queued": True}
         self.flush_queue()
         return result

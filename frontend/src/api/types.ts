@@ -602,3 +602,20 @@ export interface Installation {
   latest_version_id: string | null;
   update_available: boolean;
 }
+
+export interface McpVersion {
+  id: string;
+  mcp_server_id: string;
+  skill_version_id: string;
+  version: string;
+  state: string;
+  manifest: { files: { path: string; hash: string; size: number }[] };
+  tools: { name: string; step_key: string; description: string; side_effects: string; network: boolean; input_schema: Record<string, unknown> }[];
+  env_requirements: { name: string; description?: string; secret?: boolean }[];
+  dependencies: string[];
+  build_log: string | null;
+  static_report: { ok: boolean; issues: { level: string; code: string; message: string }[] };
+  trial_report: { ok: boolean; tools: { name: string }[]; tests_ok?: boolean; missing_tools?: string[]; checked_at?: string; error?: string } | null;
+  build: number;
+  server_name: string;
+}

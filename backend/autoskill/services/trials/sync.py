@@ -36,12 +36,19 @@ async def rebuild_package(session: AsyncSession, version: SkillVersion) -> None:
     }
     version.build += 1
     metadata["build"] = str(version.build)
+    from autoskill.models.mcp import McpServerVersion
+
+    mv = (
+        await session.execute(select(McpServerVersion).where(McpServerVersion.skill_version_id == version.id))
+    ).scalar_one_or_none()
     pkg = assemble_package(
         skill_name=skill.name,
         version=version.version,
         spec=spec,
         metadata=metadata,
         language=(version.frontmatter.get("metadata") or {}).get("language", "en"),
+        tools=mv.tools if mv else None,
+        server_name=f"{skill.name}-tools" if mv else None,
     )
     report = pkg.validate()
     if not report.ok:

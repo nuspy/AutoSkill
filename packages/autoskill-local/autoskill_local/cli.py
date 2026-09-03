@@ -55,7 +55,14 @@ def login(server_url: str, no_browser: bool = False) -> None:
     cfg = _cfg()
     cfg.server_url = server_url.rstrip("/")
     client = Client(cfg.server_url)
-    start = client.post("/auth/device", {"device_name": socket.gethostname(), "device_os": f"{platform.system()} {platform.release()}", "agent_targets": detect_targets()})
+    start = client.post(
+        "/auth/device",
+        {
+            "device_name": socket.gethostname(),
+            "device_os": f"{platform.system()} {platform.release()}",
+            "agent_targets": detect_targets(),
+        },
+    )
     typer.echo(f"Open {start['verification_uri']}?code={start['user_code']} and enter the code: {start['user_code']}")
     if not no_browser:
         webbrowser.open(f"{start['verification_uri']}?code={start['user_code']}")
@@ -68,7 +75,10 @@ def login(server_url: str, no_browser: bool = False) -> None:
             cfg.device_id = res.get("device_id")
             cfg.save()
             typer.secho("Connected. Configuration saved in " + str(HOME / "config.toml"), fg=typer.colors.GREEN)
-            _client(cfg).post("/devices/heartbeat", {"cli_version": __version__, "agent_targets": detect_targets(), "os": platform.system()})
+            _client(cfg).post(
+                "/devices/heartbeat",
+                {"cli_version": __version__, "agent_targets": detect_targets(), "os": platform.system()},
+            )
             return
         if res["status"] in ("denied", "expired"):
             _fail(f"login {res['status']}")
@@ -79,15 +89,21 @@ def login(server_url: str, no_browser: bool = False) -> None:
 def doctor() -> None:
     """Show detected agents, configuration and companion registration."""
     cfg = _cfg()
-    typer.echo(f"server: {cfg.server_url or '-'}   logged in: {'yes' if cfg.api_key else 'no'}   device: {cfg.device_id or '-'}")
+    typer.echo(
+        f"server: {cfg.server_url or '-'}   logged in: {'yes' if cfg.api_key else 'no'}   device: {cfg.device_id or '-'}"
+    )
     found = detect_targets()
     typer.echo("agents detected: " + (", ".join(found) or "none"))
     for tid in found:
         t = get_target(tid)
         regs = t.registered_mcps()
-        typer.echo(f"  {t.display_name}: skills in {t.skill_dir}  companion: {'registered' if 'autoskill-companion' in regs else 'missing'}")
+        typer.echo(
+            f"  {t.display_name}: skills in {t.skill_dir}  companion: {'registered' if 'autoskill-companion' in regs else 'missing'}"
+        )
     if cfg.trials:
-        typer.echo("open trials: " + ", ".join(f"{v['skill']}@{v['version']} ({v['target']})" for v in cfg.trials.values()))
+        typer.echo(
+            "open trials: " + ", ".join(f"{v['skill']}@{v['version']} ({v['target']})" for v in cfg.trials.values())
+        )
 
 
 def _companion_registration(cfg: LocalConfig, trial_token: str | None = None) -> McpRegistration:
@@ -124,9 +140,22 @@ def _download_package(client: Client, path: str) -> tuple[Path, dict[str, Any], 
     return root, meta, root.name
 
 
-def _install(cfg: LocalConfig, target: str, root: Path, meta: dict[str, Any], skill_name: str, trial_token: str | None, env_values: dict[str, str]) -> dict[str, Any]:
+def _install(
+    cfg: LocalConfig,
+    target: str,
+    root: Path,
+    meta: dict[str, Any],
+    skill_name: str,
+    trial_token: str | None,
+    env_values: dict[str, str],
+) -> dict[str, Any]:
     t = get_target(target)
-    manifest: dict[str, Any] = {"target": target, "skill": skill_name, "build": meta.get("build", 1), "version": meta.get("version")}
+    manifest: dict[str, Any] = {
+        "target": target,
+        "skill": skill_name,
+        "build": meta.get("build", 1),
+        "version": meta.get("version"),
+    }
     manifest.update(t.install_skill(root, skill_name))
     reg = _companion_registration(cfg, trial_token)
     reg.env.update(env_values)
@@ -140,7 +169,9 @@ def _ask_env(prompt_names: list[str]) -> dict[str, str]:
         if os.environ.get(name):
             values[name] = os.environ[name]
             continue
-        value = typer.prompt(f"Value for {name} (stored only in your agent configuration)", default="", show_default=False)
+        value = typer.prompt(
+            f"Value for {name} (stored only in your agent configuration)", default="", show_default=False
+        )
         if value:
             values[name] = value
     return values
@@ -160,10 +191,21 @@ def trial_install(
     root, meta, folder = _download_package(client, f"/trials/{session}/package.zip")
     manifest = _install(cfg, target, root, meta, folder, token, {})
     client.post(f"/trials/{session}/installed", {"install_manifest": manifest, "build": meta.get("build", 1)})
-    cfg.trials[session] = {"token": token, "target": target, "skill": folder, "version": meta.get("version", ver), "manifest": manifest}
+    cfg.trials[session] = {
+        "token": token,
+        "target": target,
+        "skill": folder,
+        "version": meta.get("version", ver),
+        "manifest": manifest,
+    }
     cfg.save()
-    typer.secho(f"Trial copy of {folder} v{meta.get('version', ver)} installed for {get_target(target).display_name}.", fg=typer.colors.GREEN)
-    typer.echo("Now open the trial page in AutoSkill and ask your agent to run the skill; every step will wait for your decision there.")
+    typer.secho(
+        f"Trial copy of {folder} v{meta.get('version', ver)} installed for {get_target(target).display_name}.",
+        fg=typer.colors.GREEN,
+    )
+    typer.echo(
+        "Now open the trial page in AutoSkill and ask your agent to run the skill; every step will wait for your decision there."
+    )
 
 
 @trial_app.command("status")
@@ -175,7 +217,9 @@ def trial_status() -> None:
     for sid, info in cfg.trials.items():
         try:
             state = _client(cfg, trial_token=info["token"]).get(f"/trials/{sid}/sync")
-            typer.echo(f"{info['skill']}@{info['version']} on {info['target']}: {state['state']} (build {state['installed_build']}/{state['current_build']}{', update available' if state['stale'] else ''})")
+            typer.echo(
+                f"{info['skill']}@{info['version']} on {info['target']}: {state['state']} (build {state['installed_build']}/{state['current_build']}{', update available' if state['stale'] else ''})"
+            )
         except ServerError as exc:
             typer.echo(f"{info['skill']}: {exc}")
 
@@ -218,7 +262,9 @@ def _finish_trial(cfg: LocalConfig, sid: str, keep: bool) -> None:
         md = skill_dir / "SKILL.md"
         if md.exists():
             text = md.read_text()
-            md.write_text("\n".join(line for line in text.splitlines() if not line.strip().startswith("autoskill_trial:")) + "\n")
+            md.write_text(
+                "\n".join(line for line in text.splitlines() if not line.strip().startswith("autoskill_trial:")) + "\n"
+            )
         t.register_mcp(_companion_registration(cfg))
         cfg.installs[f"{info['target']}:{info['skill']}"] = {**manifest, "version": info.get("version")}
         typer.secho(f"{info['skill']} kept as a permanent installation on {t.display_name}.", fg=typer.colors.GREEN)
@@ -239,26 +285,36 @@ def trial_accept(session: str, keep: bool = typer.Option(True, "--keep/--remove"
     info = cfg.trials.get(session)
     if not info:
         _fail(f"unknown trial {session}")
-    _client(cfg, trial_token=info["token"]).post(f"/trials/{session}/outcome", {"outcome": "accepted", "keep_installed": keep})
+    _client(cfg, trial_token=info["token"]).post(
+        f"/trials/{session}/outcome", {"outcome": "accepted", "keep_installed": keep}
+    )
     _finish_trial(cfg, session, keep)
 
 
 @trial_app.command("remove")
-def trial_remove(session: str, outcome: str = typer.Option("removed", help="removed | major_rework | changes_requested")) -> None:
+def trial_remove(
+    session: str, outcome: str = typer.Option("removed", help="removed | major_rework | changes_requested")
+) -> None:
     """Remove the trial copy and report the outcome."""
     cfg = _cfg()
     info = cfg.trials.get(session)
     if not info:
         _fail(f"unknown trial {session}")
     try:
-        _client(cfg, trial_token=info["token"]).post(f"/trials/{session}/outcome", {"outcome": outcome, "keep_installed": False})
+        _client(cfg, trial_token=info["token"]).post(
+            f"/trials/{session}/outcome", {"outcome": outcome, "keep_installed": False}
+        )
     except ServerError as exc:
         typer.echo(f"server: {exc} (removing locally anyway)")
     _finish_trial(cfg, session, keep=False)
 
 
 @app.command()
-def install(skill: str = typer.Argument(..., help="version id or skill-name@version"), target: str = typer.Option(..., "--target"), version_id: str | None = typer.Option(None, "--version-id")) -> None:
+def install(
+    skill: str = typer.Argument(..., help="version id or skill-name@version"),
+    target: str = typer.Option(..., "--target"),
+    version_id: str | None = typer.Option(None, "--version-id"),
+) -> None:
     """Permanently install a published/tested version on your agent."""
     cfg = _cfg()
     client = _client(cfg)
@@ -271,7 +327,10 @@ def install(skill: str = typer.Argument(..., help="version id or skill-name@vers
     manifest = _install(cfg, target, root, meta, folder, None, _ask_env(env_names))
     cfg.installs[f"{target}:{folder}"] = {**manifest, "version_id": vid}
     cfg.save()
-    typer.secho(f"{folder} v{meta.get('version')} installed for {t.display_name}. Restart the agent to load it.", fg=typer.colors.GREEN)
+    typer.secho(
+        f"{folder} v{meta.get('version')} installed for {t.display_name}. Restart the agent to load it.",
+        fg=typer.colors.GREEN,
+    )
 
 
 @app.command("remove")
@@ -282,6 +341,82 @@ def remove(skill: str, target: str = typer.Option(..., "--target")) -> None:
     get_target(target).remove_skill(skill, manifest or {})
     cfg.save()
     typer.echo(f"{skill} removed from {target}")
+
+
+mcp_app = typer.Typer(help="Generated MCP servers bundled with skills.")
+app.add_typer(mcp_app, name="mcp")
+
+
+def _find_mcp_dir(root: Path) -> Path | None:
+    mcp_root = root / "mcp"
+    if not mcp_root.exists():
+        return None
+    for child in sorted(mcp_root.iterdir()):
+        if (child / "pyproject.toml").exists() and child.name != "autoskill-companion":
+            return child
+    return None
+
+
+@mcp_app.command("check")
+def mcp_check(
+    path: str = typer.Argument(..., help="skill folder (contains mcp/<skill>-tools) or the server folder"),
+    report_version: str | None = typer.Option(None, "--report", help="MCP version id to send the report to"),
+) -> None:
+    """Install the generated MCP server in a temporary environment, import its tools and list them."""
+    import subprocess
+    import sys
+
+    root = Path(path).expanduser().resolve()
+    server_dir = root if (root / "pyproject.toml").exists() else _find_mcp_dir(root)
+    if server_dir is None:
+        _fail(f"no generated MCP server found under {root}")
+    venv = Path(tempfile.mkdtemp(prefix="autoskill-mcp-"))
+    report: dict[str, Any] = {"server_dir": str(server_dir), "ok": False, "tools": [], "log": []}
+    try:
+        subprocess.run([sys.executable, "-m", "venv", str(venv)], check=True, capture_output=True)
+        pip = venv / ("Scripts" if os.name == "nt" else "bin") / "pip"
+        py = venv / ("Scripts" if os.name == "nt" else "bin") / "python"
+        inst = subprocess.run([str(pip), "install", "-q", str(server_dir)], capture_output=True, text=True, check=False)
+        report["log"].append(inst.stderr[-2000:] if inst.returncode else "installed")
+        if inst.returncode:
+            raise RuntimeError("pip install failed")
+        name = next(
+            line.split("=", 1)[1].strip().strip('"')
+            for line in (server_dir / "pyproject.toml").read_text().splitlines()
+            if line.startswith("name")
+        )
+        pkg = name.replace("-", "_")
+        listed = subprocess.run(
+            [str(py), "-m", f"{pkg}.server", "--list-tools"], capture_output=True, text=True, timeout=60, check=False
+        )
+        report["log"].append(listed.stderr[-2000:] if listed.returncode else "listed")
+        if listed.returncode:
+            raise RuntimeError("server failed to list tools")
+        report["tools"] = json.loads(listed.stdout.strip().splitlines()[-1])
+        tests = subprocess.run(
+            [str(py), "-m", "pytest", "-q", str(server_dir / "tests")],
+            capture_output=True,
+            text=True,
+            timeout=300,
+            check=False,
+        )
+        report["log"].append(tests.stdout[-2000:])
+        report["tests_ok"] = tests.returncode == 0 or "no tests ran" in tests.stdout
+        report["ok"] = True
+        typer.secho(
+            f"OK: {len(report['tools'])} tools: {', '.join(t['name'] for t in report['tools'])}", fg=typer.colors.GREEN
+        )
+    except Exception as exc:  # noqa: BLE001
+        report["error"] = str(exc)
+        typer.secho(f"FAILED: {exc}", fg=typer.colors.RED, err=True)
+    finally:
+        shutil.rmtree(venv, ignore_errors=True)
+    if report_version:
+        cfg = _cfg()
+        _client(cfg).post(f"/mcp/versions/{report_version}/trial-report", report)
+        typer.echo("report sent to AutoSkill")
+    if not report["ok"]:
+        raise typer.Exit(code=1)
 
 
 @app.command("list")

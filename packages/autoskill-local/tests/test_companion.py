@@ -9,17 +9,34 @@ from autoskill_local.config import HOME
 
 def make_transport(state: dict):
     def handler(request: httpx.Request) -> httpx.Response:
-        state.setdefault("calls", []).append((request.method, request.url.path, request.headers.get("x-autoskill-trial"), json.loads(request.content or b"null")))
+        state.setdefault("calls", []).append(
+            (
+                request.method,
+                request.url.path,
+                request.headers.get("x-autoskill-trial"),
+                json.loads(request.content or b"null"),
+            )
+        )
         path = request.url.path
         if path.endswith("/telemetry/runs"):
-            return httpx.Response(200, json={"run_id": "run1", "trial_session_id": "t1", "mode": "interactive", "skill_version": "0.1.0"})
+            return httpx.Response(
+                200, json={"run_id": "run1", "trial_session_id": "t1", "mode": "interactive", "skill_version": "0.1.0"}
+            )
         if path.endswith("/checkpoints"):
             return httpx.Response(200, json={"status": "pending", "checkpoint_id": "cp1"})
         if path.endswith("/checkpoints/cp1"):
             state["polls"] = state.get("polls", 0) + 1
             if state["polls"] < 2:
                 return httpx.Response(200, json={"status": "pending", "checkpoint_id": "cp1"})
-            return httpx.Response(200, json={"status": "decided", "checkpoint_id": "cp1", "decision": "change", "updated_instructions": "do it better"})
+            return httpx.Response(
+                200,
+                json={
+                    "status": "decided",
+                    "checkpoint_id": "cp1",
+                    "decision": "change",
+                    "updated_instructions": "do it better",
+                },
+            )
         if path.endswith("/steps"):
             if state.get("fail_steps"):
                 return httpx.Response(503, json={"error": {"code": "down", "message": "maintenance"}})
@@ -35,7 +52,15 @@ def make_transport(state: dict):
 
 async def test_tools_are_registered():
     names = {t.name for t in await companion.mcp.list_tools()}
-    assert names == {"start_run", "checkpoint", "await_decision", "log_step", "end_run", "report_issue", "get_step_guidance"}
+    assert names == {
+        "start_run",
+        "checkpoint",
+        "await_decision",
+        "log_step",
+        "end_run",
+        "report_issue",
+        "get_step_guidance",
+    }
 
 
 def test_tool_functions_talk_to_the_server_and_degrade_gracefully(tmp_path, monkeypatch):

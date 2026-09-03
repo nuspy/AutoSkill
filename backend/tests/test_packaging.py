@@ -112,6 +112,7 @@ def sample_spec() -> DraftSpec:
                 instruction="Send the list to accounting.",
                 kind="deterministic",
                 side_effects="irreversible",
+                network=True,
                 restore_strategy="none",
                 library_component_slug="email-mcp",
             ),

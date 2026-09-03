@@ -15,6 +15,7 @@ import { Badge, EmptyState, ErrorState, Skeleton } from "@/components/ui/misc";
 import { InstallGuide } from "./InstallGuide";
 import { TrialLauncher } from "@/features/trials/TrialLauncher";
 import { LifecyclePanel } from "./LifecyclePanel";
+import { McpTab } from "./McpTab";
 import { errorMessage } from "@/lib/errors";
 import { timeAgo } from "@/lib/format";
 import { cn } from "@/lib/cn";
@@ -67,7 +68,7 @@ function VersionDetail({ versionId, skillName, onDiscard }: { versionId: string;
   const { t, i18n } = useTranslation(["skills", "common"]);
   const { projectId = "", skillId = "" } = useParams();
   const version = useVersion(versionId);
-  const [tab, setTab] = useState<"steps" | "files" | "install">("steps");
+  const [tab, setTab] = useState<"steps" | "files" | "install" | "mcp">("steps");
   const [file, setFile] = useState<string>("SKILL.md");
   const content = useVersionFile(versionId, tab === "files" ? file : null);
   if (version.isLoading || !version.data) return <Skeleton className="h-64" />;
@@ -87,7 +88,7 @@ function VersionDetail({ versionId, skillName, onDiscard }: { versionId: string;
         }
       />
       <div className="flex gap-1 border-b border-border px-5">
-        {(["steps", "files", "install"] as const).map((k) => (
+        {(["steps", "files", "mcp", "install"] as const).map((k) => (
           <button key={k} className={cn("border-b-2 px-3 py-2 text-sm font-medium", tab === k ? "border-primary text-primary" : "border-transparent text-muted")} onClick={() => setTab(k)}>{t(`skills:versions.tabs.${k}`)}</button>
         ))}
       </div>
@@ -108,6 +109,7 @@ function VersionDetail({ versionId, skillName, onDiscard }: { versionId: string;
           </div>
         )}
         {tab === "install" && <InstallGuide versionId={v.id} />}
+        {tab === "mcp" && <McpTab versionId={v.id} steps={v.steps} skillName={skillName} />}
       </CardBody>
     </Card>
   );

@@ -24,7 +24,9 @@ def test_install_register_and_clean_removal(tmp_path: Path, target_id: str):
     assert manifest["backup_dir"] and Path(manifest["backup_dir"]).exists()
     assert target.detect() and target_id in detect_targets(home=home)
 
-    reg = target.register_mcp(McpRegistration(name="autoskill-companion", command="autoskill-companion", env={"AUTOSKILL_URL": "http://x"}))
+    reg = target.register_mcp(
+        McpRegistration(name="autoskill-companion", command="autoskill-companion", env={"AUTOSKILL_URL": "http://x"})
+    )
     assert Path(reg["config"]).exists()
     servers = target.registered_mcps()
     assert "autoskill-companion" in servers

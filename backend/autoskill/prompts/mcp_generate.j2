@@ -1,0 +1,27 @@
+Skill "{{ skill_title }}" ({{ skill_name }}), version {{ version }}. Generate the MCP server "{{ server_name }}".
+
+Deterministic steps to implement (only these):
+{% for s in steps %}
+- key: {{ s.key }} | title: {{ s.title }} | effects: {{ s.side_effects }} | network: {{ s.network }}
+  instruction: {{ s.instruction }}
+  inputs: {{ s.inputs | join(", ") }} | outputs: {{ s.outputs | join(", ") }}
+  sources: {{ s.data_source_refs | join(", ") }}
+  {% if s.success_criteria %}done when: {{ s.success_criteria }}{% endif %}
+{% endfor %}
+
+Knowledge (data sources, fields, rules):
+{{ knowledge_json }}
+{% if memory %}
+
+Skill memory (technical and integration notes):
+{{ memory }}
+{% endif %}
+{% if repair %}
+
+Previous attempt failed static checks; fix ALL of these and return the complete spec again:
+{% for i in repair %}
+- {{ i }}
+{% endfor %}
+{% endif %}
+
+Return the structured McpSpec. Set `side_effects` and `network` per tool exactly as the step declares.

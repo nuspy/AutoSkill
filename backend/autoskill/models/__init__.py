@@ -9,6 +9,7 @@ from autoskill.models.hub import Category, Favorite, Installation, SkillRepo
 from autoskill.models.interview import InterviewMessage, InterviewSession, KnowledgeDoc
 from autoskill.models.job import Job
 from autoskill.models.llm_provider import LlmProvider
+from autoskill.models.mcp import McpServer, McpServerVersion
 from autoskill.models.memory import SkillMemoryEntry
 from autoskill.models.notification import Notification, NotificationPreference
 from autoskill.models.procedure import Procedure, ProcedureStep
@@ -22,6 +23,8 @@ from autoskill.models.usage import ProjectUsageDaily
 from autoskill.models.user import RefreshToken, User
 
 __all__ = [
+    "McpServer",
+    "McpServerVersion",
     "Category",
     "Favorite",
     "Installation",

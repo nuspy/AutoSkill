@@ -11,6 +11,7 @@ from autoskill.api.v1 import (
     hub,
     interview,
     library,
+    mcp,
     memory,
     notifications,
     projects,
@@ -46,6 +47,7 @@ MODULES = (
     runs,
     review,
     hub,
+    mcp,
 )
 
 api_router = APIRouter(prefix="/api/v1")

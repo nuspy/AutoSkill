@@ -40,7 +40,9 @@ def get_client() -> Client:
         if not url:
             raise RuntimeError("AUTOSKILL_URL is not set and no `autoskill login` was done")
         _state["trial_token"] = os.environ.get("AUTOSKILL_SESSION_TOKEN")
-        _client = Client(url, api_key=os.environ.get("AUTOSKILL_API_KEY") or cfg.api_key, trial_token=_state["trial_token"])
+        _client = Client(
+            url, api_key=os.environ.get("AUTOSKILL_API_KEY") or cfg.api_key, trial_token=_state["trial_token"]
+        )
     return _client
 
 
@@ -54,11 +56,21 @@ def _call(fn):
 
 
 @mcp.tool()
-def start_run(skill_name: str, skill_version: str | None = None, agent_target: str | None = None, inputs_summary: str | None = None) -> dict:
+def start_run(
+    skill_name: str,
+    skill_version: str | None = None,
+    agent_target: str | None = None,
+    inputs_summary: str | None = None,
+) -> dict:
     """Open a run before the first step. Returns run_id and the trial mode (interactive/async/production)."""
 
     def go():
-        body = {"skill_name": skill_name, "skill_version": skill_version, "agent_target": agent_target, "inputs_summary": inputs_summary}
+        body = {
+            "skill_name": skill_name,
+            "skill_version": skill_version,
+            "agent_target": agent_target,
+            "inputs_summary": inputs_summary,
+        }
         res = get_client().post("/telemetry/runs", body)
         _state["run_id"] = res["run_id"]
         return res
@@ -67,7 +79,9 @@ def start_run(skill_name: str, skill_version: str | None = None, agent_target: s
 
 
 @mcp.tool()
-def checkpoint(run_id: str, step_key: str, phase: str, proposal: dict | None = None, iteration: int | None = None) -> dict:
+def checkpoint(
+    run_id: str, step_key: str, phase: str, proposal: dict | None = None, iteration: int | None = None
+) -> dict:
     """Register a step phase (explain | preview | execute | verify) and get the decision, or 'pending'.
 
     In an interactive trial the person decides from the AutoSkill web UI: when the result is pending,
@@ -75,7 +89,13 @@ def checkpoint(run_id: str, step_key: str, phase: str, proposal: dict | None = N
     """
 
     def go():
-        body = {"run_id": run_id, "step_key": step_key, "phase": phase, "proposal": proposal or {}, "iteration": iteration}
+        body = {
+            "run_id": run_id,
+            "step_key": step_key,
+            "phase": phase,
+            "proposal": proposal or {},
+            "iteration": iteration,
+        }
         return get_client().post("/checkpoints", body)
 
     return _call(go)
@@ -86,17 +106,38 @@ def await_decision(checkpoint_id: str, timeout_s: int = 50) -> dict:
     """Wait (max 50 s per call) for the person's decision on a checkpoint. Repeat while status is 'pending'."""
 
     def go():
-        return get_client().get(f"/checkpoints/{checkpoint_id}", params={"wait": max(0, min(int(timeout_s), 50))}, timeout=70)
+        return get_client().get(
+            f"/checkpoints/{checkpoint_id}", params={"wait": max(0, min(int(timeout_s), 50))}, timeout=70
+        )
 
     return _call(go)
 
 
 @mcp.tool()
-def log_step(run_id: str, step_key: str, status: str = "succeeded", title: str | None = None, inputs: dict | None = None, outputs: dict | None = None, error: str | None = None, duration_ms: int | None = None, tool_name: str | None = None) -> dict:
+def log_step(
+    run_id: str,
+    step_key: str,
+    status: str = "succeeded",
+    title: str | None = None,
+    inputs: dict | None = None,
+    outputs: dict | None = None,
+    error: str | None = None,
+    duration_ms: int | None = None,
+    tool_name: str | None = None,
+) -> dict:
     """Record the outcome of a step (status: succeeded | failed | skipped | corrected)."""
 
     def go():
-        body = {"step_key": step_key, "status": status, "title": title, "inputs": inputs, "outputs": outputs, "error": {"message": error} if error else None, "duration_ms": duration_ms, "tool_name": tool_name}
+        body = {
+            "step_key": step_key,
+            "status": status,
+            "title": title,
+            "inputs": inputs,
+            "outputs": outputs,
+            "error": {"message": error} if error else None,
+            "duration_ms": duration_ms,
+            "tool_name": tool_name,
+        }
         key = f"{run_id}:{step_key}:{int(time.time() * 1000)}"
         return get_client().post_or_queue(f"/telemetry/runs/{run_id}/steps", body, headers={"Idempotency-Key": key})
 
@@ -108,17 +149,37 @@ def end_run(run_id: str, status: str = "succeeded", summary: str | None = None, 
     """Close the run (status: succeeded | failed | aborted | needs_review)."""
 
     def go():
-        return get_client().post_or_queue(f"/telemetry/runs/{run_id}/end", {"status": status, "summary": summary, "error": {"message": error} if error else None})
+        return get_client().post_or_queue(
+            f"/telemetry/runs/{run_id}/end",
+            {"status": status, "summary": summary, "error": {"message": error} if error else None},
+        )
 
     return _call(go)
 
 
 @mcp.tool()
-def report_issue(description: str, severity: str = "medium", run_id: str | None = None, step_key: str | None = None, skill_name: str | None = None, evidence: dict | None = None) -> dict:
+def report_issue(
+    description: str,
+    severity: str = "medium",
+    run_id: str | None = None,
+    step_key: str | None = None,
+    skill_name: str | None = None,
+    evidence: dict | None = None,
+) -> dict:
     """Report that a step could not be done as described (feeds the improvement loop)."""
 
     def go():
-        return get_client().post_or_queue("/telemetry/issues", {"description": description, "severity": severity, "run_id": run_id, "step_key": step_key, "skill_name": skill_name, "evidence": evidence})
+        return get_client().post_or_queue(
+            "/telemetry/issues",
+            {
+                "description": description,
+                "severity": severity,
+                "run_id": run_id,
+                "step_key": step_key,
+                "skill_name": skill_name,
+                "evidence": evidence,
+            },
+        )
 
     return _call(go)
 

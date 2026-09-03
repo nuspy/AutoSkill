@@ -200,7 +200,10 @@ async def package(trial_id: str, session: SessionDep, user: AnyAuthUser):
     pkg.set_frontmatter(fm)
     ctx = await _install_context(session, skill, version, trial=True)
     ctx.zip_url = service.package_url(trial)
+    from autoskill.api.v1.versions import _mcp_files
+
     extra = {f"INSTALL.{trial.target_agent}.md": get_adapter(trial.target_agent).render_install_md(ctx).encode()}
+    extra.update(await _mcp_files(session, skill, version))
     import json
 
     extra["autoskill.json"] = json.dumps(

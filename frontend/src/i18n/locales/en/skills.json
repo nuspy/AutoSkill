@@ -218,7 +218,8 @@
     "tabs": {
       "steps": "Steps",
       "files": "Files",
-      "install": "Install"
+      "install": "Install",
+      "mcp": "MCP tools"
     },
     "state": {
       "draft": "Draft",
@@ -535,6 +536,32 @@
       "confirmed": "in use",
       "updated": "updated",
       "removed": "removed"
+    }
+  },
+  "mcp": {
+    "help": "{{count}} deterministic steps can become MCP tools: predictable, testable, and they save model calls at run time.",
+    "generate": "Generate MCP server",
+    "regenerate": "Regenerate",
+    "generating": "Generation started…",
+    "none": "No MCP server yet.",
+    "noneHelp": "Generate one; the author model writes each tool from the step, code adds dry-run and confirmation guards, static checks block unsafe code.",
+    "noDeterministic": "This version has no deterministic steps.",
+    "build": "build {{n}}",
+    "deps": "dependencies",
+    "env": "Environment variables",
+    "check": "Check on your machine",
+    "checkHelp": "Nothing runs on the server. Download the package, then run this command: it installs the server in a temporary environment, lists the tools and runs the smoke tests, and reports the result here.",
+    "checkOk": "Checked on your machine: {{count}} tools available.",
+    "checkMissing": "Check failed. Missing tools: {{tools}}",
+    "buildLog": "Build log and static checks",
+    "state": {
+      "draft": "draft",
+      "built": "built (unchecked)",
+      "trial_passed": "checked locally",
+      "trial_failed": "check failed",
+      "approved": "approved",
+      "published": "published",
+      "deprecated": "deprecated"
     }
   }
 }

@@ -218,7 +218,8 @@
     "tabs": {
       "steps": "Passi",
       "files": "File",
-      "install": "Installazione"
+      "install": "Installazione",
+      "mcp": "Tool MCP"
     },
     "state": {
       "draft": "Bozza",
@@ -535,6 +536,32 @@
       "confirmed": "in uso",
       "updated": "aggiornata",
       "removed": "rimossa"
+    }
+  },
+  "mcp": {
+    "help": "{{count}} passi deterministici possono diventare tool MCP: prevedibili, testabili, e risparmiano chiamate al modello in esecuzione.",
+    "generate": "Genera MCP server",
+    "regenerate": "Rigenera",
+    "generating": "Generazione avviata…",
+    "none": "Nessun MCP server.",
+    "noneHelp": "Generane uno; il modello autore scrive ogni tool dal passo, il codice aggiunge le protezioni dry-run e conferma, i controlli statici bloccano codice pericoloso.",
+    "noDeterministic": "Questa versione non ha passi deterministici.",
+    "build": "build {{n}}",
+    "deps": "dipendenze",
+    "env": "Variabili d'ambiente",
+    "check": "Verifica sulla tua macchina",
+    "checkHelp": "Nulla gira sul server. Scarica il pacchetto ed esegui questo comando: installa il server in un ambiente temporaneo, elenca i tool, esegue i test di fumo e riporta qui il risultato.",
+    "checkOk": "Verificato sulla tua macchina: {{count}} tool disponibili.",
+    "checkMissing": "Verifica fallita. Tool mancanti: {{tools}}",
+    "buildLog": "Log di build e controlli statici",
+    "state": {
+      "draft": "bozza",
+      "built": "generato (non verificato)",
+      "trial_passed": "verificato in locale",
+      "trial_failed": "verifica fallita",
+      "approved": "approvato",
+      "published": "pubblicato",
+      "deprecated": "ritirato"
     }
   }
 }

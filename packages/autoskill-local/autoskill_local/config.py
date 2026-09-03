@@ -21,7 +21,9 @@ class LocalConfig:
     server_url: str | None = None
     api_key: str | None = None
     device_id: str | None = None
-    trials: dict[str, dict[str, Any]] = field(default_factory=dict)  # trial_id -> {token, target, skill, version, manifest}
+    trials: dict[str, dict[str, Any]] = field(
+        default_factory=dict
+    )  # trial_id -> {token, target, skill, version, manifest}
     installs: dict[str, dict[str, Any]] = field(default_factory=dict)  # "<target>:<skill>" -> manifest
 
     @classmethod

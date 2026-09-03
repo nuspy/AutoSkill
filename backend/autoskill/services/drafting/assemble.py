@@ -83,6 +83,25 @@ def render_steps(spec: DraftSpec) -> str:
     return "\n".join(out)
 
 
+def render_tools_section(server_name: str, tools: list[dict]) -> str:
+    out = [
+        "## Tools (MCP server `" + server_name + "`)",
+        "",
+        "Prefer these deterministic tools over doing the step by hand; they are registered as the",
+        f"`{server_name}` MCP server (see the installation guide).",
+        "",
+    ]
+    for t in tools:
+        flags = [t.get("side_effects", "read_only")]
+        if t.get("side_effects") != "read_only":
+            flags.append("call with dry_run=true first and show the result before applying")
+        if t.get("side_effects") == "irreversible":
+            flags.append("needs the confirmation_token from an authorized checkpoint")
+        out.append(f"- `{t['name']}` for step `{t['step_key']}`: {t.get('description', '')} ({'; '.join(flags)})")
+    out.append("")
+    return "\n".join(out)
+
+
 def assemble_package(
     *,
     skill_name: str,
@@ -90,6 +109,8 @@ def assemble_package(
     spec: DraftSpec,
     metadata: dict[str, str],
     language: str = "en",
+    tools: list[dict] | None = None,
+    server_name: str | None = None,
 ) -> SkillPackage:
     frontmatter: dict = {"name": skill_name, "description": spec.description.strip()}
     if spec.compatibility:
@@ -103,6 +124,8 @@ def assemble_package(
     else:
         title = skill_name
     body_parts = [f"# {title}", "", overview, "", render_steps(spec)]
+    if tools and server_name:
+        body_parts += [render_tools_section(server_name, tools), ""]
     if spec.edge_cases_markdown.strip():
         body_parts += ["## Exceptions and edge cases", "", spec.edge_cases_markdown.strip(), ""]
     body_parts += [SAFETY_SECTION.strip(), "", COMPANION_SECTION.format(name=skill_name, version=version).strip(), ""]
