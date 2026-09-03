@@ -1,4 +1,4 @@
-# Architecture (Phase 0)
+# Architecture
 
 ```
 Browser (React SPA) ──REST + SSE──▶ FastAPI API ──SQLAlchemy──▶ SQLite / PostgreSQL
@@ -19,3 +19,18 @@ autoskill-companion MCP ──REST──▶ inline runner (single process) or ar
   device-code flow issuing user API keys for the CLI (`ask_...`), project API keys for telemetry.
 * **Roles**: global `admin` / `reviewer` / `member`; per project `owner` / `editor` / `viewer`.
 * **Content store** (`services/storage/content_store.py`): content-addressed blobs under `data/store/objects`.
+
+## Where things live
+
+| Concern | Path |
+|---|---|
+| Procedure engine and interview definition | `services/procedures/` |
+| Knowledge gates, memory | `services/interview/gates.py`, `services/memory/` |
+| Packaging, assembler, target adapters | `services/packaging/`, `services/drafting/assemble.py`, `services/targets/` |
+| Trials, checkpoints, coach, sync | `services/trials/`, `services/tester/` |
+| Telemetry ingestion and redaction | `services/runs/` |
+| Version state machine, review, authorizations | `services/versioning/`, `services/review/` |
+| Hub catalog, forks, installations, git distribution | `services/hub/`, `services/distribution/` |
+| MCP generation and static checks | `services/mcpgen/` |
+| Improvement analysis and proposals | `services/improvement/` |
+| User-side CLI and companion MCP | `packages/autoskill-local/` |

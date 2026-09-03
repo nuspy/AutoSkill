@@ -58,7 +58,18 @@ edit `/opt/autoskill/autoskill.env`, enable nginx with `deploy/nginx.conf`.
 
 ## Status
 
-Phases 0-3 are implemented: foundation, interview + memory + LLM providers, drafting + packaging +
-install docs for Hermes / OpenClaw / Claude Code / Codex / Antigravity + component library, local
-trials with checkpoints, coach, telemetry and the `autoskill-local` CLI + companion MCP.
-Next: versioning + review + human authorization, the Skill Hub, MCP generation, the improvement loop.
+All planned phases are implemented and covered by tests (backend 58, local package 9, frontend unit + build):
+
+| Area | What exists |
+|---|---|
+| Foundation | multi-user auth (admin / reviewer / member), projects and members, API keys, device login for the CLI, notifications + SSE, jobs (inline or arq), audit log, admin area |
+| Interview | deterministic procedure engine with supervisor steps, one question per turn, ten completeness gates, knowledge document, per-skill memory, LLM providers (OpenAI-compatible local or cloud, Anthropic) |
+| Drafting | Agent Skills packaging and validation, author model + code-owned SKILL.md, install guides for Hermes, OpenClaw, Claude Code, Codex, Antigravity, admin component library |
+| Local trials | `autoskill` CLI + `autoskill-companion` MCP; phased checkpoints (explain / preview / execute / verify), simulation of irreversible steps, coach discussions patching the skill, suspend/resume, re-test any version, telemetry with redaction |
+| Lifecycle | version state machine, review queue with checklist, human-only publish/deprecate authorizations, diffs and semver hints |
+| Hub | shared catalog with visibility levels, search, categories, favorites, installations with update alerts, try-before-install, personal variants (forks), read-only git distribution per skill |
+| MCP tools | generated MCP server per version from deterministic steps with dry-run and confirmation guards, static safety checks, local check via the CLI |
+| Improvement | analysis of failed runs, issues and corrections; proposals with rationale; human accept/reject; daily scan |
+
+Not yet done: translations beyond English and Italian (the other four locales fall back to English),
+ratings, "contribute back" from a variant to its origin, e-mail notifications, browser end-to-end tests.

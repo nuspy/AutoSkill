@@ -163,6 +163,23 @@ def _install(
     return manifest
 
 
+def _register_installation(cfg: LocalConfig, version_id: str, target: str, channel: str) -> None:
+    """Tell the server this machine installed the version (enables update alerts); never fatal."""
+    try:
+        _client(cfg).post(
+            "/me/installations",
+            {
+                "skill_version_id": version_id,
+                "target_agent": target,
+                "channel": channel,
+                "state": "installed",
+                "device_id": cfg.device_id,
+            },
+        )
+    except Exception as exc:  # noqa: BLE001
+        typer.echo(f"(could not register the installation with AutoSkill: {exc})")
+
+
 def _ask_env(prompt_names: list[str]) -> dict[str, str]:
     values: dict[str, str] = {}
     for name in prompt_names:
@@ -268,6 +285,8 @@ def _finish_trial(cfg: LocalConfig, sid: str, keep: bool) -> None:
         t.register_mcp(_companion_registration(cfg))
         cfg.installs[f"{info['target']}:{info['skill']}"] = {**manifest, "version": info.get("version")}
         typer.secho(f"{info['skill']} kept as a permanent installation on {t.display_name}.", fg=typer.colors.GREEN)
+        if manifest.get("version_id"):
+            _register_installation(cfg, manifest["version_id"], info["target"], "cli")
     else:
         t.remove_skill(info["skill"], manifest)
         for reg in manifest.get("mcp", []):
@@ -327,6 +346,7 @@ def install(
     manifest = _install(cfg, target, root, meta, folder, None, _ask_env(env_names))
     cfg.installs[f"{target}:{folder}"] = {**manifest, "version_id": vid}
     cfg.save()
+    _register_installation(cfg, meta.get("version_id", vid), target, "cli")
     typer.secho(
         f"{folder} v{meta.get('version')} installed for {t.display_name}. Restart the agent to load it.",
         fg=typer.colors.GREEN,
