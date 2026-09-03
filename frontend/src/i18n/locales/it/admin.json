@@ -1,0 +1,11 @@
+{
+  "title": "Amministrazione", "users": "Utenti", "settings": "Impostazioni", "audit": "Registro attività", "jobs": "Job", "projects": "Tutti i progetti",
+  "stats": { "users": "Utenti", "projects": "Progetti", "devices": "Dispositivi", "jobsRunning": "Job in esecuzione" },
+  "user": { "role": "Ruolo", "active": "Attivo", "disabled": "Disabilitato", "updated": "Utente aggiornato" },
+  "setting": {
+    "registration_open": "Registrazione aperta", "public_hub": "Hub pubblico (visibile senza login)",
+    "review_required_for_private": "Richiedi review per le skill private", "allow_self_review": "Consenti la review delle proprie skill",
+    "daily_token_cap_per_project": "Limite giornaliero di token per progetto", "telemetry_retention_days": "Conservazione telemetria (giorni)",
+    "trial_max_iterations_per_step": "Iterazioni massime per step in una prova", "checkpoint_timeout_minutes": "Timeout checkpoint (minuti)"
+  }
+}

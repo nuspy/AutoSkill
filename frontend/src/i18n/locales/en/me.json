@@ -1,0 +1,8 @@
+{
+  "profile": { "title": "Profile", "saved": "Profile saved", "password": "Change password", "passwordChanged": "Password changed" },
+  "devices": {
+    "title": "My devices", "subtitle": "Machines connected with the AutoSkill command line tool.", "empty": "No device connected yet.",
+    "connect": "Connect a device", "howto": "Install the CLI and run:", "lastSeen": "Last seen", "agents": "Agents", "remove": "Disconnect"
+  },
+  "notifications": { "title": "Notifications", "empty": "You are all caught up." }
+}

@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+backend/autoskill.db*
+backend/data/
+# Node
+node_modules/
+frontend/dist/
+# Env
+.env
+.env.local
+# Data
+data/
+# OS / editors
+.DS_Store
+.idea/
+.vscode/

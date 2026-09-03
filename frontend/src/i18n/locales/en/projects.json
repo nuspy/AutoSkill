@@ -1,0 +1,13 @@
+{
+  "title": "Projects", "subtitle": "Each project groups the skills, data sources and people for one area of work.",
+  "new": "New project", "name": "Project name", "description": "Description", "members": "Members", "settings": "Settings",
+  "empty": "Create your first project to start describing a task.", "created": "Project created",
+  "dashboard": { "skills": "Skills", "runs": "Recent runs", "trials": "Trials in progress", "pending": "Waiting for you" },
+  "member": { "add": "Add member", "email": "Email of an existing user", "role": "Role", "added": "Member added", "removed": "Member removed" },
+  "apiKeys": {
+    "title": "API keys", "subtitle": "Keys let installed skills send run telemetry to this project.",
+    "new": "New key", "name": "Key name", "created": "Key created. Copy it now, it will not be shown again.",
+    "revoke": "Revoke", "revoked": "Key revoked", "scopes": "Scopes", "expires": "Expires", "never": "Never"
+  },
+  "danger": { "title": "Danger zone", "delete": "Delete project", "confirm": "Delete project \"{{name}}\"? This cannot be undone." }
+}

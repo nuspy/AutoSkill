@@ -1,0 +1,28 @@
+{
+  "app": { "name": "AutoSkill", "tagline": "Trasforma il tuo modo di lavorare in skill che il tuo agente può eseguire" },
+  "nav": {
+    "projects": "Progetti", "hub": "Skill Hub", "admin": "Amministrazione", "notifications": "Notifiche",
+    "devices": "I miei dispositivi", "profile": "Profilo", "logout": "Esci", "installs": "Le mie installazioni", "trials": "Le mie prove"
+  },
+  "actions": {
+    "save": "Salva", "cancel": "Annulla", "create": "Crea", "delete": "Elimina", "edit": "Modifica", "close": "Chiudi",
+    "confirm": "Conferma", "back": "Indietro", "retry": "Riprova", "copy": "Copia", "copied": "Copiato", "add": "Aggiungi",
+    "remove": "Rimuovi", "search": "Cerca", "refresh": "Aggiorna", "markAllRead": "Segna tutte come lette", "approve": "Approva", "deny": "Rifiuta"
+  },
+  "status": { "loading": "Caricamento…", "empty": "Ancora niente qui", "error": "Qualcosa è andato storto", "saved": "Salvato" },
+  "theme": { "light": "Chiaro", "dark": "Scuro", "system": "Sistema" },
+  "roles": {
+    "admin": "Amministratore", "reviewer": "Revisore", "member": "Membro",
+    "owner": "Proprietario", "editor": "Editor", "viewer": "Visualizzatore"
+  },
+  "errors": {
+    "invalid_credentials": "Email o password errati.", "email_taken": "Esiste già un account con questa email.",
+    "registration_closed": "Le registrazioni sono chiuse. Chiedi un invito a un amministratore.",
+    "not_authenticated": "Accedi per continuare.", "forbidden": "Non hai i permessi per farlo.",
+    "not_found": "Non trovato.", "validation_failed": "Controlla i dati inseriti.", "last_owner": "Un progetto deve avere almeno un proprietario.",
+    "already_member": "Questo utente è già membro.", "user_not_found": "Nessun utente con questa email.",
+    "cannot_demote_self": "Non puoi cambiare il tuo ruolo.", "cannot_disable_self": "Non puoi disabilitare il tuo account.",
+    "device_request_not_found": "Codice non trovato o già usato.", "device_request_expired": "Codice scaduto. Esegui di nuovo il comando di login.",
+    "generic": "Qualcosa è andato storto. Riprova."
+  }
+}

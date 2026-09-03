@@ -1,0 +1,13 @@
+{
+  "title": "Progetti", "subtitle": "Ogni progetto raggruppa skill, sorgenti dati e persone di un'area di lavoro.",
+  "new": "Nuovo progetto", "name": "Nome del progetto", "description": "Descrizione", "members": "Membri", "settings": "Impostazioni",
+  "empty": "Crea il tuo primo progetto per iniziare a descrivere un task.", "created": "Progetto creato",
+  "dashboard": { "skills": "Skill", "runs": "Esecuzioni recenti", "trials": "Prove in corso", "pending": "In attesa di te" },
+  "member": { "add": "Aggiungi membro", "email": "Email di un utente esistente", "role": "Ruolo", "added": "Membro aggiunto", "removed": "Membro rimosso" },
+  "apiKeys": {
+    "title": "Chiavi API", "subtitle": "Le chiavi permettono alle skill installate di inviare la telemetria delle esecuzioni a questo progetto.",
+    "new": "Nuova chiave", "name": "Nome della chiave", "created": "Chiave creata. Copiala ora, non verrà mostrata di nuovo.",
+    "revoke": "Revoca", "revoked": "Chiave revocata", "scopes": "Ambiti", "expires": "Scadenza", "never": "Mai"
+  },
+  "danger": { "title": "Zona pericolosa", "delete": "Elimina progetto", "confirm": "Eliminare il progetto \"{{name}}\"? L'operazione non è reversibile." }
+}
