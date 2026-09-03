@@ -2,7 +2,7 @@ import { useCallback } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
-import { Bell, FolderKanban, LogOut, Menu, Moon, MonitorSmartphone, Settings2, ShieldCheck, Store, Sun, User as UserIcon } from "lucide-react";
+import { Bell, FlaskConical, FolderKanban, LogOut, Menu, Moon, MonitorSmartphone, Settings2, ShieldCheck, Store, Sun, User as UserIcon } from "lucide-react";
 import { toast } from "sonner";
 import { useSession } from "@/stores/session";
 import { useUi } from "@/stores/ui";
@@ -41,7 +41,8 @@ export function AppShell() {
         qc.invalidateQueries({ queryKey: ["me", "notifications"] });
         toast(String(event.data.title ?? t("nav.notifications")));
       }
-      if (event.type === "job.updated") qc.invalidateQueries({ queryKey: ["admin", "jobs"] });
+      if (event.type === "job.updated") { qc.invalidateQueries({ queryKey: ["admin", "jobs"] }); qc.invalidateQueries({ queryKey: ["skills"] }); }
+      if (event.type === "checkpoint.waiting" || event.type === "trial.updated") { qc.invalidateQueries({ queryKey: ["trials"] }); if (event.type === "checkpoint.waiting") toast(t("skills:trials.waitingDecision", { defaultValue: "A step is waiting for your decision" })); }
     },
     [qc, t],
   );
@@ -60,6 +61,7 @@ export function AppShell() {
         <nav className="flex-1 space-y-1 p-3">
           <NavItem to="/" icon={FolderKanban} label={t("nav.projects")} end />
           <NavItem to="/hub" icon={Store} label={t("nav.hub")} />
+          <NavItem to="/me/trials" icon={FlaskConical} label={t("nav.trials")} />
           <NavItem to="/me/devices" icon={MonitorSmartphone} label={t("nav.devices")} />
           <NavItem to="/me/notifications" icon={Bell} label={t("nav.notifications")} />
           {user?.role === "admin" && <NavItem to="/admin" icon={ShieldCheck} label={t("nav.admin")} />}

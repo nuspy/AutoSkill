@@ -271,5 +271,129 @@
       "skill": "Skill",
       "mcp_server": "MCP server"
     }
+  },
+  "trials": {
+    "title": "Prove sul tuo agente",
+    "subtitle": "La skill viene installata temporaneamente sul tuo agente e sulla tua macchina. Ogni passo attende qui la tua decisione: spiega, anteprima con dati reali, discuti, modifica, rifai, approva.",
+    "launch": "Prova sul mio agente",
+    "retest": "Prova di nuovo",
+    "create": "Crea la prova",
+    "intro": "Scegli l'agente e come si svolge la prova. Nulla gira sul server: il tuo agente esegue la skill sulla tua macchina e riporta qui ogni passo.",
+    "target": "Agente",
+    "device": "Dispositivo",
+    "anyDevice": "Uno qualsiasi dei miei dispositivi",
+    "mode": "Modalità",
+    "modes": {
+      "interactive": "Interattiva (l'agente attende ogni decisione)",
+      "async": "Asincrona (revisione a posteriori)"
+    },
+    "modeHint": {
+      "interactive": "Consigliata: l'agente si ferma a ogni passo finché non decidi.",
+      "async": "Per agenti con timeout dei tool troppo brevi; i passi vengono registrati e li rivedi dopo."
+    },
+    "createdHelp": "Esegui questo comando sulla tua macchina (dopo `pipx install autoskill-local` e `autoskill login`). Installa la copia di prova e registra il companion.",
+    "tokenWarning": "Il comando contiene un token di prova monouso: non condividerlo.",
+    "openPage": "Apri la prova",
+    "waitingInstall": "In attesa dell'installazione",
+    "waitingInstallHelp": "Esegui il comando CLI o installa manualmente con la guida qui sotto, poi avvia il task nel tuo agente.",
+    "waitingAgent": "In attesa che l'agente arrivi al passo successivo… avvia il task nel tuo agente.",
+    "suspend": "Sospendi",
+    "resume": "Riprendi",
+    "suspendedBanner": "La prova è sospesa. La copia di prova resta installata; riprendi quando vuoi.",
+    "review": "Rivedi e decidi",
+    "reviewHelp": "Quando hai visto abbastanza, chiedi un riepilogo e decidi: accetta (tieni o rimuovi la copia), richiedi modifiche (viene preparata una nuova versione dalle tue correzioni), rilavorazione maggiore, oppure rimuovi.",
+    "summarize": "Riepiloga la prova",
+    "noSummary": "Nessun riepilogo.",
+    "note": "Nota per il registro (opzionale)",
+    "outcomeSaved": "Esito salvato",
+    "finishedHelp": "Prova conclusa: {{outcome}}. Usa la CLI per tenere o rimuovere la copia: autoskill trial accept/remove.",
+    "history": "Decisioni",
+    "steps": "Passi",
+    "iteration": "iterazione {{n}}",
+    "corrected": "corretto",
+    "coach": "Coach",
+    "phase": {
+      "explain": "Spiegazione",
+      "preview": "Anteprima",
+      "execute": "Esecuzione",
+      "verify": "Verifica"
+    },
+    "execMode": {
+      "real": "esecuzione reale",
+      "simulated": "simulato",
+      "sandbox_copy": "su una copia"
+    },
+    "irreversibleWarning": "Questo passo è irreversibile. In prova viene solo simulato: controlla l'effetto esatto descritto dall'agente. L'esecuzione reale richiede sempre la tua autorizzazione esplicita.",
+    "authorizeConfirm": "Autorizzare l'agente a eseguire davvero questo passo irreversibile adesso?",
+    "stopConfirm": "Fermare questa esecuzione?",
+    "decisions": {
+      "continue": "Va bene, continua",
+      "continuePreview": "I dati sono giusti, prosegui",
+      "authorize_execute": "Autorizza l'esecuzione reale",
+      "approve_and_authorize_next": "Approva e passa al prossimo passo",
+      "change": "Modifica",
+      "discuss": "Discuti",
+      "redo": "Rifai",
+      "skip": "Salta",
+      "stop": "Ferma"
+    },
+    "changeLabel": "Cosa dovrebbe fare diversamente l'agente?",
+    "changeHint": "Inviato all'agente come nuova istruzione per questo passo; anche il testo della skill viene aggiornato.",
+    "sendChange": "Invia la modifica",
+    "discussPlaceholder": "Chiedi al coach o descrivi cosa non va…",
+    "proposedInstruction": "Istruzione proposta",
+    "applyProposal": "Applica questa modifica",
+    "applied": "Modifica applicata: l'agente rifarà il passo con la nuova istruzione.",
+    "mine": "Le mie prove",
+    "mineHelp": "Prove in tutti i progetti.",
+    "none": "Nessuna prova.",
+    "noneHelp": "Genera una versione, poi provala sul tuo agente.",
+    "correctionsCount": "correzioni",
+    "state": {
+      "requested": "In attesa di installazione",
+      "installing": "Installazione",
+      "installed": "Installata",
+      "testing": "In corso",
+      "suspended": "Sospesa",
+      "reviewing": "In revisione",
+      "decided": "Conclusa",
+      "removed": "Rimossa",
+      "abandoned": "Abbandonata"
+    },
+    "purposes": {
+      "develop": "sviluppo",
+      "retest": "nuova prova",
+      "hub_evaluate": "valutazione dall'hub"
+    },
+    "outcomes": {
+      "accepted": "accettata",
+      "acceptKeep": "Accetta e tieni installata",
+      "acceptRemove": "Accetta e rimuovi la copia",
+      "changes_requested": "Richiedi modifiche (nuova versione)",
+      "major_rework": "Rilavorazione maggiore",
+      "removed": "Rimuovi",
+      "abandoned": "abbandonata"
+    }
+  },
+  "runs": {
+    "title": "Esecuzioni",
+    "none": "Nessuna esecuzione registrata.",
+    "select": "Seleziona un'esecuzione per vedere i passi.",
+    "run": "Esecuzione",
+    "noSteps": "Nessun passo registrato.",
+    "golden": "Esecuzione golden",
+    "markGolden": "Segna come golden",
+    "status": {
+      "running": "in corso",
+      "succeeded": "riuscita",
+      "failed": "fallita",
+      "aborted": "interrotta",
+      "needs_review": "da rivedere"
+    },
+    "feedback": {
+      "ok": "OK",
+      "corrected": "Corretta",
+      "wrong": "Sbagliata"
+    }
   }
 }

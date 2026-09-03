@@ -44,6 +44,8 @@ class SkillVersion(IdMixin, TimestampMixin, Base):
     validation_report: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
     signature: Mapped[str | None] = mapped_column(String(128))
     build_log: Mapped[str | None] = mapped_column(Text)
+    draft_spec: Mapped[dict | None] = mapped_column(JSON)
+    build: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     created_by: Mapped[str | None] = mapped_column(String(36))  # user id or "system"
     state_changed_at: Mapped[datetime | None] = mapped_column(TZDateTime)
     is_current_draft: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)

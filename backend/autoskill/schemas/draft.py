@@ -88,6 +88,7 @@ class VersionOut(ORMModel):
     signature: str | None
     created_by: str | None
     is_current_draft: bool
+    build: int = 1
     state_changed_at: datetime | None
     created_at: datetime
     updated_at: datetime

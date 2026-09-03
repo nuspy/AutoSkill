@@ -14,7 +14,10 @@ from autoskill.api.v1 import (
     notifications,
     projects,
     providers,
+    runs,
     skills,
+    telemetry,
+    trials,
     users,
     versions,
 )
@@ -36,6 +39,9 @@ MODULES = (
     memory,
     versions,
     library,
+    trials,
+    telemetry,
+    runs,
 )
 
 api_router = APIRouter(prefix="/api/v1")

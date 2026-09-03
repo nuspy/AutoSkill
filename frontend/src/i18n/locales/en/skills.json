@@ -271,5 +271,129 @@
       "skill": "Skill",
       "mcp_server": "MCP server"
     }
+  },
+  "trials": {
+    "title": "Trials on your agent",
+    "subtitle": "The skill is installed temporarily on your own agent and machine. Every step waits for your decision here: explain, preview with real data, discuss, change, redo, approve.",
+    "launch": "Try on my agent",
+    "retest": "Test again",
+    "create": "Create trial",
+    "intro": "Choose the agent and how the trial runs. Nothing runs on the server: your agent executes the skill on your machine and reports each step here.",
+    "target": "Agent",
+    "device": "Device",
+    "anyDevice": "Any of my devices",
+    "mode": "Mode",
+    "modes": {
+      "interactive": "Interactive (agent waits for each decision)",
+      "async": "Asynchronous (review afterwards)"
+    },
+    "modeHint": {
+      "interactive": "Recommended: the agent pauses at every step until you decide.",
+      "async": "For agents whose tool timeout is too short; steps are recorded and you review them after."
+    },
+    "createdHelp": "Run this command on your machine (after `pipx install autoskill-local` and `autoskill login`). It installs the trial copy and registers the companion.",
+    "tokenWarning": "The command contains a one-time trial token: do not share it.",
+    "openPage": "Open trial",
+    "waitingInstall": "Waiting for the installation",
+    "waitingInstallHelp": "Run the CLI command or install manually with the guide below, then start the task in your agent.",
+    "waitingAgent": "Waiting for the agent to reach the next step… start the task in your agent.",
+    "suspend": "Suspend",
+    "resume": "Resume",
+    "suspendedBanner": "This trial is suspended. The trial copy stays installed; resume whenever you want.",
+    "review": "Review and decide",
+    "reviewHelp": "When you have seen enough, ask for a summary and decide: accept (keep or remove the copy), request changes (a new version is drafted from your corrections), major rework, or remove.",
+    "summarize": "Summarize the trial",
+    "noSummary": "No summary yet.",
+    "note": "Note for the record (optional)",
+    "outcomeSaved": "Outcome saved",
+    "finishedHelp": "This trial is finished: {{outcome}}. Use the CLI to keep or remove the copy: autoskill trial accept/remove.",
+    "history": "Decisions",
+    "steps": "Steps",
+    "iteration": "iteration {{n}}",
+    "corrected": "corrected",
+    "coach": "Coach",
+    "phase": {
+      "explain": "Explain",
+      "preview": "Preview",
+      "execute": "Execute",
+      "verify": "Verify"
+    },
+    "execMode": {
+      "real": "real execution",
+      "simulated": "simulated",
+      "sandbox_copy": "on a copy"
+    },
+    "irreversibleWarning": "This step is irreversible. In a trial it is only simulated: check the exact effect the agent describes. Real execution always requires your explicit authorization.",
+    "authorizeConfirm": "Authorize the agent to really execute this irreversible step now?",
+    "stopConfirm": "Stop this run?",
+    "decisions": {
+      "continue": "Looks right, continue",
+      "continuePreview": "Data is right, go on",
+      "authorize_execute": "Authorize real execution",
+      "approve_and_authorize_next": "Approve and go to the next step",
+      "change": "Change",
+      "discuss": "Discuss",
+      "redo": "Redo",
+      "skip": "Skip",
+      "stop": "Stop"
+    },
+    "changeLabel": "What should the agent do differently?",
+    "changeHint": "Sent to the agent as the new instruction for this step; the skill text is updated too.",
+    "sendChange": "Send the change",
+    "discussPlaceholder": "Ask the coach or describe what is wrong…",
+    "proposedInstruction": "Proposed instruction",
+    "applyProposal": "Apply this change",
+    "applied": "Change applied: the agent will redo the step with the new instruction.",
+    "mine": "My trials",
+    "mineHelp": "Trials across all projects.",
+    "none": "No trial yet.",
+    "noneHelp": "Draft a version, then try it on your agent.",
+    "correctionsCount": "corrections",
+    "state": {
+      "requested": "Waiting for install",
+      "installing": "Installing",
+      "installed": "Installed",
+      "testing": "In progress",
+      "suspended": "Suspended",
+      "reviewing": "Reviewing",
+      "decided": "Finished",
+      "removed": "Removed",
+      "abandoned": "Abandoned"
+    },
+    "purposes": {
+      "develop": "development",
+      "retest": "re-test",
+      "hub_evaluate": "evaluation from the hub"
+    },
+    "outcomes": {
+      "accepted": "accepted",
+      "acceptKeep": "Accept and keep installed",
+      "acceptRemove": "Accept and remove copy",
+      "changes_requested": "Request changes (new version)",
+      "major_rework": "Major rework",
+      "removed": "Remove",
+      "abandoned": "abandoned"
+    }
+  },
+  "runs": {
+    "title": "Runs",
+    "none": "No run recorded yet.",
+    "select": "Select a run to see its steps.",
+    "run": "Run",
+    "noSteps": "No step logged.",
+    "golden": "Golden run",
+    "markGolden": "Mark as golden",
+    "status": {
+      "running": "running",
+      "succeeded": "succeeded",
+      "failed": "failed",
+      "aborted": "aborted",
+      "needs_review": "needs review"
+    },
+    "feedback": {
+      "ok": "OK",
+      "corrected": "Corrected",
+      "wrong": "Wrong"
+    }
   }
 }

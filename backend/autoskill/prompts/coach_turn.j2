@@ -1,0 +1,32 @@
+Step "{{ step.title }}" (key {{ step.key }}, kind {{ step.kind }}, effects {{ step.side_effects }}, trial mode {{ step.trial_mode }}).
+Current instruction for the agent:
+"""
+{{ step.instruction }}
+"""
+{% if step.success_criteria %}Done when: {{ step.success_criteria }}{% endif %}
+{% if checkpoint %}
+
+What the agent proposed / showed ({{ checkpoint.phase }}, iteration {{ checkpoint.iteration }}):
+{{ checkpoint_json }}
+{% endif %}
+{% if corrections %}
+
+Corrections so far in this trial:
+{% for c in corrections %}
+- [{{ c.step_key }} #{{ c.iteration }}] {{ c.text }}
+{% endfor %}
+{% endif %}
+{% if memory %}
+
+Skill memory:
+{{ memory }}
+{% endif %}
+
+Conversation:
+{% for m in messages %}
+{{ m.role }}: {{ m.content }}
+{% endfor %}
+
+Reply to the person. If the step must change, fill `new_instruction` with the complete replacement
+instruction and `change_summary`. Propose memory entries only for durable facts learned here
+(kind human_procedure, technical_note, integration_note, decision, lesson_learned).

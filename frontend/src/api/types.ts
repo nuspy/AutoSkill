@@ -363,3 +363,117 @@ export interface LibraryComponent {
   created_at: string;
   updated_at: string;
 }
+
+export interface Trial {
+  id: string;
+  user_id: string;
+  project_id: string;
+  device_id: string | null;
+  skill_id: string;
+  skill_version_id: string;
+  purpose: "develop" | "retest" | "hub_evaluate";
+  target_agent: string;
+  mode: "interactive" | "async";
+  state: string;
+  build: number;
+  current_step_key: string | null;
+  current_iteration: number;
+  corrections: { step_key: string; iteration: number; text: string; at: string }[];
+  outcome: string | null;
+  summary: string | null;
+  keep_installed: boolean | null;
+  started_at: string | null;
+  suspended_at: string | null;
+  ended_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TrialCreated extends Trial {
+  session_token: string;
+  cli_command: string;
+  package_url: string;
+}
+
+export interface Checkpoint {
+  id: string;
+  run_id: string;
+  trial_session_id: string | null;
+  step_key: string;
+  phase: "explain" | "preview" | "execute" | "verify";
+  iteration: number;
+  execution_mode: string;
+  state: "pending" | "decided" | "expired";
+  proposal: Record<string, unknown>;
+  decision: string | null;
+  correction_text: string | null;
+  updated_instructions: string | null;
+  decided_by: string | null;
+  decided_at: string | null;
+  expires_at: string;
+  created_at: string;
+}
+
+export interface Run {
+  id: string;
+  project_id: string;
+  skill_id: string;
+  skill_version_id: string | null;
+  skill_version: string | null;
+  trial_session_id: string | null;
+  source: string;
+  agent_target: string | null;
+  status: string;
+  inputs_summary: string | null;
+  summary: string | null;
+  error: Record<string, unknown> | null;
+  llm_usage: Record<string, number>;
+  human_feedback: string | null;
+  is_golden: boolean;
+  started_at: string;
+  ended_at: string | null;
+  duration_ms: number | null;
+}
+
+export interface RunStep {
+  id: string;
+  ordinal: number;
+  step_key: string;
+  title: string | null;
+  status: string;
+  iteration: number;
+  execution_mode: string | null;
+  proposed_action: unknown;
+  executed_action: unknown;
+  inputs: unknown;
+  outputs: unknown;
+  error: unknown;
+  tool_name: string | null;
+  duration_ms: number | null;
+  created_at: string;
+}
+
+export interface TrialDetail {
+  trial: Trial;
+  skill_name: string;
+  skill_title: string;
+  version: string;
+  steps: StepDefinition[];
+  runs: Run[];
+  pending_checkpoint: Checkpoint | null;
+  checkpoints: Checkpoint[];
+  package_url: string;
+}
+
+export interface Discussion {
+  id: string;
+  skill_id: string;
+  skill_version_id: string;
+  trial_session_id: string | null;
+  checkpoint_id: string | null;
+  step_key: string;
+  state: string;
+  outcome: Record<string, unknown> | null;
+  messages: { role: string; content: string; at: string; proposal?: { new_instruction?: string | null; change_summary?: string | null; memory_entries?: { kind: string; title: string; body: string }[] } | null }[];
+  created_at: string;
+}

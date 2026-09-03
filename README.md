@@ -36,10 +36,29 @@ background jobs and in-memory events, so no database server or Redis is required
 See [`deploy/README.md`](deploy/README.md). Short version: `sudo ./deploy/install.sh /opt/autoskill`,
 edit `/opt/autoskill/autoskill.env`, enable nginx with `deploy/nginx.conf`.
 
+## How a skill is born
+
+1. **Interview** (`/p/<project>/skills/new`): the worker describes the task; a deterministic procedure
+   asks one question at a time until ten completeness gates pass (sources, steps, rules, exceptions,
+   acceptance criteria, integrations, side effects) and the worker confirms the summary. The skill
+   **memory** (rationale, business needs, how it is done today, technical and integration notes) is
+   extracted automatically and kept for whoever maintains the skill.
+2. **Draft**: the author model writes the content, code owns the structure: `SKILL.md` with step
+   markers, side-effect labels, safety rules and the companion protocol; `references/`, `scripts/`.
+   Every step gets a trial mode: read-only steps run for real, reversible steps run on a copy,
+   irreversible steps are only simulated and always need explicit authorization.
+3. **Trial on your own agent** (`autoskill trial install ...`): the skill is installed temporarily on
+   the worker's machine. The agent calls the `autoskill-companion` MCP at every step: explain,
+   preview with real data, (execute), verify. The person decides in the web UI (continue, change,
+   discuss with the coach, redo, skip, stop, approve and authorize the next step). Changes patch the
+   step instruction, rebuild the package and sync the installed copy. Trials can be suspended and
+   resumed; any version can be re-tested at any time.
+4. **Outcome**: accept (keep or remove the copy, version becomes *tested*), request changes (a new
+   version is drafted from the corrections), major rework, or remove.
+
 ## Status
 
-Phase 0 (foundation): authentication with roles (admin / reviewer / member), projects and members,
-project API keys, device connection for the CLI (device-code flow), notifications with server-sent
-events, background job runner, admin area, audit log. Next phases follow the product plan:
-interview + per-skill memory, drafting + packaging, local trial with the companion MCP,
-versioning + review, Skill Hub, MCP generation, improvement loop.
+Phases 0-3 are implemented: foundation, interview + memory + LLM providers, drafting + packaging +
+install docs for Hermes / OpenClaw / Claude Code / Codex / Antigravity + component library, local
+trials with checkpoints, coach, telemetry and the `autoskill-local` CLI + companion MCP.
+Next: versioning + review + human authorization, the Skill Hub, MCP generation, the improvement loop.

@@ -1,0 +1,13 @@
+Write, in {{ language_name }}, a short summary (max 200 words) of this trial of the skill "{{ skill_title }}" v{{ version }}:
+what was tested, which steps were confirmed, which were corrected and how, which were only simulated,
+what remains open, and a recommendation: accept, request changes (new version), or major rework.
+
+Steps and status:
+{% for s in steps %}
+- {{ s.key }} ({{ s.title }}): {{ s.test_status }}, {{ s.confirmations_count }} confirmations, trial mode {{ s.trial_mode }}
+{% endfor %}
+Corrections:
+{% for c in corrections %}
+- [{{ c.step_key }} #{{ c.iteration }}] {{ c.text }}
+{% endfor %}
+Run status: {{ run_status }}. Issues reported: {{ issues }}.

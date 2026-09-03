@@ -15,10 +15,13 @@ import { useKnowledgeHistory } from "@/api/hooks/skills";
 import MemoryTab from "@/features/memory/MemoryTab";
 import InterviewPage from "@/features/interview/InterviewPage";
 import VersionsTab from "@/features/versions/VersionsTab";
+import TrialsTab from "@/features/trials/TrialsTab";
+import TrialPage from "@/features/trials/TrialPage";
+import RunsTab from "@/features/runs/RunsTab";
 import { Link } from "react-router-dom";
 import { timeAgo } from "@/lib/format";
 
-const TABS = ["overview", "interview", "knowledge", "memory", "versions"] as const;
+const TABS = ["overview", "interview", "knowledge", "memory", "versions", "trials", "runs"] as const;
 
 export default function SkillPage() {
   const { projectId = "", skillId = "" } = useParams();
@@ -64,6 +67,9 @@ export default function SkillPage() {
         <Route path="knowledge" element={<KnowledgeTab />} />
         <Route path="memory" element={<MemoryTab skillId={skillId} />} />
         <Route path="versions" element={<VersionsTab />} />
+        <Route path="trials" element={<TrialsTab />} />
+        <Route path="trials/:trialId" element={<TrialPage />} />
+        <Route path="runs" element={<RunsTab />} />
       </Routes>
       <Dialog open={suspendOpen} onClose={() => setSuspendOpen(false)} title={t("skills:suspend.action")} footer={<><Button variant="outline" onClick={() => setSuspendOpen(false)}>{t("common:actions.cancel")}</Button><Button loading={toggle.isPending} onClick={() => toggle.mutate({ action: "suspend", note }, { onSuccess: () => setSuspendOpen(false) })}>{t("common:actions.confirm")}</Button></>}>
         <Field label={t("skills:suspend.note")}><Textarea value={note} onChange={(e) => setNote(e.target.value)} /></Field>

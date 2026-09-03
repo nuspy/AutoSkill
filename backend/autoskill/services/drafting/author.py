@@ -193,6 +193,8 @@ async def generate_draft(
         changelog=spec.changelog or None,
         validation_report=report.as_dict(),
         build_log="\n".join(build_log),
+        draft_spec=spec.model_dump(),
+        build=1,
         created_by=user_id or "system",
         state_changed_at=utcnow(),
         is_current_draft=True,
