@@ -40,6 +40,7 @@ export default function LoginPage() {
         </form>
         <p className="text-center text-sm text-muted">
           {t("auth:login.noAccount")} <Link to="/register" className="font-medium text-primary hover:underline">{t("auth:login.register")}</Link>
+          <span className="mx-2">·</span><Link to="/forgot" className="font-medium text-primary hover:underline">{t("auth:login.forgot")}</Link>
         </p>
       </CardBody>
     </Card>

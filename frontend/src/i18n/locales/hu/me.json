@@ -1,1 +1,39 @@
-{}
+{
+  "profile": {
+    "title": "Profil",
+    "saved": "Profil mentve",
+    "password": "Jelszó módosítása",
+    "passwordChanged": "Jelszó módosítva"
+  },
+  "devices": {
+    "title": "Eszközeim",
+    "subtitle": "Az AutoSkill parancssori eszközével csatlakoztatott gépek.",
+    "empty": "Még nincs csatlakoztatott eszköz.",
+    "connect": "Eszköz csatlakoztatása",
+    "howto": "Telepítsd a CLI-t, és futtasd:",
+    "lastSeen": "Utoljára látva",
+    "agents": "Ügynökök",
+    "remove": "Leválasztás"
+  },
+  "notifications": {
+    "title": "Értesítések",
+    "empty": "Minden naprakész.",
+    "preferences": "Értesítési beállítások",
+    "preferencesHelp": "Válaszd ki, mit kapsz az alkalmazásban és e-mailben.",
+    "kind": "Esemény",
+    "inApp": "Az alkalmazásban",
+    "email": "E-mail",
+    "kinds": {
+      "skill_update_available": "Frissítés érhető el egy telepített skillhez",
+      "review_requested": "Bírálat kérve",
+      "review_decided": "Bírálat eldöntve",
+      "authorization_requested": "Engedély kérve",
+      "proposal_ready": "Fejlesztési javaslat kész",
+      "issue_reported": "Ügynök által jelentett probléma",
+      "checkpoint_waiting": "Az ügynök döntésre vár",
+      "trial_suspended_reminder": "Emlékeztető felfüggesztett próbáról",
+      "contribution_received": "Hozzájárulás érkezett",
+      "contribution_decided": "Hozzájárulás eldöntve"
+    }
+  }
+}

@@ -40,3 +40,20 @@ class RefreshToken(IdMixin, Base):
     created_at: Mapped[datetime] = mapped_column(TZDateTime, nullable=False, default=utcnow)
 
     user: Mapped[User] = relationship(back_populates="refresh_tokens")
+
+
+class UserToken(IdMixin, Base):
+    """One-time tokens sent by email: invitations (kind=invite) and password resets (kind=password_reset)."""
+
+    __tablename__ = "user_tokens"
+
+    kind: Mapped[str] = mapped_column(String(24), nullable=False, index=True)
+    email: Mapped[str] = mapped_column(String(320), nullable=False, index=True)
+    token_hash: Mapped[str] = mapped_column(String(128), unique=True, nullable=False)
+    role: Mapped[str | None] = mapped_column(String(16))  # invite: role granted on registration
+    project_id: Mapped[str | None] = mapped_column(String(36))  # invite: project the person joins as editor
+    invited_by: Mapped[str | None] = mapped_column(String(36))
+    user_id: Mapped[str | None] = mapped_column(String(36))  # password_reset: the account
+    expires_at: Mapped[datetime] = mapped_column(TZDateTime, nullable=False)
+    used_at: Mapped[datetime | None] = mapped_column(TZDateTime)
+    created_at: Mapped[datetime] = mapped_column(TZDateTime, nullable=False, default=utcnow)

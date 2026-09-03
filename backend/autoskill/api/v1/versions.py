@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Response
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 
 from autoskill.api.v1.deps import AnyAuthUser, CurrentUser, SessionDep
 from autoskill.api.v1.skills import get_skill_for
@@ -23,6 +23,7 @@ from autoskill.services.distribution import bundle as bundles
 from autoskill.services.packaging.skill_package import TEXT_EXTENSIONS
 from autoskill.services.packaging.store import load_package
 from autoskill.services.review.service import authorize as authorize_version
+from autoskill.services.settings import get_setting
 from autoskill.services.targets import get_adapter, list_targets
 from autoskill.services.targets.base import InstallContext
 from autoskill.services.versioning.changes import compare
@@ -274,6 +275,19 @@ async def create_download_link(version_id: str, body: DownloadLinkIn, session: S
             get_adapter(body.target_agent)
         except KeyError:
             raise ValidationFailed("unknown_target") from None
+    active = (
+        await session.execute(
+            select(func.count(DownloadGrant.id)).where(
+                DownloadGrant.created_by == user.id,
+                DownloadGrant.kind == "version",
+                DownloadGrant.revoked_at.is_(None),
+                or_(DownloadGrant.expires_at.is_(None), DownloadGrant.expires_at > utcnow()),
+            )
+        )
+    ).scalar_one()
+    cap = int(await get_setting(session, "max_active_download_links_per_user") or 0)
+    if cap and active >= cap:
+        raise Conflict("too_many_links", message=f"You already have {active} active download links; revoke some first.")
     grant, _token = await bundles.create_grant(
         session,
         skill=skill,

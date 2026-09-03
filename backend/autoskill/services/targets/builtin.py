@@ -98,7 +98,7 @@ class AntigravityAdapter(TargetAdapter):
     docs_url = "https://antigravity.google/docs/skills"
     global_skill_dir = "~/.gemini/config/skills"
     workspace_skill_dir = "<workspace>/.agents/skills"
-    mcp_config_path = "Antigravity settings > MCP servers (JSON)"
+    mcp_config_path = "~/.gemini/antigravity/mcp_config.json"  # same file the AutoSkill CLI writes
     mcp_config_format = "json"
 
     def mcp_config_snippet(self, spec: McpServerSpec) -> str:

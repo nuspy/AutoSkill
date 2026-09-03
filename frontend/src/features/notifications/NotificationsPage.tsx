@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
-import { useMarkRead, useNotifications } from "@/api/hooks/me";
+import { useMarkRead, useNotificationPreferences, useNotifications, useSetNotificationPreference } from "@/api/hooks/me";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { EmptyState, PageHeader, Skeleton } from "@/components/ui/misc";
 import { timeAgo } from "@/lib/format";
 import { cn } from "@/lib/cn";
@@ -32,6 +32,32 @@ export default function NotificationsPage() {
           </ul>
         </Card>
       )}
+      <PreferencesCard />
     </>
+  );
+}
+
+function PreferencesCard() {
+  const { t } = useTranslation(["me", "common"]);
+  const prefs = useNotificationPreferences();
+  const save = useSetNotificationPreference();
+  return (
+    <Card className="mt-4">
+      <CardHeader title={t("me:notifications.preferences")} description={t("me:notifications.preferencesHelp")} />
+      <CardBody>
+        <table className="w-full text-sm">
+          <thead><tr className="text-left text-xs uppercase text-muted"><th className="py-1">{t("me:notifications.kind")}</th><th className="py-1 text-center">{t("me:notifications.inApp")}</th><th className="py-1 text-center">{t("me:notifications.email")}</th></tr></thead>
+          <tbody>
+            {prefs.data?.map((p) => (
+              <tr key={p.kind} className="border-t border-border">
+                <td className="py-2">{t(`me:notifications.kinds.${p.kind}`, { defaultValue: p.kind })}</td>
+                <td className="py-2 text-center"><input type="checkbox" checked={p.in_app} onChange={(e) => save.mutate({ kind: p.kind, in_app: e.target.checked, email: p.email })} /></td>
+                <td className="py-2 text-center"><input type="checkbox" checked={p.email} onChange={(e) => save.mutate({ kind: p.kind, in_app: p.in_app, email: e.target.checked })} /></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </CardBody>
+    </Card>
   );
 }

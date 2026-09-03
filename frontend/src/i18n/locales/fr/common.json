@@ -1,1 +1,74 @@
-{}
+{
+  "app": {
+    "name": "AutoSkill",
+    "tagline": "Transformez votre façon de travailler en skills que votre agent peut exécuter"
+  },
+  "nav": {
+    "projects": "Projets",
+    "hub": "Skill Hub",
+    "admin": "Administration",
+    "notifications": "Notifications",
+    "devices": "Mes appareils",
+    "profile": "Profil",
+    "logout": "Se déconnecter",
+    "installs": "Mes installations",
+    "trials": "Mes essais",
+    "review": "Relecture"
+  },
+  "actions": {
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "create": "Créer",
+    "delete": "Supprimer",
+    "edit": "Modifier",
+    "close": "Fermer",
+    "confirm": "Confirmer",
+    "back": "Retour",
+    "retry": "Réessayer",
+    "copy": "Copier",
+    "copied": "Copié",
+    "add": "Ajouter",
+    "remove": "Retirer",
+    "search": "Rechercher",
+    "refresh": "Actualiser",
+    "markAllRead": "Tout marquer comme lu",
+    "approve": "Approuver",
+    "deny": "Refuser"
+  },
+  "status": {
+    "loading": "Chargement…",
+    "empty": "Rien pour le moment",
+    "error": "Une erreur est survenue",
+    "saved": "Enregistré"
+  },
+  "theme": {
+    "light": "Clair",
+    "dark": "Sombre",
+    "system": "Système"
+  },
+  "roles": {
+    "admin": "Administrateur",
+    "reviewer": "Relecteur",
+    "member": "Membre",
+    "owner": "Propriétaire",
+    "editor": "Éditeur",
+    "viewer": "Lecteur"
+  },
+  "errors": {
+    "invalid_credentials": "E-mail ou mot de passe incorrect.",
+    "email_taken": "Un compte existe déjà avec cet e-mail.",
+    "registration_closed": "Les inscriptions sont fermées. Demandez une invitation à un administrateur.",
+    "not_authenticated": "Veuillez vous connecter.",
+    "forbidden": "Vous n'avez pas la permission de faire cela.",
+    "not_found": "Introuvable.",
+    "validation_failed": "Veuillez vérifier le formulaire.",
+    "last_owner": "Un projet a besoin d'au moins un propriétaire.",
+    "already_member": "Cet utilisateur est déjà membre.",
+    "user_not_found": "Aucun utilisateur avec cet e-mail.",
+    "cannot_demote_self": "Vous ne pouvez pas changer votre propre rôle.",
+    "cannot_disable_self": "Vous ne pouvez pas désactiver votre propre compte.",
+    "device_request_not_found": "Ce code est introuvable ou a déjà été utilisé.",
+    "device_request_expired": "Ce code a expiré. Relancez la commande de connexion.",
+    "generic": "Une erreur est survenue. Veuillez réessayer."
+  }
+}

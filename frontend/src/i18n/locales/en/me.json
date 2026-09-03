@@ -1,8 +1,39 @@
 {
-  "profile": { "title": "Profile", "saved": "Profile saved", "password": "Change password", "passwordChanged": "Password changed" },
-  "devices": {
-    "title": "My devices", "subtitle": "Machines connected with the AutoSkill command line tool.", "empty": "No device connected yet.",
-    "connect": "Connect a device", "howto": "Install the CLI and run:", "lastSeen": "Last seen", "agents": "Agents", "remove": "Disconnect"
+  "profile": {
+    "title": "Profile",
+    "saved": "Profile saved",
+    "password": "Change password",
+    "passwordChanged": "Password changed"
   },
-  "notifications": { "title": "Notifications", "empty": "You are all caught up." }
+  "devices": {
+    "title": "My devices",
+    "subtitle": "Machines connected with the AutoSkill command line tool.",
+    "empty": "No device connected yet.",
+    "connect": "Connect a device",
+    "howto": "Install the CLI and run:",
+    "lastSeen": "Last seen",
+    "agents": "Agents",
+    "remove": "Disconnect"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "empty": "You are all caught up.",
+    "preferences": "Notification preferences",
+    "preferencesHelp": "Choose what you receive in the app and by email.",
+    "kind": "Event",
+    "inApp": "In app",
+    "email": "Email",
+    "kinds": {
+      "skill_update_available": "Update available for an installed skill",
+      "review_requested": "Review requested",
+      "review_decided": "Review decided",
+      "authorization_requested": "Authorization requested",
+      "proposal_ready": "Improvement proposal ready",
+      "issue_reported": "Issue reported by an agent",
+      "checkpoint_waiting": "Agent waiting for a decision",
+      "trial_suspended_reminder": "Suspended trial reminder",
+      "contribution_received": "Contribution received",
+      "contribution_decided": "Contribution decided"
+    }
+  }
 }

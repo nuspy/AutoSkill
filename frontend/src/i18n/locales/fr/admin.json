@@ -1,1 +1,44 @@
-{}
+{
+  "title": "Administration",
+  "users": "Utilisateurs",
+  "settings": "Paramètres",
+  "providers": "Fournisseurs d'IA",
+  "audit": "Journal d'audit",
+  "jobs": "Tâches",
+  "projects": "Tous les projets",
+  "stats": {
+    "users": "Utilisateurs",
+    "projects": "Projets",
+    "devices": "Appareils",
+    "jobsRunning": "Tâches en cours"
+  },
+  "user": {
+    "role": "Rôle",
+    "active": "Actif",
+    "disabled": "Désactivé",
+    "updated": "Utilisateur mis à jour"
+  },
+  "setting": {
+    "registration_open": "Inscriptions ouvertes",
+    "public_hub": "Hub public (visible sans connexion)",
+    "review_required_for_private": "Exiger une relecture pour les skills privées",
+    "allow_self_review": "Autoriser la relecture de ses propres skills",
+    "daily_token_cap_per_project": "Plafond quotidien de jetons par projet",
+    "telemetry_retention_days": "Conservation de la télémétrie (jours)",
+    "trial_max_iterations_per_step": "Itérations max par étape dans un essai",
+    "checkpoint_timeout_minutes": "Délai d'expiration des checkpoints (minutes)",
+    "auto_confirm_after_confirmations": "Confirmer automatiquement les étapes déterministes après N confirmations",
+    "download_rate_per_minute": "Téléchargements par minute par lien / IP",
+    "max_active_download_links_per_user": "Liens de téléchargement actifs max par utilisateur"
+  },
+  "library": "Bibliothèque",
+  "hub": "Hub",
+  "invitations": {
+    "title": "Invitations",
+    "subtitle": "Invitez des personnes par e-mail ; le lien fonctionne même quand les inscriptions sont fermées et peut attribuer un rôle et un projet.",
+    "email": "Adresse e-mail",
+    "noProject": "Aucun projet",
+    "send": "Inviter",
+    "sent": "Invitation envoyée"
+  }
+}

@@ -2,12 +2,12 @@ from fastapi import APIRouter, Query
 from sqlalchemy import select
 
 from autoskill.api.v1.deps import CurrentUser, SessionDep
-from autoskill.core.errors import NotFound
+from autoskill.core.errors import NotFound, ValidationFailed
 from autoskill.db.base import utcnow
 from autoskill.models.notification import Notification, NotificationPreference
 from autoskill.schemas.common import OkResponse
 from autoskill.schemas.notification import NotificationList, NotificationOut, PreferenceUpdate
-from autoskill.services.notifications import unread_count
+from autoskill.services.notifications import NOTIFICATION_KINDS, preferences_for, unread_count
 
 router = APIRouter(prefix="/me/notifications", tags=["notifications"])
 
@@ -50,8 +50,15 @@ async def mark_all_read(session: SessionDep, user: CurrentUser):
     return OkResponse()
 
 
+@router.get("/preferences")
+async def list_preferences(session: SessionDep, user: CurrentUser) -> list[dict]:
+    return await preferences_for(session, user.id)
+
+
 @router.put("/preferences", response_model=OkResponse)
 async def set_preference(body: PreferenceUpdate, session: SessionDep, user: CurrentUser):
+    if body.kind not in NOTIFICATION_KINDS:
+        raise ValidationFailed("unknown_notification_kind", kinds=list(NOTIFICATION_KINDS))
     res = await session.execute(
         select(NotificationPreference).where(
             NotificationPreference.user_id == user.id, NotificationPreference.kind == body.kind

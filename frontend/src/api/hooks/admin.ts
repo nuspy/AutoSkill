@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/api/client";
-import type { AdminStats, AuditEntry, Job, Page, Project, User, UserRole } from "@/api/types";
+import type { AdminStats, AuditEntry, Invitation, Job, Page, Project, User, UserRole } from "@/api/types";
 
 export function useAdminStats() {
   return useQuery({ queryKey: ["admin", "stats"], queryFn: () => api<AdminStats>("/admin/stats") });
@@ -41,4 +41,16 @@ export function useAdminAudit() {
 
 export function useAdminJobs() {
   return useQuery({ queryKey: ["admin", "jobs"], queryFn: () => api<Page<Job>>("/admin/jobs?limit=100"), refetchInterval: 10_000 });
+}
+
+export function useInvitations() {
+  return useQuery({ queryKey: ["admin", "invitations"], queryFn: () => api<Invitation[]>("/admin/invitations") });
+}
+
+export function useInvitationMutations() {
+  const qc = useQueryClient();
+  const invalidate = () => qc.invalidateQueries({ queryKey: ["admin", "invitations"] });
+  const create = useMutation({ mutationFn: (body: { email: string; role: string; project_id?: string | null; expires_in_days?: number }) => api<Invitation>("/admin/invitations", { method: "POST", body }), onSuccess: invalidate });
+  const remove = useMutation({ mutationFn: (id: string) => api<{ ok: boolean }>(`/admin/invitations/${id}`, { method: "DELETE" }), onSuccess: invalidate });
+  return { create, remove };
 }

@@ -1,1 +1,41 @@
-{}
+{
+  "title": "Projets",
+  "subtitle": "Chaque projet regroupe les skills, les sources de données et les personnes d'un domaine de travail.",
+  "new": "Nouveau projet",
+  "name": "Nom du projet",
+  "description": "Description",
+  "members": "Membres",
+  "settings": "Paramètres",
+  "empty": "Créez votre premier projet pour commencer à décrire une tâche.",
+  "created": "Projet créé",
+  "dashboard": {
+    "skills": "Skills",
+    "runs": "Exécutions récentes",
+    "trials": "Essais en cours",
+    "pending": "En attente de vous"
+  },
+  "member": {
+    "add": "Ajouter un membre",
+    "email": "E-mail d'un utilisateur existant",
+    "role": "Rôle",
+    "added": "Membre ajouté",
+    "removed": "Membre retiré"
+  },
+  "apiKeys": {
+    "title": "Clés API",
+    "subtitle": "Les clés permettent aux skills installées d'envoyer la télémétrie des exécutions à ce projet.",
+    "new": "Nouvelle clé",
+    "name": "Nom de la clé",
+    "created": "Clé créée. Copiez-la maintenant, elle ne sera plus affichée.",
+    "revoke": "Révoquer",
+    "revoked": "Clé révoquée",
+    "scopes": "Portées",
+    "expires": "Expire",
+    "never": "Jamais"
+  },
+  "danger": {
+    "title": "Zone de danger",
+    "delete": "Supprimer le projet",
+    "confirm": "Supprimer le projet « {{name}} » ? Cette action est irréversible."
+  }
+}

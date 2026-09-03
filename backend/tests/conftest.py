@@ -18,9 +18,11 @@ os.environ["AUTOSKILL_SECRET_KEY"] = "test-secret-key-for-tests-only-0123456789"
 from autoskill.config import get_settings  # noqa: E402
 from autoskill.core.events import reset_event_bus  # noqa: E402
 from autoskill.core.jobs import reset_job_runner  # noqa: E402
+from autoskill.core.ratelimit import reset_rate_limiter  # noqa: E402
 from autoskill.db.base import Base  # noqa: E402
 from autoskill.db.session import get_engine, reset_engine  # noqa: E402
 from autoskill.models import *  # noqa: E402,F401,F403
+from autoskill.services.email import reset_outbox  # noqa: E402
 from autoskill.services.storage.content_store import reset_content_store  # noqa: E402
 
 
@@ -34,6 +36,8 @@ async def app_client() -> AsyncIterator[AsyncClient]:
     reset_event_bus()
     reset_job_runner()
     reset_content_store()
+    reset_rate_limiter()
+    reset_outbox()
     engine = get_engine()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

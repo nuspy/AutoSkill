@@ -1,1 +1,44 @@
-{}
+{
+  "title": "Administración",
+  "users": "Usuarios",
+  "settings": "Ajustes",
+  "providers": "Proveedores de IA",
+  "audit": "Registro de auditoría",
+  "jobs": "Trabajos",
+  "projects": "Todos los proyectos",
+  "stats": {
+    "users": "Usuarios",
+    "projects": "Proyectos",
+    "devices": "Dispositivos",
+    "jobsRunning": "Trabajos en ejecución"
+  },
+  "user": {
+    "role": "Rol",
+    "active": "Activo",
+    "disabled": "Desactivado",
+    "updated": "Usuario actualizado"
+  },
+  "setting": {
+    "registration_open": "Registro abierto",
+    "public_hub": "Hub público (visible sin iniciar sesión)",
+    "review_required_for_private": "Exigir revisión para las skills privadas",
+    "allow_self_review": "Permitir revisar las propias skills",
+    "daily_token_cap_per_project": "Límite diario de tokens por proyecto",
+    "telemetry_retention_days": "Retención de telemetría (días)",
+    "trial_max_iterations_per_step": "Iteraciones máximas por paso en una prueba",
+    "checkpoint_timeout_minutes": "Tiempo de espera del checkpoint (minutos)",
+    "auto_confirm_after_confirmations": "Confirmar automáticamente los pasos deterministas tras N confirmaciones",
+    "download_rate_per_minute": "Descargas por minuto por enlace / IP",
+    "max_active_download_links_per_user": "Máximo de enlaces de descarga activos por usuario"
+  },
+  "library": "Biblioteca",
+  "hub": "Hub",
+  "invitations": {
+    "title": "Invitaciones",
+    "subtitle": "Invita a personas por correo; el enlace funciona aunque el registro esté cerrado y puede asignar un rol y un proyecto.",
+    "email": "Dirección de correo",
+    "noProject": "Sin proyecto",
+    "send": "Invitar",
+    "sent": "Invitación enviada"
+  }
+}

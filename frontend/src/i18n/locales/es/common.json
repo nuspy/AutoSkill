@@ -1,1 +1,74 @@
-{}
+{
+  "app": {
+    "name": "AutoSkill",
+    "tagline": "Convierte tu forma de trabajar en skills que tu agente puede ejecutar"
+  },
+  "nav": {
+    "projects": "Proyectos",
+    "hub": "Skill Hub",
+    "admin": "Administración",
+    "notifications": "Notificaciones",
+    "devices": "Mis dispositivos",
+    "profile": "Perfil",
+    "logout": "Cerrar sesión",
+    "installs": "Mis instalaciones",
+    "trials": "Mis pruebas",
+    "review": "Revisión"
+  },
+  "actions": {
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "create": "Crear",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "close": "Cerrar",
+    "confirm": "Confirmar",
+    "back": "Atrás",
+    "retry": "Reintentar",
+    "copy": "Copiar",
+    "copied": "Copiado",
+    "add": "Añadir",
+    "remove": "Quitar",
+    "search": "Buscar",
+    "refresh": "Actualizar",
+    "markAllRead": "Marcar todo como leído",
+    "approve": "Aprobar",
+    "deny": "Denegar"
+  },
+  "status": {
+    "loading": "Cargando…",
+    "empty": "Todavía no hay nada",
+    "error": "Algo ha fallado",
+    "saved": "Guardado"
+  },
+  "theme": {
+    "light": "Claro",
+    "dark": "Oscuro",
+    "system": "Sistema"
+  },
+  "roles": {
+    "admin": "Administrador",
+    "reviewer": "Revisor",
+    "member": "Miembro",
+    "owner": "Propietario",
+    "editor": "Editor",
+    "viewer": "Lector"
+  },
+  "errors": {
+    "invalid_credentials": "El correo o la contraseña no son correctos.",
+    "email_taken": "Ya existe una cuenta con este correo.",
+    "registration_closed": "El registro está cerrado. Pide una invitación a un administrador.",
+    "not_authenticated": "Inicia sesión.",
+    "forbidden": "No tienes permiso para hacer esto.",
+    "not_found": "No encontrado.",
+    "validation_failed": "Revisa el formulario.",
+    "last_owner": "Un proyecto necesita al menos un propietario.",
+    "already_member": "Este usuario ya es miembro.",
+    "user_not_found": "No hay ningún usuario con ese correo.",
+    "cannot_demote_self": "No puedes cambiar tu propio rol.",
+    "cannot_disable_self": "No puedes desactivar tu propia cuenta.",
+    "device_request_not_found": "Este código no se ha encontrado o ya se ha usado.",
+    "device_request_expired": "Este código ha caducado. Ejecuta de nuevo el comando de inicio de sesión.",
+    "generic": "Algo ha fallado. Inténtalo de nuevo."
+  }
+}

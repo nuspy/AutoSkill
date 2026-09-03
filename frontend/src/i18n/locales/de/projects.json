@@ -1,1 +1,41 @@
-{}
+{
+  "title": "Projekte",
+  "subtitle": "Jedes Projekt bündelt die Skills, Datenquellen und Personen eines Arbeitsbereichs.",
+  "new": "Neues Projekt",
+  "name": "Projektname",
+  "description": "Beschreibung",
+  "members": "Mitglieder",
+  "settings": "Einstellungen",
+  "empty": "Erstelle dein erstes Projekt, um eine Aufgabe zu beschreiben.",
+  "created": "Projekt erstellt",
+  "dashboard": {
+    "skills": "Skills",
+    "runs": "Letzte Läufe",
+    "trials": "Laufende Tests",
+    "pending": "Wartet auf dich"
+  },
+  "member": {
+    "add": "Mitglied hinzufügen",
+    "email": "E-Mail eines bestehenden Benutzers",
+    "role": "Rolle",
+    "added": "Mitglied hinzugefügt",
+    "removed": "Mitglied entfernt"
+  },
+  "apiKeys": {
+    "title": "API-Schlüssel",
+    "subtitle": "Mit Schlüsseln senden installierte Skills Lauf-Telemetrie an dieses Projekt.",
+    "new": "Neuer Schlüssel",
+    "name": "Schlüsselname",
+    "created": "Schlüssel erstellt. Kopiere ihn jetzt, er wird nicht mehr angezeigt.",
+    "revoke": "Widerrufen",
+    "revoked": "Schlüssel widerrufen",
+    "scopes": "Berechtigungen",
+    "expires": "Läuft ab",
+    "never": "Nie"
+  },
+  "danger": {
+    "title": "Gefahrenzone",
+    "delete": "Projekt löschen",
+    "confirm": "Projekt „{{name}}“ löschen? Das kann nicht rückgängig gemacht werden."
+  }
+}

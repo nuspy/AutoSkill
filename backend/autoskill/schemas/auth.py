@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime
+
 from pydantic import BaseModel, EmailStr, Field
 
 from autoskill.schemas.user import UserOut
@@ -61,3 +63,31 @@ class DevicePendingOut(BaseModel):
     device_os: str | None
     agent_targets: list[str]
     expires_at: str
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str = Field(min_length=8, max_length=200)
+    new_password: str = Field(min_length=8, max_length=128)
+
+
+class InvitationIn(BaseModel):
+    email: EmailStr
+    role: str = Field(default="member", pattern="^(admin|reviewer|member)$")
+    project_id: str | None = None
+    expires_in_days: int = Field(default=7, ge=1, le=90)
+
+
+class InvitationOut(BaseModel):
+    id: str
+    email: str
+    role: str | None
+    project_id: str | None
+    invited_by: str | None
+    expires_at: datetime
+    used_at: datetime | None
+    created_at: datetime
+    invite_url: str | None = None  # only right after creation

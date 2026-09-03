@@ -130,7 +130,10 @@ def test_snapshot_and_restore_round_trip(tmp_path, monkeypatch):
         folder.mkdir()
         (folder / "a.txt").write_text("a")
         snap = companion.snapshot(
-            "run1", "flag", paths=[str(sheet), str(folder), str(work / "missing.txt")], refs=[{"kind": "db", "ref": "table x"}]
+            "run1",
+            "flag",
+            paths=[str(sheet), str(folder), str(work / "missing.txt")],
+            refs=[{"kind": "db", "ref": "table x"}],
         )
         assert snap["id"] == "snap1" and snap["local_dir"].endswith("/sandbox/run1/flag")
         kinds = [i["kind"] for i in snap["items"]]
@@ -142,9 +145,15 @@ def test_snapshot_and_restore_round_trip(tmp_path, monkeypatch):
         (folder / "a.txt").write_text("changed")
         (folder / "b.txt").write_text("new")
         res = companion.restore_snapshot("run1", "flag")
-        assert res["checkpoint_id"] == "cp1" and sorted(res["restored"]) == sorted([str(sheet.resolve()), str(folder.resolve())])
+        assert res["checkpoint_id"] == "cp1" and sorted(res["restored"]) == sorted(
+            [str(sheet.resolve()), str(folder.resolve())]
+        )
         assert res["needs_manual_restore"] == [{"kind": "db", "ref": "table x", "note": None}]
-        assert sheet.read_bytes() == b"original" and (folder / "a.txt").read_text() == "a" and not (folder / "b.txt").exists()
+        assert (
+            sheet.read_bytes() == b"original"
+            and (folder / "a.txt").read_text() == "a"
+            and not (folder / "b.txt").exists()
+        )
         cp_call = [c for c in state["calls"] if c[1].endswith("/checkpoints")][-1]
         assert cp_call[3]["phase"] == "restore" and cp_call[3]["proposal"]["restored"]
         assert companion.restore_snapshot("run1", "nope")["error"] == "no_snapshot"

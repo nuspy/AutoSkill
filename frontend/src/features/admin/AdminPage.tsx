@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import type { UserRole } from "@/api/types";
 import {
-  useAdminAudit, useAdminJobs, useAdminProjects, useAdminSaveSettings, useAdminSettings, useAdminStats, useAdminUpdateUser, useAdminUsers,
+  useAdminAudit, useAdminJobs, useAdminProjects, useAdminSaveSettings, useAdminSettings, useAdminStats, useAdminUpdateUser, useAdminUsers, useInvitationMutations, useInvitations,
 } from "@/api/hooks/admin";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
@@ -50,6 +50,42 @@ export default function AdminPage() {
   );
 }
 
+function InvitationsCard() {
+  const { t } = useTranslation(["admin", "common"]);
+  const invitations = useInvitations();
+  const projects = useAdminProjects();
+  const { create, remove } = useInvitationMutations();
+  const [email, setEmail] = useState("");
+  const [role, setRole] = useState("member");
+  const [projectId, setProjectId] = useState("");
+  const [lastUrl, setLastUrl] = useState<string | null>(null);
+  return (
+    <Card className="mb-4">
+      <CardHeader title={t("admin:invitations.title")} description={t("admin:invitations.subtitle")} />
+      <CardBody className="space-y-3">
+        <form className="flex flex-wrap items-end gap-2" onSubmit={(e) => { e.preventDefault(); create.mutate({ email, role, project_id: projectId || null }, { onSuccess: (inv) => { setEmail(""); setLastUrl(inv.invite_url ?? null); toast.success(t("admin:invitations.sent")); }, onError: (err) => toast.error(errorMessage(err, t)) }); }}>
+          <Input type="email" required placeholder={t("admin:invitations.email")} value={email} onChange={(e) => setEmail(e.target.value)} className="w-64" />
+          <Select value={role} onChange={(e) => setRole(e.target.value)} className="w-36">{(["member", "reviewer", "admin"] as const).map((r) => <option key={r} value={r}>{t(`common:roles.${r}`)}</option>)}</Select>
+          <Select value={projectId} onChange={(e) => setProjectId(e.target.value)} className="w-48"><option value="">{t("admin:invitations.noProject")}</option>{projects.data?.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</Select>
+          <Button type="submit" loading={create.isPending}>{t("admin:invitations.send")}</Button>
+        </form>
+        {lastUrl && <p className="break-all rounded-lg bg-accent p-2 font-mono text-xs">{lastUrl}</p>}
+        {invitations.data && invitations.data.length > 0 && (
+          <ul className="divide-y divide-border text-sm">
+            {invitations.data.map((inv) => (
+              <li key={inv.id} className="flex items-center gap-3 py-2">
+                <span className="flex-1">{inv.email} <span className="text-xs text-muted">· {t(`common:roles.${inv.role ?? "member"}`)}</span></span>
+                <span className="text-xs text-muted">{new Date(inv.expires_at).toLocaleDateString()}</span>
+                <Button size="sm" variant="ghost" onClick={() => remove.mutate(inv.id)}>{t("common:actions.delete")}</Button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </CardBody>
+    </Card>
+  );
+}
+
 function UsersTab() {
   const { t } = useTranslation(["admin", "common"]);
   const [q, setQ] = useState("");
@@ -57,6 +93,8 @@ function UsersTab() {
   const update = useAdminUpdateUser();
   const onError = (err: unknown) => toast.error(errorMessage(err, t));
   return (
+    <>
+    <InvitationsCard />
     <Card>
       <CardHeader title={t("admin:users")} actions={<Input placeholder={t("common:actions.search")} value={q} onChange={(e) => setQ(e.target.value)} className="w-56" />} />
       {users.isLoading ? <CardBody><Skeleton className="h-24" /></CardBody> : (
@@ -73,6 +111,7 @@ function UsersTab() {
         </ul>
       )}
     </Card>
+    </>
   );
 }
 

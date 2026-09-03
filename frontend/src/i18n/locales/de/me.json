@@ -1,1 +1,39 @@
-{}
+{
+  "profile": {
+    "title": "Profil",
+    "saved": "Profil gespeichert",
+    "password": "Passwort ändern",
+    "passwordChanged": "Passwort geändert"
+  },
+  "devices": {
+    "title": "Meine Geräte",
+    "subtitle": "Rechner, die mit dem AutoSkill-Kommandozeilenwerkzeug verbunden sind.",
+    "empty": "Noch kein Gerät verbunden.",
+    "connect": "Gerät verbinden",
+    "howto": "Installiere die CLI und führe aus:",
+    "lastSeen": "Zuletzt gesehen",
+    "agents": "Agenten",
+    "remove": "Trennen"
+  },
+  "notifications": {
+    "title": "Benachrichtigungen",
+    "empty": "Du bist auf dem neuesten Stand.",
+    "preferences": "Benachrichtigungseinstellungen",
+    "preferencesHelp": "Wähle, was du in der App und per E-Mail erhältst.",
+    "kind": "Ereignis",
+    "inApp": "In der App",
+    "email": "E-Mail",
+    "kinds": {
+      "skill_update_available": "Update für eine installierte Skill verfügbar",
+      "review_requested": "Prüfung angefordert",
+      "review_decided": "Prüfung entschieden",
+      "authorization_requested": "Freigabe angefordert",
+      "proposal_ready": "Verbesserungsvorschlag bereit",
+      "issue_reported": "Von einem Agenten gemeldetes Problem",
+      "checkpoint_waiting": "Agent wartet auf eine Entscheidung",
+      "trial_suspended_reminder": "Erinnerung an einen pausierten Test",
+      "contribution_received": "Beitrag erhalten",
+      "contribution_decided": "Beitrag entschieden"
+    }
+  }
+}

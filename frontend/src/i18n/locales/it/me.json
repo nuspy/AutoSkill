@@ -1,8 +1,39 @@
 {
-  "profile": { "title": "Profilo", "saved": "Profilo salvato", "password": "Cambia password", "passwordChanged": "Password cambiata" },
-  "devices": {
-    "title": "I miei dispositivi", "subtitle": "Macchine collegate con lo strumento a riga di comando di AutoSkill.", "empty": "Nessun dispositivo collegato.",
-    "connect": "Collega un dispositivo", "howto": "Installa la CLI ed esegui:", "lastSeen": "Ultimo accesso", "agents": "Agenti", "remove": "Scollega"
+  "profile": {
+    "title": "Profilo",
+    "saved": "Profilo salvato",
+    "password": "Cambia password",
+    "passwordChanged": "Password cambiata"
   },
-  "notifications": { "title": "Notifiche", "empty": "Sei in pari con tutto." }
+  "devices": {
+    "title": "I miei dispositivi",
+    "subtitle": "Macchine collegate con lo strumento a riga di comando di AutoSkill.",
+    "empty": "Nessun dispositivo collegato.",
+    "connect": "Collega un dispositivo",
+    "howto": "Installa la CLI ed esegui:",
+    "lastSeen": "Ultimo accesso",
+    "agents": "Agenti",
+    "remove": "Scollega"
+  },
+  "notifications": {
+    "title": "Notifiche",
+    "empty": "Sei in pari con tutto.",
+    "preferences": "Preferenze di notifica",
+    "preferencesHelp": "Scegli cosa ricevere nell'app e per email.",
+    "kind": "Evento",
+    "inApp": "Nell'app",
+    "email": "Email",
+    "kinds": {
+      "skill_update_available": "Aggiornamento disponibile per una skill installata",
+      "review_requested": "Revisione richiesta",
+      "review_decided": "Revisione decisa",
+      "authorization_requested": "Autorizzazione richiesta",
+      "proposal_ready": "Proposta di miglioramento pronta",
+      "issue_reported": "Problema segnalato da un agente",
+      "checkpoint_waiting": "Agente in attesa di una decisione",
+      "trial_suspended_reminder": "Promemoria prova sospesa",
+      "contribution_received": "Contributo ricevuto",
+      "contribution_decided": "Contributo deciso"
+    }
+  }
 }

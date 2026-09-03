@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/api/client";
-import type { Device, Notification } from "@/api/types";
+import type { Device, Notification, NotificationPreference } from "@/api/types";
 
 export function useDevices() {
   return useQuery({ queryKey: ["me", "devices"], queryFn: () => api<Device[]>("/me/devices") });
@@ -43,5 +43,17 @@ export function useDevicePending(userCode: string) {
 export function useDeviceConfirm() {
   return useMutation({
     mutationFn: (body: { user_code: string; approve: boolean }) => api<{ ok: boolean }>("/auth/device/confirm", { method: "POST", body }),
+  });
+}
+
+export function useNotificationPreferences() {
+  return useQuery({ queryKey: ["me", "notification-preferences"], queryFn: () => api<NotificationPreference[]>("/me/notifications/preferences") });
+}
+
+export function useSetNotificationPreference() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { kind: string; in_app: boolean; email: boolean }) => api<{ ok: boolean }>("/me/notifications/preferences", { method: "PUT", body }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["me", "notification-preferences"] }),
   });
 }

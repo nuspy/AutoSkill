@@ -7,6 +7,8 @@ import { Spinner } from "@/components/ui/misc";
 
 const LoginPage = lazy(() => import("@/features/auth/LoginPage"));
 const RegisterPage = lazy(() => import("@/features/auth/RegisterPage"));
+const ForgotPasswordPage = lazy(() => import("@/features/auth/ForgotPasswordPage"));
+const ResetPasswordPage = lazy(() => import("@/features/auth/ResetPasswordPage"));
 const DevicePage = lazy(() => import("@/features/auth/DevicePage"));
 const ProjectsPage = lazy(() => import("@/features/projects/ProjectsPage"));
 const ProjectPage = lazy(() => import("@/features/projects/ProjectPage"));
@@ -36,6 +38,9 @@ const router = createBrowserRouter([
         children: [
           { path: "/login", element: page(<LoginPage />) },
           { path: "/register", element: page(<RegisterPage />) },
+          { path: "/invite/:token", element: page(<RegisterPage />) },
+          { path: "/forgot", element: page(<ForgotPasswordPage />) },
+          { path: "/reset/:token", element: page(<ResetPasswordPage />) },
         ],
       },
     ],

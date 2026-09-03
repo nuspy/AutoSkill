@@ -1,1 +1,74 @@
-{}
+{
+  "app": {
+    "name": "AutoSkill",
+    "tagline": "Alakítsd a munkamódszeredet olyan skillekké, amelyeket az ügynököd futtathat"
+  },
+  "nav": {
+    "projects": "Projektek",
+    "hub": "Skill Hub",
+    "admin": "Adminisztráció",
+    "notifications": "Értesítések",
+    "devices": "Eszközeim",
+    "profile": "Profil",
+    "logout": "Kijelentkezés",
+    "installs": "Telepítéseim",
+    "trials": "Próbáim",
+    "review": "Bírálat"
+  },
+  "actions": {
+    "save": "Mentés",
+    "cancel": "Mégse",
+    "create": "Létrehozás",
+    "delete": "Törlés",
+    "edit": "Szerkesztés",
+    "close": "Bezárás",
+    "confirm": "Megerősítés",
+    "back": "Vissza",
+    "retry": "Újra",
+    "copy": "Másolás",
+    "copied": "Kimásolva",
+    "add": "Hozzáadás",
+    "remove": "Eltávolítás",
+    "search": "Keresés",
+    "refresh": "Frissítés",
+    "markAllRead": "Összes megjelölése olvasottként",
+    "approve": "Jóváhagyás",
+    "deny": "Elutasítás"
+  },
+  "status": {
+    "loading": "Betöltés…",
+    "empty": "Még nincs itt semmi",
+    "error": "Hiba történt",
+    "saved": "Mentve"
+  },
+  "theme": {
+    "light": "Világos",
+    "dark": "Sötét",
+    "system": "Rendszer"
+  },
+  "roles": {
+    "admin": "Adminisztrátor",
+    "reviewer": "Bíráló",
+    "member": "Tag",
+    "owner": "Tulajdonos",
+    "editor": "Szerkesztő",
+    "viewer": "Megtekintő"
+  },
+  "errors": {
+    "invalid_credentials": "Hibás e-mail-cím vagy jelszó.",
+    "email_taken": "Ezzel az e-mail-címmel már létezik fiók.",
+    "registration_closed": "A regisztráció zárva. Kérj meghívót egy adminisztrátortól.",
+    "not_authenticated": "Kérjük, jelentkezz be.",
+    "forbidden": "Ehhez nincs jogosultságod.",
+    "not_found": "Nem található.",
+    "validation_failed": "Ellenőrizd az űrlapot.",
+    "last_owner": "Egy projektnek legalább egy tulajdonosra van szüksége.",
+    "already_member": "Ez a felhasználó már tag.",
+    "user_not_found": "Nincs felhasználó ezzel az e-mail-címmel.",
+    "cannot_demote_self": "A saját szerepkörödet nem módosíthatod.",
+    "cannot_disable_self": "A saját fiókodat nem tilthatod le.",
+    "device_request_not_found": "Ez a kód nem található vagy már fel lett használva.",
+    "device_request_expired": "Ez a kód lejárt. Futtasd újra a bejelentkezési parancsot.",
+    "generic": "Hiba történt. Próbáld újra."
+  }
+}

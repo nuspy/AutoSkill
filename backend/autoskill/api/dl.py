@@ -12,15 +12,13 @@ authorization, and nothing here can write.
 
 from __future__ import annotations
 
-import time
-from collections import defaultdict
-
 from fastapi import APIRouter, Request, Response
 from fastapi.responses import RedirectResponse
 from sqlalchemy import select
 
 from autoskill.config import get_settings
 from autoskill.core.errors import AppError, NotFound
+from autoskill.core.ratelimit import limit
 from autoskill.core.security import hash_token
 from autoskill.db.base import utcnow
 from autoskill.db.session import get_session_factory
@@ -42,19 +40,14 @@ class Gone(AppError):
     code = "link_expired"
 
 
-# --- tiny in-memory rate limit (per token / ip) ------------------------------------------
-
-_hits: dict[str, list[float]] = defaultdict(list)
-RATE_LIMIT = 120  # requests per minute per key
+# --- rate limit (shared across workers when Redis is configured) --------------------------
 
 
-def _rate_limit(key: str) -> None:
-    now = time.monotonic()
-    window = [t for t in _hits[key] if now - t < 60]
-    window.append(now)
-    _hits[key] = window
-    if len(window) > RATE_LIMIT:
-        raise AppError("rate_limited", message="too many downloads, slow down", status_code=429)
+async def _rate_limit(key: str, session=None) -> None:
+    per_minute = None
+    if session is not None:
+        per_minute = await get_setting(session, "download_rate_per_minute")
+    await limit(f"dl:{key}", int(per_minute or 120))
 
 
 # --- autoskill-local wheels ---------------------------------------------------------------
@@ -70,7 +63,7 @@ async def companion_latest():
 
 @router.get("/autoskill-local/{filename}")
 async def companion_wheel(filename: str, request: Request):
-    _rate_limit(request.client.host if request.client else "-")
+    await _rate_limit("ip:" + (request.client.host if request.client else "-"))
     if "/" in filename or not filename.endswith(".whl") or not filename.startswith("autoskill_local-"):
         raise NotFound("wheel_not_found")
     path = get_settings().dist_dir / filename
@@ -148,8 +141,8 @@ async def _serve(session, skill: Skill, version: SkillVersion, bundle, path: str
 
 @router.get("/hub/{project_slug}/{skill_name}/{version_label}/{path:path}")
 async def hub_bundle(project_slug: str, skill_name: str, version_label: str, path: str, request: Request):
-    _rate_limit(request.client.host if request.client else "-")
     async with get_session_factory()() as session:
+        await _rate_limit("ip:" + (request.client.host if request.client else "-"), session)
         if not await get_setting(session, "public_hub"):
             raise NotFound("skill_not_found")
         project = (await session.execute(select(Project).where(Project.slug == project_slug))).scalar_one_or_none()
@@ -205,8 +198,8 @@ async def resolve_grant(session, token: str) -> tuple[DownloadGrant, Skill, Skil
 
 @router.get("/{token}/{path:path}")
 async def grant_bundle(token: str, path: str, request: Request):
-    _rate_limit(token[:16])
     async with get_session_factory()() as session:
+        await _rate_limit("token:" + token[:16], session)
         grant, skill, version, trial = await resolve_grant(session, token)
         bundle = await bundles.build_bundle(
             session,

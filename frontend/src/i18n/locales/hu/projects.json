@@ -1,1 +1,41 @@
-{}
+{
+  "title": "Projektek",
+  "subtitle": "Minden projekt egy munkaterület skilljeit, adatforrásait és embereit fogja össze.",
+  "new": "Új projekt",
+  "name": "Projekt neve",
+  "description": "Leírás",
+  "members": "Tagok",
+  "settings": "Beállítások",
+  "empty": "Hozd létre az első projektedet, hogy elkezdhess leírni egy feladatot.",
+  "created": "Projekt létrehozva",
+  "dashboard": {
+    "skills": "Skillek",
+    "runs": "Legutóbbi futások",
+    "trials": "Folyamatban lévő próbák",
+    "pending": "Rád vár"
+  },
+  "member": {
+    "add": "Tag hozzáadása",
+    "email": "Meglévő felhasználó e-mail-címe",
+    "role": "Szerepkör",
+    "added": "Tag hozzáadva",
+    "removed": "Tag eltávolítva"
+  },
+  "apiKeys": {
+    "title": "API-kulcsok",
+    "subtitle": "A kulcsokkal a telepített skillek futási telemetriát küldhetnek ebbe a projektbe.",
+    "new": "Új kulcs",
+    "name": "Kulcs neve",
+    "created": "Kulcs létrehozva. Másold ki most, többé nem jelenik meg.",
+    "revoke": "Visszavonás",
+    "revoked": "Kulcs visszavonva",
+    "scopes": "Hatókörök",
+    "expires": "Lejár",
+    "never": "Soha"
+  },
+  "danger": {
+    "title": "Veszélyzóna",
+    "delete": "Projekt törlése",
+    "confirm": "Törlöd a(z) „{{name}}” projektet? Ez nem vonható vissza."
+  }
+}

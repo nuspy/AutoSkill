@@ -21,7 +21,7 @@ from autoskill.models.skill_version import LibraryComponent, SkillDependency, Sk
 from autoskill.models.system_setting import SystemSetting
 from autoskill.models.trial import Checkpoint, Run, RunAnnotation, RunStep, StepDiscussion, TrialSession, TrialSnapshot
 from autoskill.models.usage import ProjectUsageDaily
-from autoskill.models.user import RefreshToken, User
+from autoskill.models.user import RefreshToken, User, UserToken
 
 __all__ = [
     "ImprovementProposal",
@@ -70,4 +70,5 @@ __all__ = [
     "ProjectUsageDaily",
     "RefreshToken",
     "User",
+    "UserToken",
 ]

@@ -1,1 +1,44 @@
-{}
+{
+  "title": "Adminisztráció",
+  "users": "Felhasználók",
+  "settings": "Beállítások",
+  "providers": "AI-szolgáltatók",
+  "audit": "Auditnapló",
+  "jobs": "Feladatok",
+  "projects": "Összes projekt",
+  "stats": {
+    "users": "Felhasználók",
+    "projects": "Projektek",
+    "devices": "Eszközök",
+    "jobsRunning": "Futó feladatok"
+  },
+  "user": {
+    "role": "Szerepkör",
+    "active": "Aktív",
+    "disabled": "Letiltva",
+    "updated": "Felhasználó frissítve"
+  },
+  "setting": {
+    "registration_open": "Nyílt regisztráció",
+    "public_hub": "Nyilvános hub (bejelentkezés nélkül látható)",
+    "review_required_for_private": "Bírálat megkövetelése privát skillekhez is",
+    "allow_self_review": "Saját skillek bírálatának engedélyezése",
+    "daily_token_cap_per_project": "Napi tokenkorlát projektenként",
+    "telemetry_retention_days": "Telemetria megőrzése (nap)",
+    "trial_max_iterations_per_step": "Max. iteráció lépésenként egy próbában",
+    "checkpoint_timeout_minutes": "Ellenőrzőpont időkorlátja (perc)",
+    "auto_confirm_after_confirmations": "Determinisztikus lépések automatikus megerősítése N megerősítés után",
+    "download_rate_per_minute": "Letöltések percenként linkenként / IP-nként",
+    "max_active_download_links_per_user": "Max. aktív letöltési link felhasználónként"
+  },
+  "library": "Könyvtár",
+  "hub": "Hub",
+  "invitations": {
+    "title": "Meghívók",
+    "subtitle": "Hívj meg embereket e-mailben; a link zárt regisztráció mellett is működik, és szerepkört meg projektet is adhat.",
+    "email": "E-mail-cím",
+    "noProject": "Nincs projekt",
+    "send": "Meghívás",
+    "sent": "Meghívó elküldve"
+  }
+}

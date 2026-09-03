@@ -1,1 +1,39 @@
-{}
+{
+  "profile": {
+    "title": "Perfil",
+    "saved": "Perfil guardado",
+    "password": "Cambiar la contraseña",
+    "passwordChanged": "Contraseña cambiada"
+  },
+  "devices": {
+    "title": "Mis dispositivos",
+    "subtitle": "Máquinas conectadas con la herramienta de línea de comandos de AutoSkill.",
+    "empty": "Todavía no hay ningún dispositivo conectado.",
+    "connect": "Conectar un dispositivo",
+    "howto": "Instala la CLI y ejecuta:",
+    "lastSeen": "Visto por última vez",
+    "agents": "Agentes",
+    "remove": "Desconectar"
+  },
+  "notifications": {
+    "title": "Notificaciones",
+    "empty": "Estás al día.",
+    "preferences": "Preferencias de notificación",
+    "preferencesHelp": "Elige qué recibes en la aplicación y por correo.",
+    "kind": "Evento",
+    "inApp": "En la aplicación",
+    "email": "Correo",
+    "kinds": {
+      "skill_update_available": "Actualización disponible para una skill instalada",
+      "review_requested": "Revisión solicitada",
+      "review_decided": "Revisión decidida",
+      "authorization_requested": "Autorización solicitada",
+      "proposal_ready": "Propuesta de mejora lista",
+      "issue_reported": "Problema notificado por un agente",
+      "checkpoint_waiting": "Agente esperando una decisión",
+      "trial_suspended_reminder": "Recordatorio de prueba suspendida",
+      "contribution_received": "Contribución recibida",
+      "contribution_decided": "Contribución decidida"
+    }
+  }
+}

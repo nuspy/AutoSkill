@@ -229,6 +229,51 @@ def _install_python_package(name: str, spec: str) -> tuple[str, dict[str, Any]]:
     return str(bin_dir / name), {"method": "venv", "path": str(venv), "spec": spec, "package": name}
 
 
+def _install_binary(name: str, ref: dict[str, Any]) -> tuple[str, dict[str, Any]]:
+    """Download a single executable into ~/.autoskill/bin (checksum verified) and make it runnable."""
+    data = _fetch_artifact(ref)
+    bin_dir = HOME / "bin"
+    bin_dir.mkdir(parents=True, exist_ok=True)
+    target = bin_dir / name
+    target.write_bytes(data)
+    target.chmod(0o755)
+    return str(target), {"method": "binary", "path": str(target), "package": name}
+
+
+def _install_component_package(
+    name: str, install: dict[str, Any], download: dict[str, Any] | None
+) -> tuple[str | None, dict[str, Any] | None]:
+    """Install an MCP/plugin package by its declared method; returns (command, removal record) or (None, None)."""
+    method = install.get("method")
+    spec = install.get("spec")
+    if download and method in ("pipx_archive", "pipx", "pip"):
+        data = _fetch_artifact(download)
+        archive = Path(tempfile.mkdtemp(prefix="autoskill-mcp-")) / download["filename"]
+        archive.write_bytes(data)
+        return _install_python_package(name, str(archive))
+    if method in ("pipx", "pip") and spec:
+        return _install_python_package(name, spec)
+    if method == "git" and spec:
+        ref = ""
+        cmd = install.get("command", "")
+        if "@" in cmd.split("git+", 1)[-1]:
+            ref = "@" + cmd.split("git+", 1)[-1].split("@", 1)[1].split("#", 1)[0]
+        return _install_python_package(name, f"git+{spec}{ref}")
+    if method == "npm" and spec:
+        if not shutil.which("npm"):
+            typer.echo(
+                f"{name}: npm is not installed; run `{install.get('command', 'npm install -g ' + spec)}` yourself"
+            )
+            return None, None
+        _run(["npm", "install", "-g", spec])
+        return shutil.which(name) or name, {"method": "npm", "package": spec}
+    if method == "binary" and download:
+        return _install_binary(name, download)
+    if install.get("command") and method not in ("copy", "none"):
+        typer.echo(f"{name}: install it first with `{install['command']}` (not automated)")
+    return None, None
+
+
 def _install_from_manifest(
     cfg: LocalConfig, manifest: dict[str, Any], target: str, trial_token: str | None
 ) -> tuple[str, dict[str, Any], dict[str, Any]]:
@@ -266,9 +311,13 @@ def _install_from_manifest(
                 info["skill_dir"] = str(target_dir)
             record["components"].append({"slug": comp["slug"], **info})
             typer.echo(f"component {comp['slug']} installed in {info['skill_dir']}")
-        elif (comp.get("install") or {}).get("command"):
-            typer.echo(f"component {comp['slug']}: run `{comp['install']['command']}` (not automated)")
-            record["components"].append({"slug": comp["slug"], "manual": comp["install"]["command"]})
+        else:
+            cmd, rec = _install_component_package(comp["slug"], comp.get("install") or {}, download)
+            if rec:
+                record["python_packages"].append(rec)
+                record["components"].append({"slug": comp["slug"], "installed": rec})
+            elif (comp.get("install") or {}).get("command"):
+                record["components"].append({"slug": comp["slug"], "manual": comp["install"]["command"]})
     # 2. MCP servers (companion, generated tools, catalog servers)
     for m in manifest.get("mcp_servers", []):
         reg_info = m.get("registration") or {}
@@ -282,18 +331,12 @@ def _install_from_manifest(
             reg = _companion_registration(cfg, trial_token)
         else:
             command = reg_info.get("command") or m["name"]
-            method = (m.get("install") or {}).get("method")
-            if m.get("download") and method in ("pipx_archive", "pipx", "pip"):
-                data = _fetch_artifact(m["download"])
-                archive = Path(tempfile.mkdtemp(prefix="autoskill-mcp-")) / m["download"]["filename"]
-                archive.write_bytes(data)
-                command, rec = _install_python_package(m["name"], str(archive))
-                record["python_packages"].append(rec)
-            elif method in ("pipx", "pip") and (m.get("install") or {}).get("spec"):
-                command, rec = _install_python_package(m["name"], m["install"]["spec"])
-                record["python_packages"].append(rec)
-            elif (m.get("install") or {}).get("command") and not reg_info.get("url"):
-                typer.echo(f"MCP {m['name']}: install it first with `{m['install']['command']}`")
+            if not reg_info.get("url"):
+                installed_cmd, rec = _install_component_package(m["name"], m.get("install") or {}, m.get("download"))
+                if installed_cmd:
+                    command = installed_cmd
+                if rec:
+                    record["python_packages"].append(rec)
             env = _ask_env([e["name"] for e in reg_info.get("env_requirements", []) if e.get("name")])
             reg = McpRegistration(
                 name=m["name"],
@@ -456,6 +499,10 @@ def _remove_bundle_parts(t, manifest: dict[str, Any]) -> None:
             shutil.rmtree(pkg["path"], ignore_errors=True)
         elif pkg.get("method") == "pipx" and pkg.get("package") and shutil.which("pipx"):
             subprocess.run(["pipx", "uninstall", pkg["package"]], check=False, capture_output=True)
+        elif pkg.get("method") == "npm" and pkg.get("package") and shutil.which("npm"):
+            subprocess.run(["npm", "uninstall", "-g", pkg["package"]], check=False, capture_output=True)
+        elif pkg.get("method") == "binary" and pkg.get("path"):
+            Path(pkg["path"]).unlink(missing_ok=True)
 
 
 @trial_app.command("accept")

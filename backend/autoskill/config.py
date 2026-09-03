@@ -31,6 +31,15 @@ class Settings(BaseSettings):
     registration_open: bool = True
     log_level: str = "INFO"
 
+    # outgoing email: console (log + in-memory outbox, default for dev/tests), smtp, none
+    email_backend: Literal["console", "smtp", "none"] = "console"
+    smtp_host: str = "localhost"
+    smtp_port: int = 587
+    smtp_username: str | None = None
+    smtp_password: str | None = None
+    smtp_starttls: bool = True
+    email_from: str = "AutoSkill <no-reply@localhost>"
+
     # install bundles (/dl/...): default lifetime of a version download link, max artifact upload size
     download_link_days: int = 30
     library_artifact_max_mb: int = 64

@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/api/client";
 import type { TokenResponse, User } from "@/api/types";
 import { useSession } from "@/stores/session";
@@ -15,7 +15,7 @@ export function useLogin() {
 export function useRegister() {
   const setSession = useSession((s) => s.setSession);
   return useMutation({
-    mutationFn: (body: { email: string; password: string; display_name: string; locale: string }) =>
+    mutationFn: (body: { email: string; password: string; display_name: string; locale: string; invite_token?: string }) =>
       api<TokenResponse>("/auth/register", { method: "POST", body, auth: false }),
     onSuccess: (data) => setSession(data.access_token, data.user),
   });
@@ -46,4 +46,16 @@ export function useChangePassword() {
     mutationFn: (body: { current_password: string; new_password: string }) =>
       api<{ ok: boolean }>("/users/me/password", { method: "POST", body }),
   });
+}
+
+export function useInvitation(token: string) {
+  return useQuery({ queryKey: ["invite", token], queryFn: () => api<{ email: string; role: string | null; project: string | null }>(`/auth/invite/${token}`, { auth: false }), enabled: !!token, retry: false });
+}
+
+export function useForgotPassword() {
+  return useMutation({ mutationFn: (body: { email: string }) => api<{ ok: boolean }>("/auth/password/forgot", { method: "POST", body, auth: false }) });
+}
+
+export function useResetPassword() {
+  return useMutation({ mutationFn: (body: { token: string; new_password: string }) => api<{ ok: boolean }>("/auth/password/reset", { method: "POST", body, auth: false }) });
 }

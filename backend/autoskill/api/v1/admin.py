@@ -2,15 +2,17 @@ from fastapi import APIRouter, Query
 from sqlalchemy import func, select
 
 from autoskill.api.v1.deps import AdminUser, SessionDep
+from autoskill.config import get_settings
 from autoskill.core.audit import record_audit
 from autoskill.core.errors import NotFound, ValidationFailed
 from autoskill.models.audit import AuditLog
 from autoskill.models.device import Device
 from autoskill.models.job import Job
 from autoskill.models.project import Project
-from autoskill.models.user import User, UserRole
+from autoskill.models.user import User, UserRole, UserToken
 from autoskill.schemas.admin import AuditOut, JobOut, SettingsUpdate, StatsOut
-from autoskill.schemas.common import Page
+from autoskill.schemas.auth import InvitationIn, InvitationOut
+from autoskill.schemas.common import OkResponse, Page
 from autoskill.schemas.project import ProjectOut
 from autoskill.schemas.user import AdminUserUpdate, UserOut
 from autoskill.services.settings import DEFAULTS, get_all_settings, set_setting
@@ -167,3 +169,52 @@ async def list_jobs(
         for j in res.scalars()
     ]
     return Page(items=items, total=total)
+
+
+# --- invitations -----------------------------------------------------------------------
+
+
+@router.post("/invitations", response_model=InvitationOut, status_code=201)
+async def create_invitation(body: InvitationIn, session: SessionDep, admin: AdminUser):
+    from autoskill.services import accounts
+
+    row, token = await accounts.create_invitation(
+        session,
+        email=body.email,
+        role=body.role,
+        project_id=body.project_id,
+        invited_by=admin,
+        expires_in_days=body.expires_in_days,
+    )
+    await record_audit(
+        session,
+        "user.invite",
+        actor_user_id=admin.id,
+        subject_type="invitation",
+        subject_id=row.id,
+        after={"email": row.email},
+    )
+    await session.commit()
+    await session.refresh(row)
+    out = InvitationOut.model_validate(row, from_attributes=True)
+    out.invite_url = f"{get_settings().public_url.rstrip('/')}/invite/{token}"
+    return out
+
+
+@router.get("/invitations", response_model=list[InvitationOut])
+async def list_invitations(session: SessionDep, admin: AdminUser, include_used: bool = False):
+    stmt = select(UserToken).where(UserToken.kind == "invite")
+    if not include_used:
+        stmt = stmt.where(UserToken.used_at.is_(None))
+    res = await session.execute(stmt.order_by(UserToken.created_at.desc()).limit(200))
+    return [InvitationOut.model_validate(r, from_attributes=True) for r in res.scalars()]
+
+
+@router.delete("/invitations/{invitation_id}", response_model=OkResponse)
+async def delete_invitation(invitation_id: str, session: SessionDep, admin: AdminUser):
+    row = await session.get(UserToken, invitation_id)
+    if row is None or row.kind != "invite":
+        raise NotFound("invitation_not_found")
+    await session.delete(row)
+    await session.commit()
+    return OkResponse()

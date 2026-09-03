@@ -35,7 +35,11 @@ SKILL_ZIP = _zip(
 )
 TOOLS_ZIP = _zip({"pyproject.toml": '[project]\nname = "invoice-check-tools"\n', "invoice_check_tools/__init__.py": ""})
 NOTES_ZIP = _zip({"ldap-notes/SKILL.md": "---\nname: ldap-notes\ndescription: d\n---\nb\n"})
-FILES = {"/dl/tok/skill.zip": SKILL_ZIP, "/dl/tok/mcp/invoice-check-tools.zip": TOOLS_ZIP, "/dl/tok/components/ldap-notes/ldap-notes.zip": NOTES_ZIP}
+FILES = {
+    "/dl/tok/skill.zip": SKILL_ZIP,
+    "/dl/tok/mcp/invoice-check-tools.zip": TOOLS_ZIP,
+    "/dl/tok/components/ldap-notes/ldap-notes.zip": NOTES_ZIP,
+}
 
 
 def manifest(bad_sha: bool = False) -> dict:
@@ -149,3 +153,63 @@ def test_checksum_mismatch_refuses_to_install(home):
     with pytest.raises(RuntimeError, match="checksum mismatch"):
         cli._install_from_manifest(cfg, manifest(bad_sha=True), "hermes", None)
     assert not (get_target("hermes").skill_dir / "invoice-check").exists()
+
+
+def test_npm_git_and_binary_components(home, monkeypatch):
+    home_dir, calls = home
+    binary = b"#!/bin/sh\necho hi\n"
+    FILES["/dl/tok/components/ldap-tool/ldap-tool"] = binary
+    m = manifest()
+    m["components"] = [
+        {
+            "slug": "ldap-tool",
+            "kind": "plugin",
+            "download": {
+                "url": f"{BASE}/components/ldap-tool/ldap-tool",
+                "filename": "ldap-tool",
+                "sha256": hashlib.sha256(binary).hexdigest(),
+            },
+            "install": {"method": "binary"},
+        },
+    ]
+    m["mcp_servers"] = [
+        {"name": "autoskill-companion", "kind": "companion", "registration": {"command": "autoskill-companion"}},
+        {
+            "name": "calendar-mcp",
+            "kind": "library",
+            "install": {"method": "npm", "spec": "@acme/calendar-mcp", "command": "npm install -g @acme/calendar-mcp"},
+            "registration": {"command": "calendar-mcp", "args": ["--stdio"], "env_requirements": []},
+        },
+        {
+            "name": "crm-mcp",
+            "kind": "library",
+            "install": {
+                "method": "git",
+                "spec": "https://git.example/crm-mcp.git",
+                "command": "pipx install git+https://git.example/crm-mcp.git@v2",
+            },
+            "registration": {"command": "crm-mcp", "env_requirements": []},
+        },
+    ]
+    monkeypatch.setattr(cli.shutil, "which", lambda name: "/usr/bin/npm" if name == "npm" else None)
+    cfg = LocalConfig(server_url="http://server", api_key="ask_x")
+    _folder, _meta, record = cli._install_from_manifest(cfg, m, "hermes", None)
+    t = get_target("hermes")
+    servers = t.registered_mcps()
+    assert servers["calendar-mcp"]["command"] == "calendar-mcp" and servers["calendar-mcp"]["args"] == ["--stdio"]
+    assert servers["crm-mcp"]["command"].endswith("/venvs/crm-mcp/bin/crm-mcp")
+    assert ["npm", "install", "-g", "@acme/calendar-mcp"] in calls
+    pip_call = next(c for c in calls if "pip" in c and "install" in c)
+    assert pip_call[-1] == "git+https://git.example/crm-mcp.git@v2"
+    tool = home_dir / ".autoskill" / "bin" / "ldap-tool"
+    assert tool.read_bytes() == binary and tool.stat().st_mode & 0o111
+    methods = sorted(p["method"] for p in record["python_packages"])
+    assert methods == ["binary", "npm", "venv"]
+    cli._remove_bundle_parts(t, record)
+    assert not tool.exists() and set(t.registered_mcps()) == {"autoskill-companion"}
+    assert [
+        "npm",
+        "uninstall",
+        "-g",
+        "@acme/calendar-mcp",
+    ] not in calls  # uninstall goes through subprocess.run, not _run

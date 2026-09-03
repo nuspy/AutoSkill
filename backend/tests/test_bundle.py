@@ -293,3 +293,45 @@ async def test_version_download_links_and_public_hub_bundle(app_client):
     assert (await app_client.get(f"{hub_base}/9.9.9/install.json")).status_code == 404
     # wheel endpoint: nothing published on this test server
     assert (await app_client.get("/dl/autoskill-local/latest")).status_code == 404
+
+
+async def test_download_rate_limit_and_link_cap(app_client):
+    from autoskill.core.ratelimit import MemoryRateLimiter, RateLimited, get_rate_limiter
+
+    _user, a, project = await setup_project(app_client)
+    fake = FakeLlmProvider()
+    set_fake_provider(fake)
+    try:
+        _skill_id, version = await _draft_with_dependencies(app_client, a, project, fake, [])
+    finally:
+        set_fake_provider(None)
+    await app_client.put(
+        "/api/v1/admin/settings",
+        json={"values": {"max_active_download_links_per_user": 2, "download_rate_per_minute": 5}},
+        headers=a,
+    )
+    links = []
+    for _ in range(2):
+        r = await app_client.post(f"/api/v1/versions/{version['id']}/download-links", json={}, headers=a)
+        assert r.status_code == 201, r.text
+        links.append(r.json())
+    capped = await app_client.post(f"/api/v1/versions/{version['id']}/download-links", json={}, headers=a)
+    assert capped.status_code == 409 and capped.json()["error"]["code"] == "too_many_links"
+    await app_client.delete(f"/api/v1/download-links/{links[0]['id']}", headers=a)
+    assert (
+        await app_client.post(f"/api/v1/versions/{version['id']}/download-links", json={}, headers=a)
+    ).status_code == 201
+
+    # the same token may be used 5 times per minute, then 429 (memory backend in tests)
+    path = _path(links[1]["manifest_url"])
+    codes = [(await app_client.get(path)).status_code for _ in range(6)]
+    assert codes == [200] * 5 + [429]
+    assert isinstance(get_rate_limiter(), MemoryRateLimiter)
+    limiter = MemoryRateLimiter()
+    for _ in range(3):
+        await limiter.hit("k", 3)
+    import pytest
+
+    with pytest.raises(RateLimited):
+        await limiter.hit("k", 3)
+    await limiter.hit("other", 3)  # independent keys

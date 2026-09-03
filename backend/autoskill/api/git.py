@@ -7,6 +7,7 @@ from sqlalchemy import select
 
 from autoskill.api.v1.deps import get_api_key, get_optional_user
 from autoskill.core.errors import NotFound, Unauthorized
+from autoskill.core.ratelimit import limit
 from autoskill.db.session import get_session_factory
 from autoskill.models.hub import SkillRepo
 from autoskill.models.project import Project
@@ -18,6 +19,7 @@ router = APIRouter(prefix="/git", tags=["git"])
 
 
 async def _authorized_repo(request: Request, project_slug: str, skill_name: str) -> SkillRepo:
+    await limit("git:ip:" + (request.client.host if request.client else "-"), 240)
     async with get_session_factory()() as session:
         project = (await session.execute(select(Project).where(Project.slug == project_slug))).scalar_one_or_none()
         if project is None:

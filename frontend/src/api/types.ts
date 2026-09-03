@@ -683,3 +683,22 @@ export interface ImprovementProposal {
   created_at: string;
   updated_at: string;
 }
+
+export interface Invitation {
+  id: string;
+  email: string;
+  role: string | null;
+  project_id: string | null;
+  invited_by: string | null;
+  expires_at: string;
+  used_at: string | null;
+  created_at: string;
+  invite_url?: string | null;
+}
+
+export interface NotificationPreference {
+  kind: string;
+  in_app: boolean;
+  email: boolean;
+  stored: boolean;
+}

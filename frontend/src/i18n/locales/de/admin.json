@@ -1,1 +1,44 @@
-{}
+{
+  "title": "Verwaltung",
+  "users": "Benutzer",
+  "settings": "Einstellungen",
+  "providers": "KI-Anbieter",
+  "audit": "Audit-Protokoll",
+  "jobs": "Jobs",
+  "projects": "Alle Projekte",
+  "stats": {
+    "users": "Benutzer",
+    "projects": "Projekte",
+    "devices": "Geräte",
+    "jobsRunning": "Laufende Jobs"
+  },
+  "user": {
+    "role": "Rolle",
+    "active": "Aktiv",
+    "disabled": "Deaktiviert",
+    "updated": "Benutzer aktualisiert"
+  },
+  "setting": {
+    "registration_open": "Offene Registrierung",
+    "public_hub": "Öffentlicher Hub (ohne Anmeldung sichtbar)",
+    "review_required_for_private": "Prüfung auch für private Skills verlangen",
+    "allow_self_review": "Prüfung eigener Skills erlauben",
+    "daily_token_cap_per_project": "Tägliches Token-Limit pro Projekt",
+    "telemetry_retention_days": "Aufbewahrung der Telemetrie (Tage)",
+    "trial_max_iterations_per_step": "Max. Iterationen pro Schritt in einem Test",
+    "checkpoint_timeout_minutes": "Checkpoint-Timeout (Minuten)",
+    "auto_confirm_after_confirmations": "Deterministische Schritte nach N Bestätigungen automatisch bestätigen",
+    "download_rate_per_minute": "Downloads pro Minute je Link / IP",
+    "max_active_download_links_per_user": "Max. aktive Download-Links pro Benutzer"
+  },
+  "library": "Bibliothek",
+  "hub": "Hub",
+  "invitations": {
+    "title": "Einladungen",
+    "subtitle": "Lade Personen per E-Mail ein; der Link funktioniert auch bei geschlossener Registrierung und kann eine Rolle und ein Projekt zuweisen.",
+    "email": "E-Mail-Adresse",
+    "noProject": "Kein Projekt",
+    "send": "Einladen",
+    "sent": "Einladung gesendet"
+  }
+}

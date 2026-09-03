@@ -26,8 +26,19 @@
     "daily_token_cap_per_project": "Limite giornaliero di token per progetto",
     "telemetry_retention_days": "Conservazione telemetria (giorni)",
     "trial_max_iterations_per_step": "Iterazioni massime per step in una prova",
-    "checkpoint_timeout_minutes": "Timeout checkpoint (minuti)"
+    "checkpoint_timeout_minutes": "Timeout checkpoint (minuti)",
+    "auto_confirm_after_confirmations": "Auto-conferma dei passi deterministici dopo N conferme",
+    "download_rate_per_minute": "Download al minuto per link / IP",
+    "max_active_download_links_per_user": "Link di download attivi per utente (max)"
   },
   "library": "Libreria",
-  "hub": "Hub"
+  "hub": "Hub",
+  "invitations": {
+    "title": "Inviti",
+    "subtitle": "Invita persone via email; il link funziona anche a registrazione chiusa e può assegnare un ruolo e un progetto.",
+    "email": "Indirizzo email",
+    "noProject": "Nessun progetto",
+    "send": "Invita",
+    "sent": "Invito inviato"
+  }
 }

@@ -23,6 +23,7 @@ from autoskill.core.security import (
 from autoskill.db.base import utcnow
 from autoskill.models.api_key import SCOPE_TELEMETRY_WRITE, SCOPE_TRIAL_CLIENT, ApiKey
 from autoskill.models.device import Device, DeviceAuthorization
+from autoskill.models.project import Project, ProjectMember, ProjectRole
 from autoskill.models.user import RefreshToken, User, UserRole
 from autoskill.schemas.auth import (
     DeviceConfirmRequest,
@@ -31,12 +32,15 @@ from autoskill.schemas.auth import (
     DeviceStartResponse,
     DeviceTokenRequest,
     DeviceTokenResponse,
+    ForgotPasswordRequest,
     LoginRequest,
     RegisterRequest,
+    ResetPasswordRequest,
     TokenResponse,
 )
 from autoskill.schemas.common import OkResponse
 from autoskill.schemas.user import UserOut
+from autoskill.services import accounts
 from autoskill.services.settings import get_setting
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -80,20 +84,32 @@ async def _issue_tokens(session, user: User, response: Response, request: Reques
 @router.post("/register", response_model=TokenResponse, status_code=201)
 async def register(body: RegisterRequest, session: SessionDep, response: Response, request: Request):
     count = (await session.execute(select(func.count(User.id)))).scalar_one()
-    if count > 0 and not await get_setting(session, "registration_open"):
+    invite = None
+    if body.invite_token:
+        invite = await accounts.valid_token(session, "invite", body.invite_token)
+        if invite.email != body.email.lower():
+            raise ValidationFailed("invite_email_mismatch", message="Use the email address the invitation was sent to.")
+    if count > 0 and invite is None and not await get_setting(session, "registration_open"):
         raise Forbidden("registration_closed")
     existing = await session.execute(select(User).where(User.email == body.email.lower()))
     if existing.scalar_one_or_none() is not None:
         raise Conflict("email_taken")
+    role = UserRole.admin if count == 0 else UserRole.member
+    if invite is not None and invite.role in {r.value for r in UserRole} and count > 0:
+        role = UserRole(invite.role)
     user = User(
         email=body.email.lower(),
         password_hash=hash_password(body.password),
         display_name=body.display_name,
         locale=body.locale,
-        role=UserRole.admin if count == 0 else UserRole.member,
+        role=role,
     )
     session.add(user)
     await session.flush()
+    if invite is not None:
+        invite.used_at = utcnow()
+        if invite.project_id:
+            session.add(ProjectMember(project_id=invite.project_id, user_id=user.id, role=ProjectRole.editor))
     await record_audit(session, "user.register", actor_user_id=user.id, subject_type="user", subject_id=user.id)
     return await _issue_tokens(session, user, response, request)
 
@@ -256,5 +272,29 @@ async def device_confirm(body: DeviceConfirmRequest, session: SessionDep, user: 
     auth.api_key_id = key.id
     auth.issued_key = full
     await record_audit(session, "device.authorized", actor_user_id=user.id, subject_type="device", subject_id=device.id)
+    await session.commit()
+    return OkResponse()
+
+
+@router.get("/invite/{token}")
+async def invitation(token: str, session: SessionDep) -> dict:
+    """What the invite page shows before the person registers."""
+    row = await accounts.valid_token(session, "invite", token)
+    project = await session.get(Project, row.project_id) if row.project_id else None
+    return {"email": row.email, "role": row.role, "project": project.name if project else None}
+
+
+@router.post("/password/forgot", response_model=OkResponse)
+async def forgot_password(body: ForgotPasswordRequest, session: SessionDep):
+    """Always OK (never reveals whether the address exists); sends a reset link when it does."""
+    await accounts.request_password_reset(session, body.email)
+    await session.commit()
+    return OkResponse()
+
+
+@router.post("/password/reset", response_model=OkResponse)
+async def reset_password(body: ResetPasswordRequest, session: SessionDep):
+    user = await accounts.reset_password(session, body.token, body.new_password)
+    await record_audit(session, "user.password_reset", actor_user_id=user.id, subject_type="user", subject_id=user.id)
     await session.commit()
     return OkResponse()

@@ -19,6 +19,8 @@ DEFAULTS: dict[str, Any] = {
     "trial_max_iterations_per_step": 5,
     "checkpoint_timeout_minutes": 120,
     "auto_confirm_after_confirmations": 3,
+    "download_rate_per_minute": 120,
+    "max_active_download_links_per_user": 50,
 }
 
 
