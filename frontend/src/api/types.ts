@@ -619,3 +619,25 @@ export interface McpVersion {
   build: number;
   server_name: string;
 }
+
+export interface ImprovementProposal {
+  id: string;
+  project_id: string;
+  skill_id: string;
+  base_version_id: string;
+  proposed_version_id: string | null;
+  state: string;
+  trigger: string;
+  source_run_ids: string[];
+  source_issue_ids: string[];
+  analysis: { runs_total?: number; runs_failed?: number; failure_rate?: number | null; issues?: number; corrections?: number; hypotheses?: string[]; clusters?: { step_key: string; step_title: string | null; signature: string; count: number }[] };
+  rationale: string | null;
+  diff_summary: { files?: { path: string; status: string }[]; steps?: { added: string[]; removed: string[]; changed: string[] }; suggested_bump?: string };
+  golden_pass_rate: number | null;
+  requested_by: string | null;
+  reviewer_id: string | null;
+  decision_comment: string | null;
+  error: string | null;
+  created_at: string;
+  updated_at: string;
+}

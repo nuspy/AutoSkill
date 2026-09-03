@@ -133,7 +133,8 @@
     "memory": "Memoria",
     "versions": "Versioni",
     "trials": "Prove",
-    "runs": "Esecuzioni"
+    "runs": "Esecuzioni",
+    "improvements": "Miglioramenti"
   },
   "suspend": {
     "action": "Sospendi lo sviluppo",
@@ -562,6 +563,40 @@
       "approved": "approvato",
       "published": "pubblicato",
       "deprecated": "ritirato"
+    }
+  },
+  "improvements": {
+    "title": "Miglioramenti",
+    "subtitle": "AutoSkill osserva esecuzioni fallite, problemi segnalati e correzioni delle prove. Quando ci sono prove sufficienti prepara una versione corretta con un razionale. Nulla viene pubblicato senza di te: le proposte accettate passano comunque per prova, revisione e tua autorizzazione.",
+    "propose": "Proponi un miglioramento ora",
+    "started": "Analisi avviata…",
+    "runs": "Esecuzioni (30 giorni)",
+    "failed": "Fallite",
+    "issues": "Problemi",
+    "corrections": "Correzioni",
+    "nothing": "Nessun fallimento, problema o correzione registrato per questa versione.",
+    "none": "Nessuna proposta.",
+    "noneHelp": "Le proposte compaiono automaticamente dopo 3 esecuzioni fallite o 2 problemi, oppure su richiesta.",
+    "goldenCoverage": "esecuzioni golden coperte: {{pct}}%",
+    "stepsChanged": "passi modificati",
+    "decideHelp": "Accettando, la versione proposta resta una bozza da provare e le lezioni vengono salvate nella memoria della skill. Rifiutando viene scartata.",
+    "accept": "Accetta la proposta",
+    "reject": "Rifiuta",
+    "decided": "Decisione registrata",
+    "state": {
+      "analyzing": "In analisi",
+      "proposed": "Proposta",
+      "under_review": "In revisione",
+      "accepted": "Accettata",
+      "rejected": "Rifiutata",
+      "superseded": "Superata",
+      "failed": "Fallita"
+    },
+    "trigger": {
+      "auto_failure_threshold": "automatica: fallimenti ripetuti",
+      "issue_reports": "automatica: problemi segnalati",
+      "manual": "richiesta da una persona",
+      "scheduled": "scansione programmata"
     }
   }
 }

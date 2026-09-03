@@ -18,13 +18,17 @@ async def cron_cleanup(ctx: dict) -> None:
     await get_job_runner().enqueue("system.cleanup")
 
 
+async def cron_improvement_scan(ctx: dict) -> None:
+    await get_job_runner().enqueue("improvement.scan")
+
+
 async def startup(ctx: dict) -> None:
     register_all_jobs()
 
 
 class WorkerSettings:
     functions = [run_job]
-    cron_jobs = [cron(cron_cleanup, hour=3, minute=15)]
+    cron_jobs = [cron(cron_cleanup, hour=3, minute=15), cron(cron_improvement_scan, hour=4, minute=0)]
     on_startup = startup
     redis_settings = RedisSettings.from_dsn(get_settings().redis_url)
     max_jobs = 8

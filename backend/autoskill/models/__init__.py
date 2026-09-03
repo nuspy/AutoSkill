@@ -6,6 +6,7 @@ from autoskill.models.blob import Blob
 from autoskill.models.data_source import DataSource
 from autoskill.models.device import Device, DeviceAuthorization
 from autoskill.models.hub import Category, Favorite, Installation, SkillRepo
+from autoskill.models.improvement import ImprovementProposal
 from autoskill.models.interview import InterviewMessage, InterviewSession, KnowledgeDoc
 from autoskill.models.job import Job
 from autoskill.models.llm_provider import LlmProvider
@@ -23,6 +24,7 @@ from autoskill.models.usage import ProjectUsageDaily
 from autoskill.models.user import RefreshToken, User
 
 __all__ = [
+    "ImprovementProposal",
     "McpServer",
     "McpServerVersion",
     "Category",

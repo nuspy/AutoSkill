@@ -133,7 +133,8 @@
     "memory": "Memory",
     "versions": "Versions",
     "trials": "Trials",
-    "runs": "Runs"
+    "runs": "Runs",
+    "improvements": "Improvements"
   },
   "suspend": {
     "action": "Suspend development",
@@ -562,6 +563,40 @@
       "approved": "approved",
       "published": "published",
       "deprecated": "deprecated"
+    }
+  },
+  "improvements": {
+    "title": "Improvements",
+    "subtitle": "AutoSkill watches failed runs, reported issues and trial corrections. When there is enough evidence it drafts a corrected version with a rationale. Nothing is published without you: accepted proposals still go through a trial, review and your authorization.",
+    "propose": "Propose an improvement now",
+    "started": "Analysis started…",
+    "runs": "Runs (30 days)",
+    "failed": "Failed",
+    "issues": "Issues",
+    "corrections": "Corrections",
+    "nothing": "No failures, issues or corrections recorded for this version.",
+    "none": "No proposal yet.",
+    "noneHelp": "Proposals appear automatically after 3 failed runs or 2 issues, or when you ask for one.",
+    "goldenCoverage": "golden runs covered: {{pct}}%",
+    "stepsChanged": "steps changed",
+    "decideHelp": "Accepting keeps the proposed version as a draft to trial and stores the lessons in the skill memory. Rejecting discards it.",
+    "accept": "Accept proposal",
+    "reject": "Reject",
+    "decided": "Decision recorded",
+    "state": {
+      "analyzing": "Analyzing",
+      "proposed": "Proposed",
+      "under_review": "Under review",
+      "accepted": "Accepted",
+      "rejected": "Rejected",
+      "superseded": "Superseded",
+      "failed": "Failed"
+    },
+    "trigger": {
+      "auto_failure_threshold": "automatic: repeated failures",
+      "issue_reports": "automatic: reported issues",
+      "manual": "requested by a person",
+      "scheduled": "scheduled scan"
     }
   }
 }

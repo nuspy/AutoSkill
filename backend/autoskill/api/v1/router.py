@@ -9,6 +9,7 @@ from autoskill.api.v1 import (
     events,
     health,
     hub,
+    improvements,
     interview,
     library,
     mcp,
@@ -48,6 +49,7 @@ MODULES = (
     review,
     hub,
     mcp,
+    improvements,
 )
 
 api_router = APIRouter(prefix="/api/v1")
