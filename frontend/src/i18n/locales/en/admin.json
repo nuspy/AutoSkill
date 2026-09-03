@@ -28,5 +28,6 @@
     "trial_max_iterations_per_step": "Max iterations per step in a trial",
     "checkpoint_timeout_minutes": "Checkpoint timeout (minutes)"
   },
-  "library": "Library"
+  "library": "Library",
+  "hub": "Hub"
 }

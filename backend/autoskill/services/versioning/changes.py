@@ -76,7 +76,11 @@ async def compare(session: AsyncSession, skill: Skill, newer: SkillVersion, olde
 
 
 def infer_bump(files: list[dict], steps: dict, new_steps: dict, old_steps: dict) -> str:
-    """major: data sources / side effects / IO change; minor: step added, removed or reordered, new reference; patch: wording."""
+    """Infer the semver bump.
+
+    major: data sources / side effects / IO change; minor: step added, removed or reordered,
+    new reference; patch: wording only.
+    """
     if not old_steps:
         return "minor"
     for k in steps["changed"]:

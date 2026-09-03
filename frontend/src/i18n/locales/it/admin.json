@@ -28,5 +28,6 @@
     "trial_max_iterations_per_step": "Iterazioni massime per step in una prova",
     "checkpoint_timeout_minutes": "Timeout checkpoint (minuti)"
   },
-  "library": "Libreria"
+  "library": "Libreria",
+  "hub": "Hub"
 }

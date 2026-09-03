@@ -131,6 +131,8 @@ export interface Skill {
   current_published_version_id: string | null;
   latest_version_id: string | null;
   tags: string[];
+  category_id?: string | null;
+  install_count?: number;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -536,4 +538,67 @@ export interface VersionTransition {
   actor_user_id: string | null;
   reason: string | null;
   created_at: string;
+}
+
+export interface HubSkill extends Skill {
+  published_version: string | null;
+  published_version_id: string | null;
+  category_slug: string | null;
+  is_favorite: boolean;
+  project_slug: string;
+  is_featured: boolean;
+  published_at: string | null;
+  install_count: number;
+}
+
+export interface Category {
+  id: string;
+  slug: string;
+  name: Record<string, string>;
+  description: string | null;
+  ordinal: number;
+  count: number;
+}
+
+export interface HubHome {
+  featured: HubSkill[];
+  latest: HubSkill[];
+  most_installed: HubSkill[];
+  categories: Category[];
+  public: boolean;
+}
+
+export interface HubSkillDetail {
+  skill: HubSkill;
+  readme: string;
+  versions: { id: string; version: string; state: string; changelog: string | null; created_at: string }[];
+  install_targets: TargetInfo[];
+  dependencies: { component_slug: string; reason: string | null }[];
+  memory_public: { kind: string; title: string; body: string }[];
+  git_url: string | null;
+  zip_url: string | null;
+  my_installation: Installation | null;
+}
+
+export interface Installation {
+  id: string;
+  device_id: string | null;
+  skill_id: string;
+  skill_version_id: string;
+  target_agent: string;
+  channel: string;
+  kind: string;
+  state: string;
+  installed_at: string | null;
+  confirmed_at: string | null;
+  last_run_at: string | null;
+  run_count: number;
+  created_at: string;
+  updated_at: string;
+  skill_title: string;
+  skill_name: string;
+  installed_version: string;
+  latest_version: string | null;
+  latest_version_id: string | null;
+  update_available: boolean;
 }

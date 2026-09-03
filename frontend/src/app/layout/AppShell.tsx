@@ -2,7 +2,7 @@ import { useCallback } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
-import { Bell, ClipboardCheck, FlaskConical, FolderKanban, LogOut, Menu, Moon, MonitorSmartphone, Settings2, ShieldCheck, Store, Sun, User as UserIcon } from "lucide-react";
+import { Bell, ClipboardCheck, Download, FlaskConical, FolderKanban, LogOut, Menu, Moon, MonitorSmartphone, Settings2, ShieldCheck, Store, Sun, User as UserIcon } from "lucide-react";
 import { toast } from "sonner";
 import { useSession } from "@/stores/session";
 import { useUi } from "@/stores/ui";
@@ -61,6 +61,7 @@ export function AppShell() {
         <nav className="flex-1 space-y-1 p-3">
           <NavItem to="/" icon={FolderKanban} label={t("nav.projects")} end />
           <NavItem to="/hub" icon={Store} label={t("nav.hub")} />
+          <NavItem to="/me/installs" icon={Download} label={t("nav.installs")} />
           <NavItem to="/me/trials" icon={FlaskConical} label={t("nav.trials")} />
           <NavItem to="/me/devices" icon={MonitorSmartphone} label={t("nav.devices")} />
           <NavItem to="/me/notifications" icon={Bell} label={t("nav.notifications")} />

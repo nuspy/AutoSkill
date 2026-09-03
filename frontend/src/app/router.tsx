@@ -15,7 +15,9 @@ const ProfilePage = lazy(() => import("@/features/me/ProfilePage"));
 const DevicesPage = lazy(() => import("@/features/devices/DevicesPage"));
 const NotificationsPage = lazy(() => import("@/features/notifications/NotificationsPage"));
 const AdminPage = lazy(() => import("@/features/admin/AdminPage"));
-const HubPlaceholder = lazy(() => import("@/features/projects/HubPlaceholder"));
+const HubHomePage = lazy(() => import("@/features/hub/HubHomePage"));
+const HubSkillPage = lazy(() => import("@/features/hub/HubSkillPage"));
+const MyInstallsPage = lazy(() => import("@/features/installs/MyInstallsPage"));
 const NewSkillPage = lazy(() => import("@/features/skills/NewSkillPage"));
 const SkillPage = lazy(() => import("@/features/skills/SkillPage"));
 const MyTrialsPage = lazy(() => import("@/features/trials/MyTrialsPage"));
@@ -46,7 +48,9 @@ const router = createBrowserRouter([
         children: [
           { path: "/", element: page(<ProjectsPage />) },
           { path: "/device", element: page(<DevicePage />) },
-          { path: "/hub", element: page(<HubPlaceholder />) },
+          { path: "/hub", element: page(<HubHomePage />) },
+          { path: "/hub/s/:skillId", element: page(<HubSkillPage />) },
+          { path: "/me/installs", element: page(<MyInstallsPage />) },
           { path: "/p/:projectId", element: page(<ProjectPage />) },
           { path: "/p/:projectId/settings", element: page(<ProjectSettingsPage />) },
           { path: "/p/:projectId/skills/new", element: page(<NewSkillPage />) },

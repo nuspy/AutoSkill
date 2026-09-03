@@ -5,7 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Response
 from sqlalchemy import select
 
-from autoskill.api.v1.deps import CurrentUser, SessionDep
+from autoskill.api.v1.deps import AnyAuthUser, CurrentUser, SessionDep
 from autoskill.api.v1.skills import get_skill_for
 from autoskill.config import get_settings
 from autoskill.core.errors import Conflict, NotFound, ValidationFailed
@@ -195,8 +195,29 @@ async def install_doc(version_id: str, target: str, session: SessionDep, user: C
 
 
 @router.get("/versions/{version_id}/package.zip")
-async def package_zip(version_id: str, session: SessionDep, user: CurrentUser, targets: str | None = None):
-    version, skill = await _version(session, user, version_id)
+async def package_zip(
+    version_id: str, session: SessionDep, user: AnyAuthUser, targets: str | None = None, target: str | None = None
+):
+    version = await session.get(SkillVersion, version_id)
+    if version is None:
+        raise NotFound("version_not_found")
+    skill = await session.get(Skill, version.skill_id)
+    from autoskill.api.v1.hub import _visible_skill
+
+    skill = await _visible_skill(session, skill.id, user)
+    if version.state == "published" and target:
+        from autoskill.services.distribution.install_tracking import record_installation
+
+        await record_installation(
+            session,
+            user_id=user.id,
+            skill_id=skill.id,
+            skill_version_id=version.id,
+            target_agent=target,
+            channel="zip",
+            state="downloaded",
+        )
+        await session.commit()
     pkg = load_package(skill.name, version)
     extra: dict[str, bytes] = {}
     for target in targets.split(",") if targets else ["hermes", "openclaw"]:

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import JSON, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import JSON, Boolean, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from autoskill.db.base import Base, IdMixin, TimestampMixin, TZDateTime
@@ -29,6 +29,10 @@ class Skill(IdMixin, TimestampMixin, Base):
     forked_from_version_id: Mapped[str | None] = mapped_column(String(36))
     fork_kind: Mapped[str | None] = mapped_column(String(24))
     tags: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    category_id: Mapped[str | None] = mapped_column(String(36), index=True)
+    is_featured: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    featured_at: Mapped[datetime | None] = mapped_column(TZDateTime)
+    published_at: Mapped[datetime | None] = mapped_column(TZDateTime)
     install_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     created_by: Mapped[str | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
     archived_at: Mapped[datetime | None] = mapped_column(TZDateTime)

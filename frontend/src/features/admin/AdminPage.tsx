@@ -15,8 +15,9 @@ import { formatDate } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { ProvidersCard } from "@/features/providers/ProvidersCard";
 import LibraryAdminPage from "@/features/library/LibraryAdminPage";
+import HubAdminTab from "./HubAdminTab";
 
-const TABS = ["users", "projects", "providers", "library", "settings", "audit", "jobs"] as const;
+const TABS = ["users", "projects", "providers", "library", "hub", "settings", "audit", "jobs"] as const;
 
 export default function AdminPage() {
   const { t } = useTranslation(["admin", "common"]);
@@ -40,6 +41,7 @@ export default function AdminPage() {
         <Route path="projects" element={<ProjectsTab />} />
         <Route path="providers" element={<ProvidersCard canEdit />} />
         <Route path="library" element={<LibraryAdminPage canEdit />} />
+        <Route path="hub" element={<HubAdminTab />} />
         <Route path="settings" element={<SettingsTab />} />
         <Route path="audit" element={<AuditTab />} />
         <Route path="jobs" element={<JobsTab />} />

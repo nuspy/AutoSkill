@@ -467,5 +467,74 @@
       "install_docs_checked": "La guida di installazione è corretta per gli agenti target",
       "installers_notified": "Chi l'ha installata è stato informato"
     }
+  },
+  "hub": {
+    "title": "Skill Hub",
+    "subtitle": "Skill condivise da tutti su questo AutoSkill. Provane una sul tuo agente prima di installarla, o crea la tua variante.",
+    "searchPlaceholder": "Cerca skill…",
+    "allCategories": "Tutte",
+    "featured": "In evidenza",
+    "latest": "Ultime",
+    "mostInstalled": "Più installate",
+    "noResults": "Nessuna skill corrisponde.",
+    "empty": "Niente ancora pubblicato.",
+    "emptyHelp": "Le skill appaiono qui quando una versione viene revisionata e pubblicata con visibilità condivisa o pubblica.",
+    "favorite": "Preferita",
+    "unfavorite": "Rimuovi preferita",
+    "tryFirst": "Prova prima di installare",
+    "fork": "Crea la mia variante",
+    "forkHelp": "Copia la versione pubblicata in uno dei tuoi progetti come bozza privata (passi, file e memoria inclusi) così puoi adattarla e provarla per te.",
+    "forkProject": "Progetto di destinazione",
+    "forkNoProject": "Serve un progetto in cui sei editor o proprietario.",
+    "forked": "Variante creata",
+    "installs": "installazioni",
+    "updateAvailable": "aggiornamento disponibile",
+    "installedByYou": "hai installato la v{{version}}",
+    "tabs": {
+      "overview": "Panoramica",
+      "install": "Installazione",
+      "versions": "Versioni"
+    },
+    "installTitle": "Installa sul tuo agente",
+    "installHelp": "Con la CLI (consigliato) oppure scaricando il pacchetto e seguendo la guida.",
+    "why": "Perché esiste questa skill",
+    "settings": "Impostazioni hub",
+    "settingsHelp": "Chi può vedere questa skill una volta pubblicata una versione, e come è classificata.",
+    "visibility": "Visibilità",
+    "visibilities": {
+      "private": "Privata (solo progetto)",
+      "shared": "Condivisa (tutti gli utenti loggati)",
+      "public": "Pubblica (anche senza login, se l'hub è pubblico)"
+    },
+    "visibilityHelp": {
+      "private": "La vedono solo i membri del progetto.",
+      "shared": "Tutti gli utenti di questo AutoSkill possono trovarla, provarla e installarla.",
+      "public": "Visibile anche senza account quando l'amministratore abilita l'hub pubblico."
+    },
+    "category": "Categoria",
+    "tags": "Tag (separati da virgola)",
+    "sort": {
+      "published": "Più recenti",
+      "installs": "Più installate",
+      "updated": "Aggiornate di recente",
+      "title": "Nome"
+    },
+    "adminPublished": "Skill pubblicate",
+    "feature": "Metti in evidenza",
+    "unfeature": "Togli evidenza",
+    "categories": "Categorie"
+  },
+  "installs": {
+    "title": "Le mie installazioni",
+    "subtitle": "Skill installate dall'hub, con avvisi di aggiornamento.",
+    "empty": "Niente ancora installato.",
+    "update": "v{{version}} disponibile",
+    "state": {
+      "downloaded": "scaricata",
+      "installed": "installata",
+      "confirmed": "in uso",
+      "updated": "aggiornata",
+      "removed": "rimossa"
+    }
   }
 }
