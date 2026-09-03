@@ -19,6 +19,8 @@ class SkillOut(ORMModel):
     current_published_version_id: str | None
     latest_version_id: str | None
     tags: list[str]
+    category_id: str | None = None
+    install_count: int = 0
     created_by: str | None
     created_at: datetime
     updated_at: datetime
