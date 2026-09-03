@@ -283,3 +283,83 @@ export interface ProviderTestResult {
   models: string[];
   capabilities: Record<string, boolean>;
 }
+
+export interface StepDefinition {
+  id: string;
+  ordinal: number;
+  key: string;
+  title: string;
+  instruction: string;
+  kind: "deterministic" | "generative" | "human_gate";
+  side_effects: "read_only" | "reversible" | "irreversible" | "unknown";
+  restore_strategy: string;
+  trial_mode: "real" | "simulate" | "sandbox_copy";
+  requires_explicit_auth: boolean;
+  inputs: string[];
+  outputs: string[];
+  data_source_refs: string[];
+  success_criteria: string | null;
+  failure_modes: string[];
+  network: boolean;
+  mcp_tool_name: string | null;
+  library_component_slug: string | null;
+  test_status: string;
+  confirmations_count: number;
+}
+
+export interface SkillVersion {
+  id: string;
+  skill_id: string;
+  version: string;
+  state: string;
+  parent_version_id: string | null;
+  origin: string;
+  manifest: { files: { path: string; hash: string; size: number }[]; total_size?: number };
+  frontmatter: Record<string, unknown>;
+  changelog: string | null;
+  rationale: string | null;
+  validation_report: { ok: boolean; issues: { level: string; code: string; message: string; path: string | null }[] };
+  signature: string | null;
+  created_by: string | null;
+  is_current_draft: boolean;
+  state_changed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SkillVersionDetail extends SkillVersion {
+  steps: StepDefinition[];
+  dependencies: { component_slug: string; reason: string | null; version_constraint: string | null }[];
+  build_log: string | null;
+}
+
+export interface TargetInfo {
+  id: string;
+  display_name: string;
+  global_skill_dir: string;
+  workspace_skill_dir: string | null;
+  mcp_config_path: string;
+  mcp_config_format: string;
+  supports_git_install: boolean;
+  verified_on: string;
+  docs_url: string;
+}
+
+export interface LibraryComponent {
+  id: string;
+  kind: "skill" | "mcp_server";
+  slug: string;
+  name: string;
+  description: string;
+  version: string;
+  source: Record<string, unknown>;
+  tools: { name: string; description?: string; side_effects?: string }[];
+  env_requirements: { name: string; description?: string; secret?: boolean }[];
+  install: Record<string, unknown>;
+  docs: string | null;
+  tags: string[];
+  is_enabled: boolean;
+  added_by: string | null;
+  created_at: string;
+  updated_at: string;
+}

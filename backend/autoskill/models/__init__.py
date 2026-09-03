@@ -13,11 +13,16 @@ from autoskill.models.notification import Notification, NotificationPreference
 from autoskill.models.procedure import Procedure, ProcedureStep
 from autoskill.models.project import Project, ProjectMember
 from autoskill.models.skill import Skill
+from autoskill.models.skill_version import LibraryComponent, SkillDependency, SkillVersion, StepDefinition
 from autoskill.models.system_setting import SystemSetting
 from autoskill.models.usage import ProjectUsageDaily
 from autoskill.models.user import RefreshToken, User
 
 __all__ = [
+    "SkillVersion",
+    "StepDefinition",
+    "LibraryComponent",
+    "SkillDependency",
     "ApiKey",
     "AuditLog",
     "Blob",

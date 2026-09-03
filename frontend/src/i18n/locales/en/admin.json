@@ -1,11 +1,32 @@
 {
-  "title": "Administration", "users": "Users", "settings": "Settings", "providers": "AI providers", "audit": "Audit log", "jobs": "Jobs", "projects": "All projects",
-  "stats": { "users": "Users", "projects": "Projects", "devices": "Devices", "jobsRunning": "Jobs running" },
-  "user": { "role": "Role", "active": "Active", "disabled": "Disabled", "updated": "User updated" },
+  "title": "Administration",
+  "users": "Users",
+  "settings": "Settings",
+  "providers": "AI providers",
+  "audit": "Audit log",
+  "jobs": "Jobs",
+  "projects": "All projects",
+  "stats": {
+    "users": "Users",
+    "projects": "Projects",
+    "devices": "Devices",
+    "jobsRunning": "Jobs running"
+  },
+  "user": {
+    "role": "Role",
+    "active": "Active",
+    "disabled": "Disabled",
+    "updated": "User updated"
+  },
   "setting": {
-    "registration_open": "Open registration", "public_hub": "Public hub (visible without login)",
-    "review_required_for_private": "Require review for private skills", "allow_self_review": "Allow reviewing your own skills",
-    "daily_token_cap_per_project": "Daily token cap per project", "telemetry_retention_days": "Telemetry retention (days)",
-    "trial_max_iterations_per_step": "Max iterations per step in a trial", "checkpoint_timeout_minutes": "Checkpoint timeout (minutes)"
-  }
+    "registration_open": "Open registration",
+    "public_hub": "Public hub (visible without login)",
+    "review_required_for_private": "Require review for private skills",
+    "allow_self_review": "Allow reviewing your own skills",
+    "daily_token_cap_per_project": "Daily token cap per project",
+    "telemetry_retention_days": "Telemetry retention (days)",
+    "trial_max_iterations_per_step": "Max iterations per step in a trial",
+    "checkpoint_timeout_minutes": "Checkpoint timeout (minutes)"
+  },
+  "library": "Library"
 }

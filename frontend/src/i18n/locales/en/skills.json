@@ -1,60 +1,275 @@
 {
-  "title": "Skills", "new": "New skill", "empty": "No skill yet. Describe a task to start.",
+  "title": "Skills",
+  "new": "New skill",
+  "empty": "No skill yet. Describe a task to start.",
   "state": {
-    "active": "In development", "suspended": "Suspended", "archived": "Archived",
-    "created": "Starting", "intake": "Reading your description", "exploring": "Thinking", "gating": "Checking completeness",
-    "awaiting_answer": "Waiting for your answer", "awaiting_confirmation": "Waiting for your confirmation",
-    "complete": "Understanding complete", "drafting_requested": "Drafting", "abandoned": "Abandoned", "failed": "Needs attention"
+    "active": "In development",
+    "suspended": "Suspended",
+    "archived": "Archived",
+    "created": "Starting",
+    "intake": "Reading your description",
+    "exploring": "Thinking",
+    "gating": "Checking completeness",
+    "awaiting_answer": "Waiting for your answer",
+    "awaiting_confirmation": "Waiting for your confirmation",
+    "complete": "Understanding complete",
+    "drafting_requested": "Drafting",
+    "abandoned": "Abandoned",
+    "failed": "Needs attention"
   },
   "start": {
-    "title": "Describe your task", "subtitle": "Tell it like you would to a new colleague: what you do, when, with which files or systems, and what a good result looks like. The assistant will ask questions until it has understood everything.",
-    "skillTitle": "Give this skill a short name", "description": "How do you do this task today?", "language": "Interview language",
+    "title": "Describe your task",
+    "subtitle": "Tell it like you would to a new colleague: what you do, when, with which files or systems, and what a good result looks like. The assistant will ask questions until it has understood everything.",
+    "skillTitle": "Give this skill a short name",
+    "description": "How do you do this task today?",
+    "language": "Interview language",
     "placeholder": "Every Monday I open the supplier invoices spreadsheet, check the amounts against the purchase orders in the ERP, flag anything over budget and email the list to accounting…",
     "submit": "Start the interview"
   },
   "interview": {
-    "title": "Interview", "you": "You", "assistant": "AutoSkill", "why": "Why I am asking", "answer": "Your answer", "send": "Send",
-    "yes": "Yes", "no": "No", "thinking": "AutoSkill is thinking…", "confirm": "Yes, that is right", "correct": "Something is wrong…",
-    "correctionPlaceholder": "Tell me what to change", "sendCorrection": "Send correction", "summaryTitle": "Here is what I understood",
-    "completeTitle": "Understanding complete", "completeBody": "The knowledge document is frozen and the skill memory has been written. The next step is drafting the skill.",
-    "failedTitle": "The interview stopped", "abandon": "Abandon interview", "supervisor": "Supervisor", "supervisorDecision": "Decision: {{decision}}",
-    "turns": "{{count}} turns", "gate": "gate {{id}}", "resume": "Continue the interview", "newSession": "Start a new interview"
+    "title": "Interview",
+    "you": "You",
+    "assistant": "AutoSkill",
+    "why": "Why I am asking",
+    "answer": "Your answer",
+    "send": "Send",
+    "yes": "Yes",
+    "no": "No",
+    "thinking": "AutoSkill is thinking…",
+    "confirm": "Yes, that is right",
+    "correct": "Something is wrong…",
+    "correctionPlaceholder": "Tell me what to change",
+    "sendCorrection": "Send correction",
+    "summaryTitle": "Here is what I understood",
+    "completeTitle": "Understanding complete",
+    "completeBody": "The knowledge document is frozen and the skill memory has been written. The next step is drafting the skill.",
+    "failedTitle": "The interview stopped",
+    "abandon": "Abandon interview",
+    "supervisor": "Supervisor",
+    "supervisorDecision": "Decision: {{decision}}",
+    "turns": "{{count}} turns",
+    "gate": "gate {{id}}",
+    "resume": "Continue the interview",
+    "newSession": "Start a new interview"
   },
   "knowledge": {
-    "title": "What I understood so far", "completeness": "{{passed}} of {{total}} checks", "goal": "Goal", "trigger": "When", "sources": "Data sources",
-    "steps": "Steps", "rules": "Rules", "edgeCases": "Exceptions", "criteria": "What a good result looks like", "integrations": "Other systems",
-    "openQuestions": "Open questions", "revision": "revision {{n}}", "sideEffects": { "read_only": "reads only", "reversible": "changes, reversible", "irreversible": "irreversible", "unknown": "effects unknown" },
-    "kind": { "deterministic": "mechanical", "generative": "needs judgement", "human_gate": "needs approval" }
+    "title": "What I understood so far",
+    "completeness": "{{passed}} of {{total}} checks",
+    "goal": "Goal",
+    "trigger": "When",
+    "sources": "Data sources",
+    "steps": "Steps",
+    "rules": "Rules",
+    "edgeCases": "Exceptions",
+    "criteria": "What a good result looks like",
+    "integrations": "Other systems",
+    "openQuestions": "Open questions",
+    "revision": "revision {{n}}",
+    "sideEffects": {
+      "read_only": "reads only",
+      "reversible": "changes, reversible",
+      "irreversible": "irreversible",
+      "unknown": "effects unknown"
+    },
+    "kind": {
+      "deterministic": "mechanical",
+      "generative": "needs judgement",
+      "human_gate": "needs approval"
+    }
   },
   "gates": {
-    "G1": "Goal and trigger", "G2": "Data sources known", "G3": "Steps with examples", "G4": "Decision rules", "G5": "Exceptions confirmed",
-    "G6": "Acceptance criteria", "G7": "No open questions", "G8": "Confirmed by you", "G9": "Integrations documented", "G10": "Side effects known"
+    "G1": "Goal and trigger",
+    "G2": "Data sources known",
+    "G3": "Steps with examples",
+    "G4": "Decision rules",
+    "G5": "Exceptions confirmed",
+    "G6": "Acceptance criteria",
+    "G7": "No open questions",
+    "G8": "Confirmed by you",
+    "G9": "Integrations documented",
+    "G10": "Side effects known"
   },
   "memory": {
-    "title": "Skill memory", "subtitle": "Rationale, business needs, how you do it today, technical and integration notes. Kept for whoever maintains this skill.",
-    "add": "Add note", "kind": "Kind", "titleField": "Title", "body": "Text", "step": "Step (optional)", "empty": "No memory yet. Notes are added automatically after the interview and during trials.",
-    "supersede": "Update", "archive": "Archive", "showAll": "Show history", "showActive": "Show current",
+    "title": "Skill memory",
+    "subtitle": "Rationale, business needs, how you do it today, technical and integration notes. Kept for whoever maintains this skill.",
+    "add": "Add note",
+    "kind": "Kind",
+    "titleField": "Title",
+    "body": "Text",
+    "step": "Step (optional)",
+    "empty": "No memory yet. Notes are added automatically after the interview and during trials.",
+    "supersede": "Update",
+    "archive": "Archive",
+    "showAll": "Show history",
+    "showActive": "Show current",
     "kinds": {
-      "rationale": "Rationale", "business_need": "Business need", "human_procedure": "How it is done today", "technical_note": "Technical note",
-      "integration_note": "Integration", "data_note": "Data note", "decision": "Decision", "lesson_learned": "Lesson learned"
+      "rationale": "Rationale",
+      "business_need": "Business need",
+      "human_procedure": "How it is done today",
+      "technical_note": "Technical note",
+      "integration_note": "Integration",
+      "data_note": "Data note",
+      "decision": "Decision",
+      "lesson_learned": "Lesson learned"
     },
-    "status": { "active": "current", "superseded": "replaced", "archived": "archived", "proposed": "proposed" },
-    "source": { "interview": "from interview", "trial_discussion": "from trial", "manual": "manual", "improvement": "from improvement", "import": "imported" }
+    "status": {
+      "active": "current",
+      "superseded": "replaced",
+      "archived": "archived",
+      "proposed": "proposed"
+    },
+    "source": {
+      "interview": "from interview",
+      "trial_discussion": "from trial",
+      "manual": "manual",
+      "improvement": "from improvement",
+      "import": "imported"
+    }
   },
-  "tabs": { "overview": "Overview", "interview": "Interview", "knowledge": "Knowledge", "memory": "Memory", "versions": "Versions", "trials": "Trials", "runs": "Runs" },
-  "suspend": { "action": "Suspend development", "resume": "Resume development", "note": "Why are you pausing? (optional)", "banner": "Development is suspended. {{note}}" },
+  "tabs": {
+    "overview": "Overview",
+    "interview": "Interview",
+    "knowledge": "Knowledge",
+    "memory": "Memory",
+    "versions": "Versions",
+    "trials": "Trials",
+    "runs": "Runs"
+  },
+  "suspend": {
+    "action": "Suspend development",
+    "resume": "Resume development",
+    "note": "Why are you pausing? (optional)",
+    "banner": "Development is suspended. {{note}}"
+  },
   "dataSources": {
-    "title": "Data sources", "subtitle": "Files, spreadsheets, mailboxes, systems that the tasks in this project use. The interviewer references them.",
-    "add": "Add data source", "name": "Name", "kind": "Kind", "description": "Description", "access": "Where it is and how to open it", "sensitivity": "Sensitivity", "empty": "No data source yet.",
-    "kinds": { "file": "File", "spreadsheet": "Spreadsheet", "email": "Mailbox", "web_app": "Web application", "database": "Database", "api": "API", "folder": "Folder", "other": "Other" },
-    "sensitivities": { "none": "Public", "internal": "Internal", "pii": "Personal data", "secret": "Secret" }
+    "title": "Data sources",
+    "subtitle": "Files, spreadsheets, mailboxes, systems that the tasks in this project use. The interviewer references them.",
+    "add": "Add data source",
+    "name": "Name",
+    "kind": "Kind",
+    "description": "Description",
+    "access": "Where it is and how to open it",
+    "sensitivity": "Sensitivity",
+    "empty": "No data source yet.",
+    "kinds": {
+      "file": "File",
+      "spreadsheet": "Spreadsheet",
+      "email": "Mailbox",
+      "web_app": "Web application",
+      "database": "Database",
+      "api": "API",
+      "folder": "Folder",
+      "other": "Other"
+    },
+    "sensitivities": {
+      "none": "Public",
+      "internal": "Internal",
+      "pii": "Personal data",
+      "secret": "Secret"
+    }
   },
   "providers": {
-    "title": "AI providers", "subtitle": "Local (Ollama, LM Studio, llama.cpp, vLLM) or cloud models used by the interviewer, author and supervisor.",
-    "system": "System providers", "project": "Project providers", "add": "Add provider", "name": "Name", "adapter": "Type", "model": "Model", "baseUrl": "Base URL",
-    "apiKey": "API key", "apiKeyHint": "Stored encrypted. Leave empty for local servers.", "purposes": "Use for", "default": "Default", "enabled": "Enabled",
-    "test": "Test connection", "testOk": "Connected in {{ms}} ms", "testFail": "Connection failed: {{message}}", "empty": "No provider configured. Interviews need one.",
-    "adapters": { "openai_compat": "OpenAI-compatible (Ollama, LM Studio, vLLM…)", "anthropic": "Anthropic", "openai": "OpenAI", "google": "Google", "openrouter": "OpenRouter" },
-    "purposeNames": { "interviewer": "Interviewer", "supervisor": "Supervisor", "author": "Author", "coach": "Coach", "analyst": "Analyst" }
+    "title": "AI providers",
+    "subtitle": "Local (Ollama, LM Studio, llama.cpp, vLLM) or cloud models used by the interviewer, author and supervisor.",
+    "system": "System providers",
+    "project": "Project providers",
+    "add": "Add provider",
+    "name": "Name",
+    "adapter": "Type",
+    "model": "Model",
+    "baseUrl": "Base URL",
+    "apiKey": "API key",
+    "apiKeyHint": "Stored encrypted. Leave empty for local servers.",
+    "purposes": "Use for",
+    "default": "Default",
+    "enabled": "Enabled",
+    "test": "Test connection",
+    "testOk": "Connected in {{ms}} ms",
+    "testFail": "Connection failed: {{message}}",
+    "empty": "No provider configured. Interviews need one.",
+    "adapters": {
+      "openai_compat": "OpenAI-compatible (Ollama, LM Studio, vLLM…)",
+      "anthropic": "Anthropic",
+      "openai": "OpenAI",
+      "google": "Google",
+      "openrouter": "OpenRouter"
+    },
+    "purposeNames": {
+      "interviewer": "Interviewer",
+      "supervisor": "Supervisor",
+      "author": "Author",
+      "coach": "Coach",
+      "analyst": "Analyst"
+    }
+  },
+  "versions": {
+    "generate": "Draft the skill",
+    "regenerate": "New version from corrections",
+    "generating": "Drafting started, this takes a minute…",
+    "needInterview": "Finish the interview first.",
+    "empty": "No version yet.",
+    "download": "Download zip",
+    "discarded": "Version discarded",
+    "instructions": "Instructions for the author (optional)",
+    "instructionsPlaceholder": "Be stricter about…, rename step…, add a check for…",
+    "dependsOn": "Uses library components",
+    "doneWhen": "Done when",
+    "explicitAuth": "explicit confirmation",
+    "tabs": {
+      "steps": "Steps",
+      "files": "Files",
+      "install": "Install"
+    },
+    "state": {
+      "draft": "Draft",
+      "testing": "In trial",
+      "tested": "Tested",
+      "submitted_for_review": "In review",
+      "approved": "Approved",
+      "changes_requested": "Changes requested",
+      "rejected": "Rejected",
+      "published": "Published",
+      "superseded": "Superseded",
+      "deprecated": "Deprecated",
+      "discarded": "Discarded"
+    },
+    "origin": {
+      "interview": "from interview",
+      "manual": "manual",
+      "improvement": "from improvement",
+      "fork": "fork",
+      "trial_corrections": "from trial corrections",
+      "import": "imported"
+    },
+    "trialMode": {
+      "real": "runs for real in trials",
+      "simulate": "simulated in trials",
+      "sandbox_copy": "on a copy in trials"
+    },
+    "testStatus": {
+      "untested": "untested",
+      "confirmed": "confirmed",
+      "corrected": "corrected",
+      "failed": "failed"
+    }
+  },
+  "library": {
+    "title": "Component library",
+    "subtitle": "Ancillary skills and MCP servers provided by the administrator. The author reuses them instead of re-implementing integrations (email, directories, databases…).",
+    "add": "Add component",
+    "empty": "No component yet.",
+    "kind": "Kind",
+    "name": "Name",
+    "description": "Description",
+    "version": "Version",
+    "tools": "Tools",
+    "env": "Environment",
+    "installJson": "Install (JSON)",
+    "toolsJson": "Tools (JSON)",
+    "envJson": "Environment requirements (JSON)",
+    "kinds": {
+      "skill": "Skill",
+      "mcp_server": "MCP server"
+    }
   }
 }

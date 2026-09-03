@@ -4,5 +4,5 @@ from __future__ import annotations
 
 
 def register_all_jobs() -> None:
-    from autoskill.jobs import interview, system  # noqa: F401
+    from autoskill.jobs import drafting, interview, system  # noqa: F401
     from autoskill.services.procedures import defs  # noqa: F401  (registers procedure definitions)

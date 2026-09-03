@@ -384,7 +384,24 @@ async def finalize(ctx: ProcedureContext):
         ctx.state["memory_error"] = str(exc)[:500]
     interview.state = "complete"
     interview.completed_at = utcnow()
+    await ctx.session.commit()
     await _notify(interview, "interview.updated", {"memory_entries": extracted})
+    if ctx.state.get("auto_draft", True):
+        from autoskill.core.jobs import get_job_runner
+
+        await get_job_runner().enqueue(
+            "draft.generate",
+            {
+                "skill_id": interview.skill_id,
+                "user_id": interview.user_id,
+                "mode": "new",
+                "origin": "interview",
+                "language": interview.language,
+            },
+            project_id=interview.project_id,
+            user_id=interview.user_id,
+        )
+        interview.state = "drafting_requested"
     return Done({"knowledge_id": knowledge.id, "memory_entries": extracted})
 
 

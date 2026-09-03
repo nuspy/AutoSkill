@@ -1,0 +1,72 @@
+# Install "{{ ctx.skill_title }}" ({{ ctx.skill_name }} v{{ ctx.version }}) on {{ adapter.display_name }}
+{% if ctx.trial %}
+
+> **Trial installation.** This copy is marked as a trial (`autoskill_trial` in the metadata). Use it to
+> test the skill step by step with AutoSkill, then accept it (which makes it permanent) or remove it.
+{% endif %}
+
+## Fastest way: the AutoSkill CLI
+
+```bash
+pipx install autoskill-local          # once per machine (or: uv tool install autoskill-local)
+autoskill login {{ ctx.server_url }}  # opens the browser to connect this machine
+autoskill {{ "trial install" if ctx.trial else "install" }} {{ ctx.skill_name }}@{{ ctx.version }} --target {{ adapter.id }}
+```
+
+The CLI copies the skill into the right folder, registers the MCP servers below in `{{ adapter.mcp_config_path }}`,
+asks you for the required environment values and stores them only in your agent's configuration.
+
+## Manual installation
+
+1. Download the package{% if ctx.zip_url %} from `{{ ctx.zip_url }}`{% endif %} and unzip it.
+2. Copy the folder `{{ ctx.skill_name }}/` (the one that contains `SKILL.md`) to one of:
+{% for path in adapter.skill_install_paths() %}
+   - `{{ path.replace("<skill-name>", ctx.skill_name) }}`
+{% endfor %}
+{% if git_command %}
+   or install it straight from the AutoSkill git repository:
+   ```bash
+   {{ git_command }}
+   ```
+{% endif %}
+{% if ctx.dependencies %}
+3. Install the shared components this skill depends on (provided by your AutoSkill administrator):
+{% for dep in ctx.dependencies %}
+   - **{{ dep.name }}** ({{ dep.kind }}): {{ dep.install_hint }}
+{% endfor %}
+{% endif %}
+{% if mcp_snippets %}
+{{ "4" if ctx.dependencies else "3" }}. Register the MCP servers in `{{ adapter.mcp_config_path }}` ({{ adapter.mcp_config_format }}):
+{% for spec, snippet in mcp_snippets %}
+
+   **{{ spec.name }}**{% if spec.description %} — {{ spec.description }}{% endif %}{% if spec.install_hint %} (first: `{{ spec.install_hint }}`){% endif %}
+
+   ```{{ adapter.mcp_config_format }}
+   {{ snippet | indent(3) }}
+   ```
+{% if spec.env_requirements %}
+   Replace the placeholders with your values. Never put them inside the skill folder:
+{% for e in spec.env_requirements %}
+   - `{{ e.name }}`: {{ e.description }}{% if e.secret %} (secret){% endif %}
+{% endfor %}
+{% endif %}
+{% endfor %}
+{% endif %}
+{% if skill_config %}
+
+Optional skill configuration for {{ adapter.display_name }}:
+
+```yaml
+{{ skill_config }}
+```
+{% endif %}
+
+## Verify
+
+Restart {{ adapter.display_name }} and ask it: *"Use the {{ ctx.skill_name }} skill to ..."*. The first run
+reports to AutoSkill ({{ ctx.server_url }}) through the companion server, which confirms the installation.
+
+{% if adapter.docs_url %}
+Reference: {{ adapter.docs_url }} (paths verified on {{ adapter.verified_on }}). If your installation uses
+different folders, set a custom path in the AutoSkill install page.
+{% endif %}

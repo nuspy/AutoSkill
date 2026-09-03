@@ -144,14 +144,17 @@ async def test_interview_full_flow_with_supervisor_and_confirmation(app_client):
         assert confirmed.status_code == 200
         await get_job_runner().wait_all()
         detail = (await app_client.get(f"/api/v1/interviews/{sid}", headers=headers)).json()
-        assert detail["session"]["state"] == "complete", detail["session"]
+        assert detail["session"]["state"] in ("complete", "drafting_requested"), detail["session"]
         assert detail["procedure_state"] == "completed"
         assert detail["knowledge"]["frozen"] is True and detail["knowledge"]["doc"]["human_confirmed"] is True
         assert detail["session"]["token_usage"]["input_tokens"] > 0
 
         skill_id = detail["session"]["skill_id"]
         skill = (await app_client.get(f"/api/v1/skills/{skill_id}", headers=headers)).json()
-        assert skill["name"] == "invoice-check" and skill["latest_interview_state"] == "complete"
+        assert skill["name"] == "invoice-check" and skill["latest_interview_state"] in (
+            "complete",
+            "drafting_requested",
+        )
         assert skill["title"] == "Invoice check"
         memory = (await app_client.get(f"/api/v1/skills/{skill_id}/memory", headers=headers)).json()
         assert {m["kind"] for m in memory} == {"business_need", "integration_note"}

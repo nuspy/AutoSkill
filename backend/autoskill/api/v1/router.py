@@ -9,16 +9,17 @@ from autoskill.api.v1 import (
     events,
     health,
     interview,
+    library,
     memory,
     notifications,
     projects,
     providers,
     skills,
     users,
+    versions,
 )
 
-api_router = APIRouter(prefix="/api/v1")
-for module in (
+MODULES = (
     health,
     auth,
     users,
@@ -33,5 +34,10 @@ for module in (
     skills,
     interview,
     memory,
-):
+    versions,
+    library,
+)
+
+api_router = APIRouter(prefix="/api/v1")
+for module in MODULES:
     api_router.include_router(module.router)

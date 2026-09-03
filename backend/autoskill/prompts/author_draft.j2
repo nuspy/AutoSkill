@@ -1,0 +1,36 @@
+Write the skill "{{ skill_title }}" (folder name: {{ skill_name }}).
+
+Knowledge document (the only source of truth):
+{{ knowledge_json }}
+
+{% if memory %}
+Skill memory (rationale, business needs, how the person does it today, integrations):
+{{ memory }}
+{% endif %}
+{% if library %}
+Shared library components available to this skill (use them instead of re-implementing):
+{% for c in library %}
+- {{ c.slug }} ({{ c.kind }}): {{ c.description }}{% if c.tools %} Tools: {{ c.tools | map(attribute="name") | join(", ") }}{% endif %}
+{% endfor %}
+{% endif %}
+{% if instructions %}
+Additional instructions from the person:
+{{ instructions }}
+{% endif %}
+{% if previous_skill_md %}
+Previous SKILL.md (you are producing a PATCH: keep what works, change only what the corrections require,
+keep step keys stable unless a step is removed):
+"""
+{{ previous_skill_md }}
+"""
+{% endif %}
+
+Return the structured draft:
+- description: what the skill does AND when to use it (max 1024 chars, mention keywords a user would say)
+- overview: markdown for the top of SKILL.md (purpose, when to use, inputs, outputs, data sources with
+  where they are and which fields matter). Do NOT include the steps here; they are rendered from `steps`.
+- steps: ordered, keys stable and lowercase-hyphenated, matching the knowledge steps
+- edge_cases_markdown: how to handle exceptions and what to do when unsure
+- files: optional references/*.md, scripts/*.py, assets/* (only when genuinely useful)
+- dependencies: library components used
+- changelog: one paragraph describing this version

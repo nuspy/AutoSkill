@@ -60,21 +60,37 @@ async def _notify(job_row: Job) -> None:
 
 
 class JobContext:
-    """Passed to job functions for progress reporting."""
+    """Passed to job functions for progress reporting.
 
-    def __init__(self, job_id: str) -> None:
+    Progress is pushed to SSE subscribers immediately but persisted only when the job ends: a job
+    usually holds an open database transaction, and writing the `jobs` row from a second connection
+    would block on SQLite (single writer) until the job's own transaction commits.
+    """
+
+    def __init__(self, job_id: str, job_type: str, project_id: str | None, user_id: str | None) -> None:
         self.job_id = job_id
+        self.job_type = job_type
+        self.project_id = project_id
+        self.user_id = user_id
+        self.percent = 0
+        self.message: str | None = None
 
     async def progress(self, percent: int, message: str | None = None) -> None:
-        async with get_session_factory()() as session:
-            row = await session.get(Job, self.job_id)
-            if row is None:
-                return
-            row.progress = max(0, min(100, percent))
-            if message:
-                row.message = message
-            await session.commit()
-            await _notify(row)
+        self.percent = max(0, min(100, percent))
+        if message:
+            self.message = message
+        payload = {
+            "job_id": self.job_id,
+            "type": self.job_type,
+            "status": "running",
+            "progress": self.percent,
+            "message": self.message,
+            "error": None,
+        }
+        if self.project_id:
+            await emit(project_channel(self.project_id), "job.updated", payload)
+        if self.user_id:
+            await emit(user_channel(self.user_id), "job.updated", payload)
 
 
 async def execute_job(job_id: str) -> None:
@@ -89,9 +105,9 @@ async def execute_job(job_id: str) -> None:
         row.started_at = utcnow()
         await session.commit()
         job_type, payload = row.type, dict(row.payload)
+        ctx = JobContext(job_id, job_type, row.project_id, row.user_id)
         await _notify(row)
 
-    ctx = JobContext(job_id)
     try:
         func = get_job_func(job_type)
         result = await func(ctx, **payload)
@@ -110,7 +126,8 @@ async def execute_job(job_id: str) -> None:
             row.result = result
         else:
             row.result = {"value": result} if result is not None else None
-        row.progress = 100 if status == "succeeded" else row.progress
+        row.progress = 100 if status == "succeeded" else ctx.percent
+        row.message = ctx.message or row.message
         row.finished_at = utcnow()
         await session.commit()
         await _notify(row)
@@ -148,7 +165,8 @@ class InlineJobRunner(JobRunner):
         task.add_done_callback(self._tasks.discard)
 
     async def wait_all(self) -> None:
-        if self._tasks:
+        """Wait until no job is running, including jobs enqueued by running jobs."""
+        while self._tasks:
             await asyncio.gather(*list(self._tasks), return_exceptions=True)
 
 
