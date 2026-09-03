@@ -65,16 +65,19 @@ async def record_installation(
 async def confirm_from_run(
     session: AsyncSession, *, user_id: str | None, device_id: str | None, skill_id: str, version_id: str | None
 ) -> Installation | None:
+    """First telemetry run from a user confirms their installation of the skill (device match preferred)."""
     if user_id is None:
         return None
     stmt = select(Installation).where(
         Installation.user_id == user_id, Installation.skill_id == skill_id, Installation.state != "removed"
     )
-    if device_id:
-        stmt = stmt.where(Installation.device_key == device_id)
-    row = (await session.execute(stmt.order_by(Installation.updated_at.desc()))).scalars().first()
-    if row is None:
+    rows = list((await session.execute(stmt.order_by(Installation.updated_at.desc()))).scalars())
+    if not rows:
         return None
+    row = next((r for r in rows if device_id and r.device_key == device_id), rows[0])
+    if device_id and row.device_key == "-":
+        row.device_id = device_id
+        row.device_key = device_id
     now = utcnow()
     if row.confirmed_at is None:
         row.confirmed_at = now

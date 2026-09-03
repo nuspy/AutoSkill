@@ -114,6 +114,16 @@ async def start_run(body: RunStart, session: SessionDep, caller: CallerDep):
         api_key_id=caller.api_key.id if caller.api_key else None,
         inputs_summary=body.inputs_summary,
     )
+    if trial is None:
+        from autoskill.services.distribution.install_tracking import confirm_from_run
+
+        await confirm_from_run(
+            session,
+            user_id=caller.user_id,
+            device_id=caller.api_key.device_id if caller.api_key else None,
+            skill_id=skill.id,
+            version_id=version.id if version else None,
+        )
     await session.commit()
     return RunStartOut(
         run_id=run.id,
