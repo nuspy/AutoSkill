@@ -13,19 +13,21 @@ from autoskill.core.errors import Forbidden, NotFound
 from autoskill.models.project import Project, ProjectRole
 from autoskill.models.skill import Skill
 from autoskill.models.skill_version import SkillVersion
-from autoskill.models.trial import Checkpoint, Run, TrialSession
+from autoskill.models.trial import Checkpoint, Run, TrialSession, TrialSnapshot
 from autoskill.models.user import User
 from autoskill.schemas.common import OkResponse
 from autoskill.schemas.draft import InstallDoc, StepOut
 from autoskill.schemas.trial import (
     CheckpointOut,
     RunOut,
+    SnapshotOut,
     TrialCreate,
     TrialCreated,
     TrialDetail,
     TrialInstalled,
     TrialOut,
     TrialOutcomeIn,
+    TrialPatch,
 )
 from autoskill.services.distribution import bundle as bundles
 from autoskill.services.targets import get_adapter
@@ -58,6 +60,7 @@ async def create(body: TrialCreate, session: SessionDep, user: AnyAuthUser):
         purpose=body.purpose,
         mode=body.mode,
         device_id=body.device_id,
+        auto_confirm=body.auto_confirm,
     )
     await session.commit()
     await session.refresh(trial)
@@ -104,6 +107,15 @@ async def detail(trial_id: str, session: SessionDep, user: AnyAuthUser):
         .all()
     )
     pending = await service.pending_checkpoint(session, trial)
+    snaps = (
+        (
+            await session.execute(
+                select(TrialSnapshot).where(TrialSnapshot.trial_session_id == trial.id).order_by(TrialSnapshot.taken_at)
+            )
+        )
+        .scalars()
+        .all()
+    )
     await session.commit()
     bundle_url, manifest_url = await service.bundle_urls(session, trial)
     return TrialDetail(
@@ -115,6 +127,7 @@ async def detail(trial_id: str, session: SessionDep, user: AnyAuthUser):
         runs=[RunOut.model_validate(r).model_dump() for r in runs],
         pending_checkpoint=CheckpointOut.model_validate(pending).model_dump() if pending else None,
         checkpoints=[CheckpointOut.model_validate(c).model_dump() for c in cps],
+        snapshots=[SnapshotOut.model_validate(x).model_dump() for x in snaps],
         package_url=service.package_url(trial),
         bundle_url=bundle_url,
         manifest_url=manifest_url,
@@ -187,6 +200,8 @@ async def outcome(trial_id: str, body: TrialOutcomeIn, session: SessionDep, user
     )
     await session.commit()
     await session.refresh(trial)
+    if body.outcome in ("accepted", "changes_requested"):
+        await service.enqueue_memory_extraction(trial, user_id=user.id, language=user.locale)
     return trial
 
 
@@ -260,6 +275,17 @@ async def package(trial_id: str, session: SessionDep, user: AnyAuthUser):
         media_type="application/zip",
         headers={"Content-Disposition": f'attachment; filename="{skill.name}-{version.version}-trial.zip"'},
     )
+
+
+@router.patch("/{trial_id}", response_model=TrialOut)
+async def patch_trial(trial_id: str, body: TrialPatch, session: SessionDep, user: CurrentUser):
+    """Per-trial switches, e.g. stop auto-confirming already-confirmed deterministic steps."""
+    trial = await _get(session, user, trial_id)
+    if body.auto_confirm is not None:
+        trial.auto_confirm = body.auto_confirm
+    await session.commit()
+    await session.refresh(trial)
+    return trial
 
 
 @router.delete("/{trial_id}", response_model=OkResponse)

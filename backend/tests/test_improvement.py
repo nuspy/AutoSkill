@@ -108,6 +108,11 @@ async def test_proposal_flow_and_decisions(app_client):
         fake.script(
             Scripted(purpose="analyst", json=ANALYST),
             Scripted(purpose="author", json={**sample_spec().model_dump(), "changelog": "strip currency symbols"}),
+            # memory extraction from the analysis (job memory.extract, provider "analyst")
+            Scripted(
+                purpose="analyst",
+                json={"entries": [{"kind": "lesson_learned", "title": "From analysis", "body": "Amounts vary."}]},
+            ),
         )
         created = await app_client.post(
             f"/api/v1/skills/{skill_id}/improvements", json={"base_version_id": version["id"]}, headers=headers
@@ -123,6 +128,10 @@ async def test_proposal_flow_and_decisions(app_client):
         assert prop["state"] == "proposed", prop
         assert prop["proposed_version_id"] and prop["rationale"].startswith("Three runs failed")
         assert prop["analysis"]["hypotheses"] == ANALYST["hypotheses"] and len(prop["source_run_ids"]) == 3
+        assert any(
+            m["title"] == "From analysis" and m["source"] == "improvement" and m["status"] == "proposed"
+            for m in (await app_client.get(f"/api/v1/skills/{skill_id}/memory?status=all", headers=headers)).json()
+        )
         assert prop["diff_summary"]["suggested_bump"] in ("patch", "minor")
         versions = (await app_client.get(f"/api/v1/skills/{skill_id}/versions", headers=headers)).json()
         newest = versions[0]

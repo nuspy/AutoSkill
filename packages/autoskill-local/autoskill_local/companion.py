@@ -9,7 +9,9 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import time
+from pathlib import Path
 from typing import Any
 
 try:  # mcp SDK 2.x
@@ -18,7 +20,7 @@ except ImportError:  # mcp SDK 1.x
     from mcp.server.fastmcp import FastMCP as _Server  # type: ignore[no-redef]
 
 from autoskill_local.client import Client, ServerError
-from autoskill_local.config import LocalConfig
+from autoskill_local.config import HOME, LocalConfig
 
 mcp = _Server("autoskill-companion", instructions="Checkpoints and run telemetry for AutoSkill skills.")
 
@@ -180,6 +182,98 @@ def report_issue(
                 "evidence": evidence,
             },
         )
+
+    return _call(go)
+
+
+def sandbox_dir(run_id: str, step_key: str) -> Path:
+    return HOME / "sandbox" / run_id / step_key
+
+
+def _copy_into(src: Path, dest_root: Path) -> Path:
+    """Copy a file or folder under dest_root keeping its absolute path as relative structure."""
+    rel = Path(*[p for p in src.resolve().parts if p not in ("/", src.resolve().anchor)])
+    dest = dest_root / rel
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    if src.is_dir():
+        if dest.exists():
+            shutil.rmtree(dest)
+        shutil.copytree(src, dest)
+    else:
+        shutil.copy2(src, dest)
+    return dest
+
+
+@mcp.tool()
+def snapshot(
+    run_id: str, step_key: str, paths: list[str] | None = None, refs: list[dict] | None = None, note: str | None = None
+) -> dict:
+    """Back up what a step is about to change, BEFORE executing it for real.
+
+    `paths`: files or folders copied under ~/.autoskill/sandbox/<run>/<step>/ (restorable with restore_snapshot).
+    `refs`: things you cannot copy (e.g. {"kind": "db", "ref": "table invoices, transaction open"}).
+    """
+
+    def go():
+        items: list[dict] = []
+        root = sandbox_dir(run_id, step_key)
+        for raw in paths or []:
+            src = Path(raw).expanduser()
+            if not src.exists():
+                items.append({"kind": "missing", "ref": str(src), "note": "did not exist at snapshot time"})
+                continue
+            dest = _copy_into(src, root)
+            items.append(
+                {"kind": "folder" if src.is_dir() else "file", "ref": str(src.resolve()), "local_copy": str(dest)}
+            )
+        for ref in refs or []:
+            if isinstance(ref, dict) and ref.get("ref"):
+                items.append({"kind": ref.get("kind", "other"), "ref": str(ref["ref"]), "note": ref.get("note")})
+        root.mkdir(parents=True, exist_ok=True)
+        (root / "snapshot.json").write_text(json.dumps({"items": items, "note": note}, indent=2))
+        res = get_client().post(
+            "/telemetry/snapshots", {"run_id": run_id, "step_key": step_key, "items": items, "note": note}
+        )
+        return {**res, "local_dir": str(root)}
+
+    return _call(go)
+
+
+@mcp.tool()
+def restore_snapshot(run_id: str, step_key: str) -> dict:
+    """Put back the files/folders saved by `snapshot` for this step, then report a 'restore' checkpoint.
+
+    Call it when the person's decision is `restore`. Non-copyable items (db, mailbox) are listed for you
+    to restore with the step's declared strategy; mention what you did in the checkpoint result.
+    """
+
+    def go():
+        root = sandbox_dir(run_id, step_key)
+        manifest = root / "snapshot.json"
+        if not manifest.exists():
+            return {"error": "no_snapshot", "message": f"nothing saved under {root}"}
+        data = json.loads(manifest.read_text())
+        restored: list[str] = []
+        manual: list[dict] = []
+        for item in data.get("items", []):
+            copy = item.get("local_copy")
+            if copy and Path(copy).exists():
+                target = Path(item["ref"])
+                if Path(copy).is_dir():
+                    if target.exists():
+                        shutil.rmtree(target)
+                    shutil.copytree(copy, target)
+                else:
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(copy, target)
+                restored.append(str(target))
+            elif item.get("kind") not in ("file", "folder", "missing"):
+                manual.append(item)
+        proposal = {"restored": restored, "needs_manual_restore": manual, "note": data.get("note")}
+        res = get_client().post(
+            "/checkpoints", {"run_id": run_id, "step_key": step_key, "phase": "restore", "proposal": proposal}
+        )
+        return {**res, "restored": restored, "needs_manual_restore": manual}
 
     return _call(go)
 

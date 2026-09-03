@@ -174,6 +174,14 @@ async def run_proposal(session: AsyncSession, proposal_id: str, *, language: str
             "proposal.ready",
             {"proposal_id": proposal.id, "skill_id": skill.id, "version_id": version.id},
         )
+        from autoskill.core.jobs import get_job_runner
+
+        await get_job_runner().enqueue(
+            "memory.extract",
+            {"skill_id": skill.id, "source": "improvement", "source_ref": proposal.id, "language": language},
+            project_id=skill.project_id,
+            user_id=None,
+        )
     except Exception as exc:  # noqa: BLE001 - recorded on the proposal
         await session.rollback()
         proposal = await session.get(ImprovementProposal, proposal_id)

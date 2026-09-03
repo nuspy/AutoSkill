@@ -54,6 +54,7 @@ async def create_trial(
     purpose: str,
     mode: str,
     device_id: str | None,
+    auto_confirm: bool = True,
 ) -> tuple[TrialSession, str]:
     try:
         get_adapter(target_agent)
@@ -84,6 +85,7 @@ async def create_trial(
         purpose=purpose,
         target_agent=target_agent,
         mode=mode,
+        auto_confirm=auto_confirm,
         state="requested",
         token_hash=hash_token(token),
         build=version.build,
@@ -197,7 +199,13 @@ async def summarize(session: AsyncSession, trial: TrialSession, language: str = 
 
 
 async def set_outcome(
-    session: AsyncSession, trial: TrialSession, *, outcome: str, keep_installed: bool, note: str | None, user_id: str
+    session: AsyncSession,
+    trial: TrialSession,
+    *,
+    outcome: str,
+    keep_installed: bool,
+    note: str | None,
+    user_id: str,
 ) -> TrialSession:
     if trial.state not in ("installed", "testing", "suspended", "reviewing"):
         raise Conflict("trial_not_open", state=trial.state)
@@ -278,3 +286,15 @@ async def pending_checkpoint(session: AsyncSession, trial: TrialSession) -> Chec
         cp.state = "expired"
         return None
     return cp
+
+
+async def enqueue_memory_extraction(trial: TrialSession, *, user_id: str | None, language: str) -> None:
+    """After the outcome is committed: turn corrections, discussions and summary into skill memory."""
+    from autoskill.core.jobs import get_job_runner
+
+    await get_job_runner().enqueue(
+        "memory.extract",
+        {"skill_id": trial.skill_id, "source": "trial_discussion", "source_ref": trial.id, "language": language},
+        project_id=trial.project_id,
+        user_id=user_id,
+    )

@@ -493,3 +493,204 @@ async def test_project_key_telemetry_and_issues(app_client):
     assert golden.json()["is_golden"] is True
     no_auth = await app_client.post("/api/v1/telemetry/runs", json={"skill_name": "invoice-check"})
     assert no_auth.status_code == 401
+
+
+async def _phases(app_client, token, headers, run_id, step, plan):
+    """Run (phase, decision) pairs for a step; returns the checkpoint payloads returned to the agent."""
+    out = []
+    for phase, decision in plan:
+        c = (
+            await app_client.post(
+                "/api/v1/checkpoints",
+                json={"run_id": run_id, "step_key": step, "phase": phase, "proposal": {"phase": phase}},
+                headers=trial_headers(token),
+            )
+        ).json()
+        out.append(c)
+        if c["status"] == "pending" and decision:
+            r = await app_client.post(
+                f"/api/v1/checkpoints/{c['checkpoint_id']}/decision", json={"decision": decision}, headers=headers
+            )
+            assert r.status_code == 200, r.text
+    return out
+
+
+async def test_snapshot_restore_auto_confirm_and_memory_after_trial(app_client):
+    user, headers, project = await setup_project(app_client)
+    fake = FakeLlmProvider()
+    set_fake_provider(fake)
+    try:
+        skill_id, version = await make_draft(app_client, headers, project, fake)
+        trial = (
+            await app_client.post(
+                "/api/v1/trials",
+                json={"skill_version_id": version["id"], "target_agent": "hermes", "purpose": "develop"},
+                headers=headers,
+            )
+        ).json()
+        token = trial["session_token"]
+        assert trial["auto_confirm"] is True
+        run_id = (await app_client.post("/api/v1/telemetry/runs", json={}, headers=trial_headers(token))).json()[
+            "run_id"
+        ]
+        await _phases(
+            app_client,
+            token,
+            headers,
+            run_id,
+            "open-sheet",
+            [("explain", "continue"), ("preview", "continue"), ("verify", "approve_and_authorize_next")],
+        )
+        # step 'flag' changes data (reversible, backup_file -> sandbox copy): execute needs a snapshot first
+        await _phases(app_client, token, headers, run_id, "flag", [("explain", "continue"), ("preview", "continue")])
+        no_snap = await app_client.post(
+            "/api/v1/checkpoints",
+            json={"run_id": run_id, "step_key": "flag", "phase": "execute"},
+            headers=trial_headers(token),
+        )
+        assert no_snap.status_code == 409 and no_snap.json()["error"]["code"] == "snapshot_required"
+        # restore cannot be ordered before there is anything to restore
+        snap = await app_client.post(
+            "/api/v1/telemetry/snapshots",
+            json={
+                "run_id": run_id,
+                "step_key": "flag",
+                "items": [{"kind": "file", "ref": "/data/Invoices.xlsx", "local_copy": "~/.autoskill/sandbox/x"}],
+                "note": "copied before flagging",
+            },
+            headers=trial_headers(token),
+        )
+        assert (
+            snap.status_code == 200 and snap.json()["iteration"] == 1 and snap.json()["trial_session_id"] == trial["id"]
+        )
+        latest = (
+            await app_client.get(f"/api/v1/telemetry/snapshots/{run_id}/flag", headers=trial_headers(token))
+        ).json()
+        assert latest["id"] == snap.json()["id"]
+        (execute,) = await _phases(app_client, token, headers, run_id, "flag", [("execute", None)])
+        assert execute["status"] == "pending"
+        # the person orders a restore from the execute card
+        r = await app_client.post(
+            f"/api/v1/checkpoints/{execute['checkpoint_id']}/decision", json={"decision": "restore"}, headers=headers
+        )
+        assert r.status_code == 200 and r.json()["decision"] == "restore"
+        seen = (
+            await app_client.get(f"/api/v1/checkpoints/{execute['checkpoint_id']}?wait=0", headers=trial_headers(token))
+        ).json()
+        assert seen["decision"] == "restore" and "restore_snapshot" in seen["restore_hint"]
+        # a 'restore' phase is only accepted after that decision; then continue starts iteration 2
+        (restored,) = await _phases(app_client, token, headers, run_id, "flag", [("restore", None)])
+        assert restored["status"] == "pending"
+        detail = (await app_client.get(f"/api/v1/trials/{trial['id']}", headers=headers)).json()
+        assert detail["snapshots"][0]["restored_at"] and detail["pending_checkpoint"]["phase"] == "restore"
+        bad = await app_client.post(
+            f"/api/v1/checkpoints/{restored['checkpoint_id']}/decision", json={"decision": "change"}, headers=headers
+        )
+        assert bad.status_code == 422
+        await app_client.post(
+            f"/api/v1/checkpoints/{restored['checkpoint_id']}/decision", json={"decision": "continue"}, headers=headers
+        )
+        detail = (await app_client.get(f"/api/v1/trials/{trial['id']}", headers=headers)).json()
+        assert detail["trial"]["current_iteration"] == 2 and detail["trial"]["current_step_key"] == "flag"
+        premature = await app_client.post(
+            "/api/v1/checkpoints",
+            json={"run_id": run_id, "step_key": "flag", "phase": "restore"},
+            headers=trial_headers(token),
+        )
+        assert premature.status_code == 409 and premature.json()["error"]["code"] == "restore_not_requested"
+        # iteration 2 of 'flag' and the simulated 'send' step are approved; the run ends
+        await _phases(
+            app_client,
+            token,
+            headers,
+            run_id,
+            "flag",
+            [("explain", "continue"), ("preview", "continue"), ("verify", "approve_and_authorize_next")],
+        )
+        await _phases(
+            app_client,
+            token,
+            headers,
+            run_id,
+            "send",
+            [("explain", "continue"), ("preview", "continue"), ("verify", "approve_and_authorize_next")],
+        )
+        await app_client.post(
+            f"/api/v1/telemetry/runs/{run_id}/end", json={"status": "succeeded"}, headers=trial_headers(token)
+        )
+        # accepting the trial extracts memory from what happened (coach provider, source trial_discussion)
+        fake.script(
+            Scripted(
+                purpose="coach",
+                json={
+                    "entries": [
+                        {
+                            "kind": "lesson_learned",
+                            "title": "Back up the workbook before flagging",
+                            "body": "Flagging rewrites the sheet; a restore was needed once.",
+                            "step_key": "flag",
+                        }
+                    ]
+                },
+            )
+        )
+        acc = await app_client.post(
+            f"/api/v1/trials/{trial['id']}/outcome",
+            json={"outcome": "accepted", "keep_installed": True, "note": "The restore put the workbook back."},
+            headers=headers,
+        )
+        assert acc.status_code == 200, acc.text
+        await get_job_runner().wait_all()
+        memory = (await app_client.get(f"/api/v1/skills/{skill_id}/memory", headers=headers)).json()
+        assert any(
+            m["title"] == "Back up the workbook before flagging"
+            and m["source"] == "trial_discussion"
+            and m["step_key"] == "flag"
+            and m["status"] == "active"
+            for m in memory
+        )
+
+        # --- auto-confirm: a deterministic step confirmed enough times is not re-asked in the next trial ---
+        await app_client.put(
+            "/api/v1/admin/settings", json={"values": {"auto_confirm_after_confirmations": 1}}, headers=headers
+        )
+        second = (
+            await app_client.post(
+                "/api/v1/trials",
+                json={"skill_version_id": version["id"], "target_agent": "hermes", "purpose": "retest"},
+                headers=headers,
+            )
+        ).json()
+        tok2 = second["session_token"]
+        run2 = (await app_client.post("/api/v1/telemetry/runs", json={}, headers=trial_headers(tok2))).json()["run_id"]
+        auto = await _phases(
+            app_client, tok2, headers, run2, "open-sheet", [("explain", None), ("preview", None), ("verify", None)]
+        )
+        assert [c["status"] for c in auto] == ["decided"] * 3
+        assert [c["decision"] for c in auto] == ["continue", "continue", "approve_and_authorize_next"]
+        assert all(c["auto_confirmed"] is True for c in auto)
+        step = next(
+            s
+            for s in (await app_client.get(f"/api/v1/versions/{version['id']}", headers=headers)).json()["steps"]
+            if s["key"] == "open-sheet"
+        )
+        assert step["confirmations_count"] == 2
+        # 'send' is deterministic too but irreversible: never auto-confirmed. Switching auto-confirm off re-asks.
+        await _phases(
+            app_client,
+            tok2,
+            headers,
+            run2,
+            "flag",
+            [("explain", "continue"), ("preview", "continue"), ("verify", "approve_and_authorize_next")],
+        )
+        (send_explain,) = await _phases(app_client, tok2, headers, run2, "send", [("explain", None)])
+        assert send_explain["status"] == "pending"
+        patched = await app_client.patch(
+            f"/api/v1/trials/{second['id']}", json={"auto_confirm": False}, headers=headers
+        )
+        assert patched.status_code == 200 and patched.json()["auto_confirm"] is False
+        history = (await app_client.get(f"/api/v1/trials/{second['id']}", headers=headers)).json()["checkpoints"]
+        assert sum(1 for c in history if c["proposal"].get("auto_confirmed")) == 3
+    finally:
+        set_fake_provider(None)

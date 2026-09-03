@@ -19,7 +19,7 @@ from autoskill.models.review import Authorization, ReviewDecision, ReviewRequest
 from autoskill.models.skill import Skill
 from autoskill.models.skill_version import LibraryComponent, SkillDependency, SkillVersion, StepDefinition
 from autoskill.models.system_setting import SystemSetting
-from autoskill.models.trial import Checkpoint, Run, RunAnnotation, RunStep, StepDiscussion, TrialSession
+from autoskill.models.trial import Checkpoint, Run, RunAnnotation, RunStep, StepDiscussion, TrialSession, TrialSnapshot
 from autoskill.models.usage import ProjectUsageDaily
 from autoskill.models.user import RefreshToken, User
 
@@ -42,6 +42,7 @@ __all__ = [
     "RunStep",
     "StepDiscussion",
     "TrialSession",
+    "TrialSnapshot",
     "SkillVersion",
     "StepDefinition",
     "LibraryComponent",

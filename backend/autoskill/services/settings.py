@@ -18,6 +18,7 @@ DEFAULTS: dict[str, Any] = {
     "telemetry_retention_days": 180,
     "trial_max_iterations_per_step": 5,
     "checkpoint_timeout_minutes": 120,
+    "auto_confirm_after_confirmations": 3,
 }
 
 

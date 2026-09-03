@@ -23,12 +23,13 @@ export function TrialLauncher({ versionId, projectId, skillId, purpose = "develo
   const [target, setTarget] = useState("hermes");
   const [mode, setMode] = useState<"interactive" | "async">("interactive");
   const [device, setDevice] = useState<string>("");
+  const [autoConfirm, setAutoConfirm] = useState(true);
   const [created, setCreated] = useState<TrialCreated | null>(null);
   const detected = devices.data?.flatMap((d) => d.agent_targets) ?? [];
   return (
     <>
       <Button variant={purpose === "develop" ? "primary" : "outline"} onClick={() => setOpen(true)}><FlaskConical className="h-4 w-4" />{label ?? t("skills:trials.launch")}</Button>
-      <Dialog open={open} onClose={() => { setOpen(false); setCreated(null); }} title={t("skills:trials.launch")} footer={created ? <Button onClick={() => navigate(`/p/${projectId}/skills/${skillId}/trials/${created.id}`)}>{t("skills:trials.openPage")}</Button> : <><Button variant="outline" onClick={() => setOpen(false)}>{t("common:actions.cancel")}</Button><Button loading={create.isPending} onClick={() => create.mutate({ skill_version_id: versionId, target_agent: target, purpose, mode, device_id: device || null }, { onSuccess: setCreated })}>{t("skills:trials.create")}</Button></>}>
+      <Dialog open={open} onClose={() => { setOpen(false); setCreated(null); }} title={t("skills:trials.launch")} footer={created ? <Button onClick={() => navigate(`/p/${projectId}/skills/${skillId}/trials/${created.id}`)}>{t("skills:trials.openPage")}</Button> : <><Button variant="outline" onClick={() => setOpen(false)}>{t("common:actions.cancel")}</Button><Button loading={create.isPending} onClick={() => create.mutate({ skill_version_id: versionId, target_agent: target, purpose, mode, device_id: device || null, auto_confirm: autoConfirm }, { onSuccess: setCreated })}>{t("skills:trials.create")}</Button></>}>
         {!created ? (
           <div className="space-y-3">
             <p className="text-sm text-muted">{t("skills:trials.intro")}</p>
@@ -49,6 +50,7 @@ export function TrialLauncher({ versionId, projectId, skillId, purpose = "develo
                 <option value="async">{t("skills:trials.modes.async")}</option>
               </Select>
             </Field>
+            <label className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-1" checked={autoConfirm} onChange={(e) => setAutoConfirm(e.target.checked)} /><span>{t("skills:trials.autoConfirm")}<span className="block text-xs text-muted">{t("skills:trials.autoConfirmHint")}</span></span></label>
             {create.isError && <ErrorState message={errorMessage(create.error, t)} />}
           </div>
         ) : (

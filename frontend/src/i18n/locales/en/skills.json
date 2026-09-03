@@ -340,7 +340,8 @@
       "explain": "Explain",
       "preview": "Preview",
       "execute": "Execute",
-      "verify": "Verify"
+      "verify": "Verify",
+      "restore": "Restore"
     },
     "execMode": {
       "real": "real execution",
@@ -359,7 +360,9 @@
       "discuss": "Discuss",
       "redo": "Redo",
       "skip": "Skip",
-      "stop": "Stop"
+      "stop": "Stop",
+      "restore": "Restore and redo",
+      "restoredContinue": "Restored, redo the step"
     },
     "changeLabel": "What should the agent do differently?",
     "changeHint": "Sent to the agent as the new instruction for this step; the skill text is updated too.",
@@ -403,7 +406,17 @@
     "bundleUrlHint": "Anyone with this address can download the installation description and every component it cites (skill, MCP servers, shared components) without logging in, until the trial is closed. It does not contain the trial token.",
     "manifestUrl": "Machine-readable manifest (install.json)",
     "tellAgent": "What to tell your agent",
-    "tellAgentText": "Install the AutoSkill skill described at {{url}} (machine-readable manifest: {{manifest}}). Download every component from the addresses given there, verify the checksums, register the MCP servers and ask me for the environment values and the trial token."
+    "tellAgentText": "Install the AutoSkill skill described at {{url}} (machine-readable manifest: {{manifest}}). Download every component from the addresses given there, verify the checksums, register the MCP servers and ask me for the environment values and the trial token.",
+    "autoConfirm": "Skip steps already confirmed several times",
+    "autoConfirmHint": "Deterministic steps you confirmed N times in earlier trials are decided automatically (never executions, never irreversible steps). You can switch it off during the trial.",
+    "autoConfirmShort": "Auto-confirm known steps",
+    "autoConfirmed": "auto-confirmed",
+    "restoreHelp": "The agent restored what it had backed up before this step. Check the result: continue starts the step again from the explanation.",
+    "restoreConfirm": "Ask the agent to restore the backed-up data for this step and redo it?",
+    "snapshot": {
+      "title": "Backup recorded ({{n}} items)",
+      "restored": "restored"
+    }
   },
   "runs": {
     "title": "Runs",

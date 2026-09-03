@@ -1,10 +1,10 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { AlertTriangle, Check, MessageSquare, PauseCircle, PlayCircle, RotateCcw, SkipForward, Square } from "lucide-react";
+import { AlertTriangle, Archive, Check, MessageSquare, PauseCircle, PlayCircle, RotateCcw, SkipForward, Square, Undo2 } from "lucide-react";
 import { toast } from "sonner";
 import { useTrial, useTrialActions } from "@/api/hooks/trials";
-import type { Checkpoint, Discussion, StepDefinition } from "@/api/types";
+import type { Checkpoint, Discussion, StepDefinition, TrialSnapshot } from "@/api/types";
 import { Button } from "@/components/ui/button";
 import { CopyRow } from "@/components/ui/copy-row";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
@@ -41,6 +41,9 @@ export default function TrialPage() {
         <span className="ml-auto text-xs text-muted">{timeAgo(tr.updated_at, i18n.language)}</span>
         {tr.state === "testing" || tr.state === "installed" ? <Button size="sm" variant="outline" onClick={() => actions.suspend.mutate()}><PauseCircle className="h-4 w-4" />{t("skills:trials.suspend")}</Button> : null}
         {tr.state === "suspended" ? <Button size="sm" variant="outline" onClick={() => actions.resume.mutate()}><PlayCircle className="h-4 w-4" />{t("skills:trials.resume")}</Button> : null}
+        {!done && tr.mode === "interactive" && (
+          <label className="flex items-center gap-1 text-xs text-muted" title={t("skills:trials.autoConfirmHint")}><input type="checkbox" checked={tr.auto_confirm} onChange={(e) => actions.patch.mutate({ auto_confirm: e.target.checked })} />{t("skills:trials.autoConfirmShort")}</label>
+        )}
       </div>
       {tr.state === "suspended" && <div className="rounded-lg border border-warning/40 bg-warning/10 px-4 py-2 text-sm">{t("skills:trials.suspendedBanner")}</div>}
       <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
@@ -70,7 +73,7 @@ export default function TrialPage() {
             </details>
           )}
           {d.pending_checkpoint ? (
-            <CheckpointCard checkpoint={d.pending_checkpoint} step={d.steps.find((s) => s.key === d.pending_checkpoint!.step_key)} actions={actions} />
+            <CheckpointCard checkpoint={d.pending_checkpoint} step={d.steps.find((s) => s.key === d.pending_checkpoint!.step_key)} actions={actions} snapshot={d.snapshots.filter((x) => x.step_key === d.pending_checkpoint!.step_key && x.iteration === d.pending_checkpoint!.iteration).at(-1) ?? null} />
           ) : tr.state === "testing" || tr.state === "installed" ? (
             <Card><CardBody className="flex items-center gap-3 text-sm text-muted"><Spinner className="h-4 w-4" />{t("skills:trials.waitingAgent")}</CardBody></Card>
           ) : null}
@@ -98,7 +101,20 @@ function ProposalView({ proposal }: { proposal: Record<string, unknown> }) {
   );
 }
 
-function CheckpointCard({ checkpoint, step, actions }: { checkpoint: Checkpoint; step?: StepDefinition; actions: ReturnType<typeof useTrialActions> }) {
+function SnapshotBadge({ snapshot }: { snapshot: TrialSnapshot | null }) {
+  const { t } = useTranslation(["skills"]);
+  if (!snapshot) return null;
+  return (
+    <details className="rounded-lg border border-border px-3 py-2 text-xs">
+      <summary className="flex cursor-pointer items-center gap-1 font-medium"><Archive className="h-3.5 w-3.5 text-primary" />{t("skills:trials.snapshot.title", { n: snapshot.items.length })}{snapshot.restored_at && <Badge tone="success">{t("skills:trials.snapshot.restored")}</Badge>}</summary>
+      <ul className="mt-2 space-y-1 font-mono">
+        {snapshot.items.map((it, i) => <li key={i}>{it.kind}: {it.ref}{it.note ? ` (${it.note})` : ""}</li>)}
+      </ul>
+    </details>
+  );
+}
+
+function CheckpointCard({ checkpoint, step, actions, snapshot = null }: { checkpoint: Checkpoint; step?: StepDefinition; actions: ReturnType<typeof useTrialActions>; snapshot?: TrialSnapshot | null }) {
   const { t } = useTranslation(["skills", "common"]);
   const [mode, setMode] = useState<"idle" | "change" | "discuss">("idle");
   const [text, setText] = useState("");
@@ -120,7 +136,9 @@ function CheckpointCard({ checkpoint, step, actions }: { checkpoint: Checkpoint;
         description={`${t("skills:trials.iteration", { n: checkpoint.iteration })} · ${t(`skills:trials.execMode.${checkpoint.execution_mode}`, { defaultValue: checkpoint.execution_mode })}`}
       />
       <CardBody className="space-y-4">
+        {phase === "restore" && <p className="rounded-lg bg-primary/10 px-3 py-2 text-sm">{t("skills:trials.restoreHelp")}</p>}
         <ProposalView proposal={checkpoint.proposal} />
+        <SnapshotBadge snapshot={snapshot} />
         {irreversible && phase === "preview" && <p className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">{t("skills:trials.irreversibleWarning")}</p>}
         {mode === "idle" && (
           <div className="flex flex-wrap gap-2">
@@ -129,8 +147,10 @@ function CheckpointCard({ checkpoint, step, actions }: { checkpoint: Checkpoint;
             {phase === "preview" && irreversible && checkpoint.execution_mode === "real" && <Button variant="danger" onClick={() => { if (window.confirm(t("skills:trials.authorizeConfirm"))) decide("authorize_execute"); }}>{t("skills:trials.decisions.authorize_execute")}</Button>}
             {phase === "execute" && <Button onClick={() => decide("continue")}><Check className="h-4 w-4" />{t("skills:trials.decisions.continue")}</Button>}
             {phase === "verify" && <Button onClick={() => decide("approve_and_authorize_next")}><Check className="h-4 w-4" />{t("skills:trials.decisions.approve_and_authorize_next")}</Button>}
-            <Button variant="outline" onClick={() => setMode("change")}><RotateCcw className="h-4 w-4" />{t("skills:trials.decisions.change")}</Button>
-            <Button variant="outline" onClick={() => setMode("discuss")}><MessageSquare className="h-4 w-4" />{t("skills:trials.decisions.discuss")}</Button>
+            {phase === "restore" && <Button onClick={() => decide("continue")}><Check className="h-4 w-4" />{t("skills:trials.decisions.restoredContinue")}</Button>}
+            {(phase === "execute" || phase === "verify") && (checkpoint.execution_mode === "real" || checkpoint.execution_mode === "sandbox_copy") && snapshot && <Button variant="outline" onClick={() => { if (window.confirm(t("skills:trials.restoreConfirm"))) decide("restore"); }}><Undo2 className="h-4 w-4" />{t("skills:trials.decisions.restore")}</Button>}
+            {phase !== "restore" && <Button variant="outline" onClick={() => setMode("change")}><RotateCcw className="h-4 w-4" />{t("skills:trials.decisions.change")}</Button>}
+            {phase !== "restore" && <Button variant="outline" onClick={() => setMode("discuss")}><MessageSquare className="h-4 w-4" />{t("skills:trials.decisions.discuss")}</Button>}
             {(phase === "preview" || phase === "verify") && <Button variant="ghost" onClick={() => decide("redo")}>{t("skills:trials.decisions.redo")}</Button>}
             {(phase === "explain" || phase === "preview") && <Button variant="ghost" onClick={() => decide("skip")}><SkipForward className="h-4 w-4" />{t("skills:trials.decisions.skip")}</Button>}
             <Button variant="ghost" className="ml-auto text-danger" onClick={() => { if (window.confirm(t("skills:trials.stopConfirm"))) decide("stop"); }}><Square className="h-4 w-4" />{t("skills:trials.decisions.stop")}</Button>
@@ -206,7 +226,8 @@ function HistoryCard({ checkpoints }: { checkpoints: Checkpoint[] }) {
         {decided.slice(0, 30).map((c) => (
           <li key={c.id} className="flex items-center gap-2 px-5 py-2 text-sm">
             <Badge>{c.step_key}</Badge><span className="text-muted">{t(`skills:trials.phase.${c.phase}`)} #{c.iteration}</span>
-            <Badge tone={c.decision === "stop" ? "danger" : c.decision === "change" || c.decision === "redo" ? "warning" : "success"}>{c.decision ? t(`skills:trials.decisions.${c.decision}`, { defaultValue: c.decision }) : c.state}</Badge>
+            <Badge tone={c.decision === "stop" ? "danger" : c.decision === "change" || c.decision === "redo" || c.decision === "restore" ? "warning" : "success"}>{c.decision ? t(`skills:trials.decisions.${c.decision}`, { defaultValue: c.decision }) : c.state}</Badge>
+            {c.proposal?.auto_confirmed === true && <Badge>{t("skills:trials.autoConfirmed")}</Badge>}
             {c.correction_text && <span className="truncate text-xs text-muted">{c.correction_text}</span>}
             <span className="ml-auto text-xs text-muted">{timeAgo(c.decided_at ?? c.created_at, i18n.language)}</span>
           </li>

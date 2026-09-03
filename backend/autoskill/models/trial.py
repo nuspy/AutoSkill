@@ -20,8 +20,17 @@ TRIAL_STATES = (
 )
 TRIAL_PURPOSES = ("develop", "retest", "hub_evaluate")
 TRIAL_OUTCOMES = ("accepted", "changes_requested", "removed", "major_rework", "abandoned")
-CHECKPOINT_PHASES = ("explain", "preview", "execute", "verify")
-DECISIONS = ("continue", "change", "redo", "skip", "stop", "approve_and_authorize_next", "authorize_execute")
+CHECKPOINT_PHASES = ("explain", "preview", "execute", "verify", "restore")
+DECISIONS = (
+    "continue",
+    "change",
+    "redo",
+    "skip",
+    "stop",
+    "approve_and_authorize_next",
+    "authorize_execute",
+    "restore",
+)
 
 
 class TrialSession(IdMixin, TimestampMixin, Base):
@@ -37,6 +46,8 @@ class TrialSession(IdMixin, TimestampMixin, Base):
     purpose: Mapped[str] = mapped_column(String(16), default="develop", nullable=False)
     target_agent: Mapped[str] = mapped_column(String(32), nullable=False)
     mode: Mapped[str] = mapped_column(String(16), default="interactive", nullable=False)
+    # skip checkpoints of deterministic steps already confirmed N times (setting auto_confirm_after_confirmations)
+    auto_confirm: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     state: Mapped[str] = mapped_column(String(16), default="requested", index=True, nullable=False)
     token_hash: Mapped[str] = mapped_column(String(128), unique=True, nullable=False)
     build: Mapped[int] = mapped_column(Integer, default=1, nullable=False)  # bumps when the package changes
@@ -151,3 +162,19 @@ class RunAnnotation(IdMixin, Base):
     text: Mapped[str] = mapped_column(Text, nullable=False)
     evidence: Mapped[dict | None] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(TZDateTime, nullable=False)
+
+
+class TrialSnapshot(IdMixin, Base):
+    """What the agent backed up before a step with real effects, so the person can order a restore."""
+
+    __tablename__ = "trial_snapshots"
+
+    run_id: Mapped[str] = mapped_column(ForeignKey("runs.id", ondelete="CASCADE"), index=True, nullable=False)
+    trial_session_id: Mapped[str | None] = mapped_column(String(36), index=True)
+    step_key: Mapped[str] = mapped_column(String(64), nullable=False)
+    iteration: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    items: Mapped[list] = mapped_column(JSON, default=list, nullable=False)  # [{kind, ref, local_copy?, note?}]
+    note: Mapped[str | None] = mapped_column(Text)
+    taken_at: Mapped[datetime] = mapped_column(TZDateTime, nullable=False)
+    restored_at: Mapped[datetime | None] = mapped_column(TZDateTime)
+    restore_result: Mapped[dict | None] = mapped_column(JSON)

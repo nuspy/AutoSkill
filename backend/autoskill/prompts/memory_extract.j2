@@ -1,3 +1,8 @@
+{% if context_kind == "trial" %}
+The transcript below comes from a step-by-step trial of the skill on the person's own agent: corrections, coach discussions and the final summary. Extract only durable knowledge (why a step must be done in a certain way, data quirks, integration details, lessons learned), not one-off chatter.
+{% elif context_kind == "improvement" %}
+The transcript below is the analysis of real-use failures and the rationale of an improvement proposal. Extract lessons learned and technical notes worth keeping.
+{% endif %}
 From the interview transcript and knowledge document below, extract durable memory entries about this
 skill for future maintainers. Write in {{ language_name }}. Kinds:
 - rationale: why the task is done this way, choices and their reasons

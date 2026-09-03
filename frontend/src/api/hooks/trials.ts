@@ -13,7 +13,7 @@ export function useTrial(trialId: string, live: boolean) {
 export function useCreateTrial() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: { skill_version_id: string; target_agent: string; purpose?: string; mode?: string; device_id?: string | null }) => api<TrialCreated>("/trials", { method: "POST", body }),
+    mutationFn: (body: { skill_version_id: string; target_agent: string; purpose?: string; mode?: string; device_id?: string | null; auto_confirm?: boolean }) => api<TrialCreated>("/trials", { method: "POST", body }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["trials"] }),
   });
 }
@@ -28,7 +28,8 @@ export function useTrialActions(trialId: string) {
   const decide = useMutation({ mutationFn: ({ checkpointId, ...body }: { checkpointId: string; decision: string; correction_text?: string; updated_instructions?: string }) => api<Checkpoint>(`/checkpoints/${checkpointId}/decision`, { method: "POST", body }), onSuccess: invalidate });
   const discuss = useMutation({ mutationFn: ({ checkpointId, message }: { checkpointId: string; message: string }) => api<Discussion>(`/checkpoints/${checkpointId}/discussion`, { method: "POST", body: { message } }) });
   const applyDiscussion = useMutation({ mutationFn: (discussionId: string) => api<Discussion>(`/discussions/${discussionId}/apply`, { method: "POST" }), onSuccess: invalidate });
-  return { suspend, resume, summary, outcome, decide, discuss, applyDiscussion };
+  const patch = useMutation({ mutationFn: (body: { auto_confirm?: boolean }) => api<Trial>(`/trials/${trialId}`, { method: "PATCH", body }), onSuccess: invalidate });
+  return { suspend, resume, summary, outcome, decide, discuss, applyDiscussion, patch };
 }
 
 export function useRuns(projectId: string, skillId?: string) {

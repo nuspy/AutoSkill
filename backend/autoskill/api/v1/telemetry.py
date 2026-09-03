@@ -29,6 +29,8 @@ from autoskill.schemas.trial import (
     RunEnd,
     RunStart,
     RunStartOut,
+    SnapshotIn,
+    SnapshotOut,
     StepLog,
 )
 from autoskill.services.memory.store import list_entries
@@ -231,6 +233,29 @@ async def create_checkpoint(body: CheckpointIn, session: SessionDep, caller: Cal
     )
     await session.commit()
     return cps.decision_payload(cp)
+
+
+@router.post("/telemetry/snapshots", response_model=SnapshotOut)
+async def create_snapshot(body: SnapshotIn, session: SessionDep, caller: CallerDep):
+    """The agent records what it backed up before a step with real effects (enables a guided restore)."""
+    run = await _run_for(session, caller, body.run_id)
+    trial = caller.trial
+    if trial is None and run.trial_session_id:
+        trial = await session.get(TrialSession, run.trial_session_id)
+    snap = await cps.record_snapshot(
+        session, run=run, trial=trial, step_key=body.step_key, items=body.items, note=body.note
+    )
+    await session.commit()
+    await session.refresh(snap)
+    return snap
+
+
+@router.get("/telemetry/snapshots/{run_id}/{step_key}", response_model=SnapshotOut | None)
+async def latest_snapshot(run_id: str, step_key: str, session: SessionDep, caller: CallerDep):
+    run = await _run_for(session, caller, run_id)
+    trial = await session.get(TrialSession, run.trial_session_id) if run.trial_session_id else None
+    iteration = trial.current_iteration if trial and trial.current_step_key == step_key else 1
+    return await cps.snapshot_for(session, run.id, step_key, iteration)
 
 
 @router.get("/checkpoints/{checkpoint_id}")

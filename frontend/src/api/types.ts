@@ -378,6 +378,7 @@ export interface Trial {
   purpose: "develop" | "retest" | "hub_evaluate";
   target_agent: string;
   mode: "interactive" | "async";
+  auto_confirm: boolean;
   state: string;
   build: number;
   current_step_key: string | null;
@@ -391,6 +392,18 @@ export interface Trial {
   ended_at: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface TrialSnapshot {
+  id: string;
+  run_id: string;
+  step_key: string;
+  iteration: number;
+  items: { kind: string; ref: string; local_copy?: string; note?: string | null }[];
+  note: string | null;
+  taken_at: string;
+  restored_at: string | null;
+  restore_result: Record<string, unknown> | null;
 }
 
 export interface TrialCreated extends Trial {
@@ -428,7 +441,7 @@ export interface Checkpoint {
   run_id: string;
   trial_session_id: string | null;
   step_key: string;
-  phase: "explain" | "preview" | "execute" | "verify";
+  phase: "explain" | "preview" | "execute" | "verify" | "restore";
   iteration: number;
   execution_mode: string;
   state: "pending" | "decided" | "expired";
@@ -490,6 +503,7 @@ export interface TrialDetail {
   runs: Run[];
   pending_checkpoint: Checkpoint | null;
   checkpoints: Checkpoint[];
+  snapshots: TrialSnapshot[];
   package_url: string;
   bundle_url: string | null;
   manifest_url: string | null;

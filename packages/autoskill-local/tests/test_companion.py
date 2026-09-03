@@ -43,6 +43,9 @@ def make_transport(state: dict):
             return httpx.Response(200, json={"ok": True})
         if path.endswith("/end"):
             return httpx.Response(409, json={"error": {"code": "run_not_running", "message": "already ended"}})
+        if path.endswith("/telemetry/snapshots"):
+            body = json.loads(request.content)
+            return httpx.Response(200, json={"id": "snap1", "items": body["items"], "iteration": 1})
         if "/telemetry/guidance/" in path:
             return httpx.Response(200, json={"step_key": "flag", "corrections": [], "memory": []})
         return httpx.Response(404, json={"error": {"code": "not_found", "message": path}})
@@ -60,6 +63,8 @@ async def test_tools_are_registered():
         "end_run",
         "report_issue",
         "get_step_guidance",
+        "snapshot",
+        "restore_snapshot",
     }
 
 
@@ -109,3 +114,39 @@ def test_unreachable_server_returns_error_dict(monkeypatch):
     finally:
         companion.set_client(None)
     assert HOME.name
+
+
+def test_snapshot_and_restore_round_trip(tmp_path, monkeypatch):
+    state: dict = {}
+    client = Client("http://server", api_key="ask_key", trial_token="tok", transport=make_transport(state))
+    companion.set_client(client)
+    monkeypatch.setattr(companion, "HOME", tmp_path / ".autoskill")
+    try:
+        work = tmp_path / "work"
+        work.mkdir()
+        sheet = work / "invoices.xlsx"
+        sheet.write_bytes(b"original")
+        folder = work / "out"
+        folder.mkdir()
+        (folder / "a.txt").write_text("a")
+        snap = companion.snapshot(
+            "run1", "flag", paths=[str(sheet), str(folder), str(work / "missing.txt")], refs=[{"kind": "db", "ref": "table x"}]
+        )
+        assert snap["id"] == "snap1" and snap["local_dir"].endswith("/sandbox/run1/flag")
+        kinds = [i["kind"] for i in snap["items"]]
+        assert kinds == ["file", "folder", "missing", "db"]
+        sent = next(c for c in state["calls"] if c[1].endswith("/telemetry/snapshots"))
+        assert sent[2] == "tok" and sent[3]["step_key"] == "flag" and len(sent[3]["items"]) == 4
+        # the step damages the data; restore puts the copies back and reports a restore checkpoint
+        sheet.write_bytes(b"changed")
+        (folder / "a.txt").write_text("changed")
+        (folder / "b.txt").write_text("new")
+        res = companion.restore_snapshot("run1", "flag")
+        assert res["checkpoint_id"] == "cp1" and sorted(res["restored"]) == sorted([str(sheet.resolve()), str(folder.resolve())])
+        assert res["needs_manual_restore"] == [{"kind": "db", "ref": "table x", "note": None}]
+        assert sheet.read_bytes() == b"original" and (folder / "a.txt").read_text() == "a" and not (folder / "b.txt").exists()
+        cp_call = [c for c in state["calls"] if c[1].endswith("/checkpoints")][-1]
+        assert cp_call[3]["phase"] == "restore" and cp_call[3]["proposal"]["restored"]
+        assert companion.restore_snapshot("run1", "nope")["error"] == "no_snapshot"
+    finally:
+        companion.set_client(None)

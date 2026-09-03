@@ -71,3 +71,20 @@ Catalog components (admin → Library) can carry an **uploaded package** (zip / 
 on upload: MCP servers need `pyproject.toml`/`package.json` at the root or a wheel, skills a valid
 `SKILL.md` whose name equals the slug) or point to pip / npm / git / a direct URL; either way the bundle
 gives the agent a concrete download address and install command, plus the component's own notes.
+
+## Restore, auto-confirm and memory
+
+- **Snapshot / restore.** Before a step changes files or data for real (or on a sandbox copy), the agent
+  calls the companion tool `snapshot` with the paths it backs up; copies land in
+  `~/.autoskill/sandbox/<run>/<step>/` and the server records what was saved. A real `execute` on a step
+  with a restore strategy is refused without a snapshot (`snapshot_required`). On the `execute` or
+  `verify` card the person can choose **Restore**: the agent receives the `restore` decision, calls
+  `restore_snapshot` (files are put back, non-copyable items are listed for manual restore) and sends a
+  `restore` checkpoint; `continue` there starts the next iteration from `explain`.
+- **Auto-confirm.** Deterministic steps already confirmed `auto_confirm_after_confirmations` times
+  (default 3, admin setting) are decided immediately in later trials (never `execute`, never irreversible
+  steps, never after a correction in the same trial). Each trial can switch it off (launcher option or
+  "review every step" on the trial page); auto-decided checkpoints are marked in the history.
+- **Memory.** After a trial ends with *accepted* or *changes requested*, and after every improvement
+  proposal, the `memory.extract` job turns corrections, coach discussions, summaries and analyses into
+  skill memory entries (source `trial_discussion` / `improvement`), visible in the Memory tab.

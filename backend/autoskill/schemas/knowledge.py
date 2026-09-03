@@ -116,7 +116,14 @@ class QuestionSpec(BaseModel):
 
 class MemoryEntryProposal(BaseModel):
     kind: Literal[
-        "rationale", "business_need", "human_procedure", "technical_note", "integration_note", "data_note", "decision"
+        "rationale",
+        "business_need",
+        "human_procedure",
+        "technical_note",
+        "integration_note",
+        "data_note",
+        "decision",
+        "lesson_learned",
     ]
     title: str
     body: str

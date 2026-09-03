@@ -7,6 +7,11 @@ Deterministic rules enforced here (the agent can only *ask*; the server decides)
     `authorize_execute` decision, which mints the confirmation token the generated tools require
   * a `verify` needs a preview (simulated steps) or an execute (real steps)
   * moving to the next step needs `approve_and_authorize_next` on `verify`
+  * a real `execute` on a step with a restore strategy needs a snapshot (what the agent backed up); the
+    person may then decide `restore` on `execute`/`verify`, the agent restores and sends `restore`, and
+    `continue` there starts the next iteration from `explain`
+  * deterministic steps confirmed N times (setting auto_confirm_after_confirmations) are auto-decided
+    when the trial allows it, never for `execute` nor irreversible steps
 Async mode auto-decides `continue` (and `approve_and_authorize_next`) so the agent never blocks; the
 human reviews afterwards.
 """
@@ -25,7 +30,7 @@ from autoskill.core.errors import Conflict, NotFound, ValidationFailed
 from autoskill.core.events import emit, project_channel, user_channel
 from autoskill.db.base import utcnow
 from autoskill.models.skill_version import StepDefinition
-from autoskill.models.trial import CHECKPOINT_PHASES, DECISIONS, Checkpoint, Run, TrialSession
+from autoskill.models.trial import CHECKPOINT_PHASES, DECISIONS, Checkpoint, Run, TrialSession, TrialSnapshot
 from autoskill.services.runs.redaction import cap_payload, redact
 from autoskill.services.settings import get_setting
 
@@ -33,9 +38,55 @@ PHASE_ORDER = {p: i for i, p in enumerate(CHECKPOINT_PHASES)}
 ALLOWED_DECISIONS = {
     "explain": {"continue", "change", "skip", "stop"},
     "preview": {"continue", "change", "redo", "skip", "stop", "authorize_execute"},
-    "execute": {"continue", "change", "stop"},
-    "verify": {"approve_and_authorize_next", "change", "redo", "stop"},
+    "execute": {"continue", "change", "stop", "restore"},
+    "verify": {"approve_and_authorize_next", "change", "redo", "stop", "restore"},
+    "restore": {"continue", "stop"},
 }
+RESTORABLE_STRATEGIES = ("backup_file", "sandbox_copy", "db_transaction")
+
+
+async def snapshot_for(session: AsyncSession, run_id: str, step_key: str, iteration: int) -> TrialSnapshot | None:
+    res = await session.execute(
+        select(TrialSnapshot)
+        .where(TrialSnapshot.run_id == run_id, TrialSnapshot.step_key == step_key, TrialSnapshot.iteration == iteration)
+        .order_by(TrialSnapshot.taken_at.desc())
+        .limit(1)
+    )
+    return res.scalar_one_or_none()
+
+
+async def record_snapshot(
+    session: AsyncSession, *, run: Run, trial: TrialSession | None, step_key: str, items: list[dict], note: str | None
+) -> TrialSnapshot:
+    if run.status != "running":
+        raise Conflict("run_not_running", status=run.status)
+    iteration = trial.current_iteration if trial and trial.current_step_key == step_key else 1
+    snap = TrialSnapshot(
+        run_id=run.id,
+        trial_session_id=trial.id if trial else None,
+        step_key=step_key,
+        iteration=iteration,
+        items=cap_payload(redact({"items": items}))["items"],
+        note=note,
+        taken_at=utcnow(),
+    )
+    session.add(snap)
+    await session.flush()
+    return snap
+
+
+async def _auto_confirmable(
+    session: AsyncSession, trial: TrialSession, step: StepDefinition | None, phase: str
+) -> bool:
+    """Deterministic steps the person already confirmed N times are not re-asked (unless corrections)."""
+    if step is None or not trial.auto_confirm or phase == "execute":
+        return False
+    if step.kind != "deterministic" or step.test_status != "confirmed" or step.requires_explicit_auth:
+        return False
+    if step.side_effects == "irreversible" or any(c["step_key"] == step.key for c in trial.corrections):
+        return False
+    needed = int(await get_setting(session, "auto_confirm_after_confirmations") or 0)
+    return needed > 0 and step.confirmations_count >= needed
 
 
 async def _step_definition(session: AsyncSession, version_id: str, step_key: str) -> StepDefinition | None:
@@ -110,12 +161,35 @@ async def create_checkpoint(
                 "explicit_authorization_required",
                 message="Irreversible step: the person must authorize execution from the preview.",
             )
+        if (
+            mode in ("real", "sandbox_copy")
+            and step is not None
+            and step.restore_strategy in RESTORABLE_STRATEGIES
+            and await snapshot_for(session, run.id, step_key, it) is None
+        ):
+            raise Conflict(
+                "snapshot_required",
+                message="Back up what this step changes (companion tool `snapshot`) before executing it for real.",
+            )
     elif phase == "verify":
         prev = await _last_checkpoint(session, run.id, step_key, it, "execute")
         if prev is None or prev.decision != "continue":
             prev = await _last_checkpoint(session, run.id, step_key, it, "preview")
             if prev is None or prev.decision not in ("continue", "authorize_execute"):
                 raise Conflict("preview_required", message="'verify' needs an accepted 'preview' or 'execute'.")
+    elif phase == "restore":
+        ordered = None
+        for prev_phase in ("verify", "execute"):
+            prev = await _last_checkpoint(session, run.id, step_key, it, prev_phase)
+            if prev is not None and prev.decision == "restore":
+                ordered = prev
+                break
+        if ordered is None:
+            raise Conflict("restore_not_requested", message="Send 'restore' only after the person decided 'restore'.")
+        snap = await snapshot_for(session, run.id, step_key, it)
+        if snap is not None:
+            snap.restored_at = utcnow()
+            snap.restore_result = cap_payload(redact(proposal))
     elif phase == "explain" and trial is not None:
         # explain of a new step requires the previous step to be authorized (unless first / redo)
         if trial.current_step_key and trial.current_step_key != step_key:
@@ -147,7 +221,10 @@ async def create_checkpoint(
     )
     session.add(cp)
     await session.flush()
-    if trial is None or trial.mode == "async":
+    auto_confirmed = (
+        trial is not None and trial.mode != "async" and await _auto_confirmable(session, trial, step, phase)
+    )
+    if trial is None or trial.mode == "async" or auto_confirmed:
         auto = "approve_and_authorize_next" if phase == "verify" else "continue"
         if phase == "preview" and step is not None and step.requires_explicit_auth:
             auto = "continue"  # never auto-authorize an irreversible execute
@@ -155,6 +232,13 @@ async def create_checkpoint(
         cp.decision = auto
         cp.decided_by = None
         cp.decided_at = utcnow()
+        if auto_confirmed:
+            cp.proposal = {**cp.proposal, "auto_confirmed": True}
+            await emit(
+                user_channel(trial.user_id),
+                "checkpoint.auto",
+                {"checkpoint_id": cp.id, "step_key": step_key, "phase": phase, "decision": auto},
+            )
         if auto == "approve_and_authorize_next" and trial is not None and step is not None:
             _apply_approval(step, trial, step_key)
     else:
@@ -204,6 +288,11 @@ async def decide(
     if cp.expires_at < utcnow():
         cp.state = "expired"
         raise Conflict("checkpoint_expired")
+    if decision == "restore":
+        if cp.execution_mode not in ("real", "sandbox_copy"):
+            raise Conflict("nothing_to_restore", message="Only real or sandbox executions can be restored.")
+        if await snapshot_for(session, cp.run_id, cp.step_key, cp.iteration) is None:
+            raise Conflict("no_snapshot", message="The agent recorded no snapshot for this step.")
     cp.state = "decided"
     cp.decision = decision
     cp.correction_text = correction_text
@@ -215,7 +304,7 @@ async def decide(
     trial = await session.get(TrialSession, cp.trial_session_id) if cp.trial_session_id else None
     run = await session.get(Run, cp.run_id)
     if trial is not None:
-        if decision in ("change", "redo"):
+        if decision in ("change", "redo") or (decision == "continue" and cp.phase == "restore"):
             trial.current_iteration = cp.iteration + 1
             if correction_text:
                 trial.corrections = [
@@ -265,7 +354,7 @@ async def wait_for_decision(session_factory, checkpoint_id: str, timeout_s: int)
 def decision_payload(cp: Checkpoint) -> dict[str, Any]:
     if cp.state == "pending":
         return {"status": "pending", "checkpoint_id": cp.id}
-    return {
+    out = {
         "status": cp.state,
         "checkpoint_id": cp.id,
         "decision": cp.decision,
@@ -274,3 +363,11 @@ def decision_payload(cp: Checkpoint) -> dict[str, Any]:
         "confirmation_token": cp.confirmation_token,
         "iteration": cp.iteration,
     }
+    if cp.decision == "restore":
+        out["restore_hint"] = (
+            "Restore what you backed up for this step (companion tool `restore_snapshot`), then send a "
+            "checkpoint with phase='restore' describing what was restored."
+        )
+    if cp.proposal.get("auto_confirmed"):
+        out["auto_confirmed"] = True
+    return out

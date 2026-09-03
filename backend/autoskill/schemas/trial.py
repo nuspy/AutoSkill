@@ -14,6 +14,11 @@ class TrialCreate(BaseModel):
     purpose: Literal["develop", "retest", "hub_evaluate"] = "develop"
     mode: Literal["interactive", "async"] = "interactive"
     device_id: str | None = None
+    auto_confirm: bool = True
+
+
+class TrialPatch(BaseModel):
+    auto_confirm: bool | None = None
 
 
 class TrialOut(ORMModel):
@@ -26,6 +31,7 @@ class TrialOut(ORMModel):
     purpose: str
     target_agent: str
     mode: str
+    auto_confirm: bool = True
     state: str
     build: int
     current_step_key: str | None
@@ -69,6 +75,7 @@ class TrialDetail(BaseModel):
     runs: list[dict]
     pending_checkpoint: dict | None
     checkpoints: list[dict]
+    snapshots: list[dict] = Field(default_factory=list)
     package_url: str
     bundle_url: str | None = None
     manifest_url: str | None = None
@@ -134,7 +141,7 @@ class IssueIn(BaseModel):
 class CheckpointIn(BaseModel):
     run_id: str
     step_key: str = Field(max_length=64)
-    phase: Literal["explain", "preview", "execute", "verify"]
+    phase: Literal["explain", "preview", "execute", "verify", "restore"]
     iteration: int | None = None
     execution_mode: str | None = None
     proposal: dict[str, Any] = Field(default_factory=dict)
@@ -160,9 +167,31 @@ class CheckpointOut(ORMModel):
 
 
 class DecisionIn(BaseModel):
-    decision: Literal["continue", "change", "redo", "skip", "stop", "approve_and_authorize_next", "authorize_execute"]
+    decision: Literal[
+        "continue", "change", "redo", "skip", "stop", "approve_and_authorize_next", "authorize_execute", "restore"
+    ]
     correction_text: str | None = Field(default=None, max_length=8000)
     updated_instructions: str | None = Field(default=None, max_length=8000)
+
+
+class SnapshotIn(BaseModel):
+    run_id: str
+    step_key: str = Field(max_length=64)
+    items: list[dict[str, Any]] = Field(default_factory=list, max_length=200)
+    note: str | None = Field(default=None, max_length=2000)
+
+
+class SnapshotOut(ORMModel):
+    id: str
+    run_id: str
+    trial_session_id: str | None
+    step_key: str
+    iteration: int
+    items: list
+    note: str | None
+    taken_at: datetime
+    restored_at: datetime | None
+    restore_result: dict | None
 
 
 class DiscussionMessageIn(BaseModel):

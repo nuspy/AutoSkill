@@ -23,13 +23,12 @@ from autoskill.models.skill import Skill
 from autoskill.prompts import render
 from autoskill.schemas.knowledge import (
     KnowledgeDocModel,
-    MemoryExtraction,
     QuestionSpec,
     SupervisorDecision,
 )
 from autoskill.services.interview.gates import all_passed, completeness, compute_gates, first_failing
 from autoskill.services.library.catalog import library_catalog
-from autoskill.services.memory.store import add_entry
+from autoskill.services.memory.extract import extract_memory
 from autoskill.services.procedures.engine import (
     Done,
     Next,
@@ -357,35 +356,21 @@ async def finalize(ctx: ProcedureContext):
         select(InterviewMessage).where(InterviewMessage.session_id == interview.id).order_by(InterviewMessage.ordinal)
     )
     transcript = [{"role": m.role, "content": m.content[:1500]} for m in res.scalars()]
-    extracted = 0
-    try:
-        result = await _llm(
-            ctx,
-            interview,
-            "interviewer",
-            render(
-                "memory_extract",
-                language_name=_lang(interview),
-                knowledge_json=json.dumps(knowledge.doc, ensure_ascii=False),
-                transcript=transcript,
-            ),
-            MemoryExtraction,
-        )
-        for entry in result.value.entries:
-            await add_entry(
-                ctx.session,
-                interview.skill_id,
-                kind=entry.kind,
-                title=entry.title,
-                body=entry.body,
-                structured=entry.structured,
-                step_key=entry.step_key,
-                source="interview",
-                source_ref=interview.id,
-            )
-            extracted += 1
-    except Exception as exc:  # noqa: BLE001 - memory extraction must never block completion
-        ctx.state["memory_error"] = str(exc)[:500]
+    extracted, mem_error = await extract_memory(
+        ctx.session,
+        skill_id=interview.skill_id,
+        project_id=interview.project_id,
+        purpose="interviewer",
+        language=interview.language,
+        knowledge_json=json.dumps(knowledge.doc, ensure_ascii=False),
+        transcript=transcript,
+        context_kind="interview",
+        source="interview",
+        source_ref=interview.id,
+        system_prompt=render("interview_system", language_name=_lang(interview)),
+    )
+    if mem_error:
+        ctx.state["memory_error"] = mem_error
     interview.state = "complete"
     interview.completed_at = utcnow()
     await ctx.session.commit()

@@ -340,7 +340,8 @@
       "explain": "Spiegazione",
       "preview": "Anteprima",
       "execute": "Esecuzione",
-      "verify": "Verifica"
+      "verify": "Verifica",
+      "restore": "Ripristino"
     },
     "execMode": {
       "real": "esecuzione reale",
@@ -359,7 +360,9 @@
       "discuss": "Discuti",
       "redo": "Rifai",
       "skip": "Salta",
-      "stop": "Ferma"
+      "stop": "Ferma",
+      "restore": "Ripristina e rifai",
+      "restoredContinue": "Ripristinato, rifai il passo"
     },
     "changeLabel": "Cosa dovrebbe fare diversamente l'agente?",
     "changeHint": "Inviato all'agente come nuova istruzione per questo passo; anche il testo della skill viene aggiornato.",
@@ -403,7 +406,17 @@
     "bundleUrlHint": "Chi ha questo indirizzo può scaricare la descrizione dell'installazione e ogni componente citato (skill, MCP server, componenti condivisi) senza login, finché la prova non viene chiusa. Non contiene il token di prova.",
     "manifestUrl": "Manifest leggibile dalla macchina (install.json)",
     "tellAgent": "Cosa dire al tuo agente",
-    "tellAgentText": "Installa la skill AutoSkill descritta in {{url}} (manifest leggibile dalla macchina: {{manifest}}). Scarica ogni componente dagli indirizzi indicati, verifica i checksum, registra gli MCP server e chiedimi i valori delle variabili d'ambiente e il token di prova."
+    "tellAgentText": "Installa la skill AutoSkill descritta in {{url}} (manifest leggibile dalla macchina: {{manifest}}). Scarica ogni componente dagli indirizzi indicati, verifica i checksum, registra gli MCP server e chiedimi i valori delle variabili d'ambiente e il token di prova.",
+    "autoConfirm": "Salta i passi già confermati più volte",
+    "autoConfirmHint": "I passi deterministici che hai confermato N volte nelle prove precedenti vengono decisi automaticamente (mai le esecuzioni, mai i passi irreversibili). Puoi disattivarlo durante la prova.",
+    "autoConfirmShort": "Auto-conferma passi noti",
+    "autoConfirmed": "confermato automaticamente",
+    "restoreHelp": "L'agente ha ripristinato ciò che aveva salvato prima di questo passo. Controlla il risultato: continua fa ripartire il passo dalla spiegazione.",
+    "restoreConfirm": "Chiedere all'agente di ripristinare i dati salvati per questo passo e rifarlo?",
+    "snapshot": {
+      "title": "Backup registrato ({{n}} elementi)",
+      "restored": "ripristinato"
+    }
   },
   "runs": {
     "title": "Esecuzioni",
