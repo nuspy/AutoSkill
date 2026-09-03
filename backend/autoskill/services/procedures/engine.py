@@ -195,7 +195,8 @@ async def run(session: AsyncSession, procedure: Procedure) -> Procedure:
                 await session.rollback()
                 procedure = await session.get(Procedure, procedure_id)  # type: ignore[assignment]
                 assert procedure is not None
-                row = _new_step_row(procedure_id, ordinal, key, step_def.kind, attempt + 1, human_input)
+                next_attempt = attempt + 1 if attempt < step_def.max_attempts else attempt
+                row = _new_step_row(procedure_id, ordinal, key, step_def.kind, next_attempt, human_input)
                 session.add(row)
                 ctx = ProcedureContext(session=session, procedure=procedure, state=dict(state), human_input=human_input)
         procedure.iteration += 1

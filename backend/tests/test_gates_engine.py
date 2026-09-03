@@ -178,7 +178,7 @@ register(
 register(ProcedureDef(kind="test_fail", steps=[StepDef("bad", "code", always_fails, max_attempts=2)]))
 register(
     ProcedureDef(
-        kind="test_infinite", steps=[StepDef("loop", "code", step_loop), StepDef("a", "code", step_a)], max_iterations=5
+        kind="test_infinite", steps=[StepDef("a", "code", step_a), StepDef("loop", "code", step_loop)], max_iterations=5
     )
 )
 
