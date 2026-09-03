@@ -46,6 +46,16 @@ async def most_installed(session: AsyncSession, user: User | None, limit: int = 
     return list(res.scalars())
 
 
+async def top_rated(session: AsyncSession, user: User | None, limit: int = 8) -> list[Skill]:
+    res = await session.execute(
+        select(Skill)
+        .where(*visible_filter(user), Skill.rating_count > 0)
+        .order_by(Skill.rating_avg.desc(), Skill.rating_count.desc())
+        .limit(limit)
+    )
+    return list(res.scalars())
+
+
 async def search(
     session: AsyncSession,
     user: User | None,
@@ -74,6 +84,7 @@ async def search(
     total = int((await session.execute(select(func.count()).select_from(stmt.subquery()))).scalar_one())
     order = {
         "installs": Skill.install_count.desc(),
+        "rating": Skill.rating_avg.desc().nullslast(),
         "updated": Skill.updated_at.desc(),
         "title": Skill.title.asc(),
     }.get(sort, Skill.published_at.desc())

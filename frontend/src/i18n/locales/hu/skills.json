@@ -560,12 +560,55 @@
       "published": "Legújabb",
       "installs": "Legtöbbet telepített",
       "updated": "Nemrég frissített",
-      "title": "Név"
+      "title": "Név",
+      "rating": "Legjobbra értékelt"
     },
     "adminPublished": "Közzétett skillek",
     "feature": "Kiemelés",
     "unfeature": "Kiemelés megszüntetése",
-    "categories": "Kategóriák"
+    "categories": "Kategóriák",
+    "topRated": "Legjobbra értékelt",
+    "lists": "Válogatott listák",
+    "listsHelp": "Kézzel válogatott, közzétett skillek csoportjai a hub kezdőlapján.",
+    "listCount": "{{n}} skill",
+    "addToList": "Skill hozzáadása…",
+    "promote": "A katalógusba",
+    "promoteHelp": "A közzétett verziót könyvtári komponenssé alakítja, amelyet a szerzők újrahasználhatnak.",
+    "promoted": "Hozzáadva a komponenskatalógushoz",
+    "rating": {
+      "title": "Az értékelésed",
+      "help": "Mennyire jól végzi a dolgát ez a skill nálad?",
+      "yours": "{{stars}}/5-re értékelted.",
+      "comment": "Rövid megjegyzés (nem kötelező)",
+      "saved": "Értékelés mentve",
+      "remove": "Értékelésem eltávolítása"
+    },
+    "mirror": {
+      "url": "Külső git tükör (nem kötelező)",
+      "help": "Minden közzététel erre a távoli tárolóra is felkerül (main + verziócímke). Hagyd üresen a kikapcsoláshoz.",
+      "token": "Hozzáférési token",
+      "tokenHelp": "Személyes token push-jogosultsággal; titkosítva tároljuk, és többé nem jelenik meg.",
+      "tokenSet": "Van mentett token. Adj meg újat a cseréjéhez.",
+      "lastPush": "Utolsó push: {{when}}",
+      "error": "Az utolsó push sikertelen"
+    },
+    "contribute": {
+      "title": "Hozzájárulások",
+      "help": "Ez egy hub-skill változata: javasold a módosításaidat az eredetinek. A tulajdonosai vázlatverziót kapnak, amelyet kipróbálhatnak, bírálhatnak és közzétehetnek.",
+      "receivedHelp": "Azok által javasolt módosítások, akik változatot készítettek ebből a skillből.",
+      "message": "Mit változtattál és miért?",
+      "action": "Javaslat az eredetinek",
+      "sent": "Hozzájárulás elküldve az eredeti tulajdonosainak",
+      "accept": "Elfogadás új vázlatként",
+      "reject": "Elutasítás",
+      "accepted": "Vázlatverzió létrehozva a hozzájárulásból",
+      "draftCreated": "Vázlatverzió megtekintése",
+      "state": {
+        "open": "várakozik",
+        "accepted": "elfogadva",
+        "rejected": "elutasítva"
+      }
+    }
   },
   "installs": {
     "title": "Telepítéseim",

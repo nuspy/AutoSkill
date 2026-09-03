@@ -1,7 +1,8 @@
 import { useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { Star, Trash2 } from "lucide-react";
-import { useAdminHub, useCategories } from "@/api/hooks/hub";
+import { PackagePlus, Star, Trash2 } from "lucide-react";
+import { toast } from "sonner";
+import { useAdminHub, useAdminLists, useCategories, useHubList } from "@/api/hooks/hub";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Field, Input } from "@/components/ui/input";
@@ -11,6 +12,9 @@ export default function HubAdminTab() {
   const { t, i18n } = useTranslation(["skills", "common"]);
   const { published, feature, createCategory, deleteCategory } = useAdminHub();
   const categories = useCategories();
+  const { lists, create: createList, remove: removeList, addItem, removeItem, promote } = useAdminLists();
+  const [listForm, setListForm] = useState({ slug: "", en: "", it: "" });
+  const [pick, setPick] = useState<Record<string, string>>({});
   const [form, setForm] = useState({ slug: "", en: "", it: "" });
   const lang = i18n.language.slice(0, 2);
   const submit = (e: FormEvent) => { e.preventDefault(); createCategory.mutate({ slug: form.slug, name: { en: form.en, it: form.it || form.en } }, { onSuccess: () => setForm({ slug: "", en: "", it: "" }) }); };
@@ -26,6 +30,7 @@ export default function HubAdminTab() {
                 <span className="flex-1">{s.title} <code className="text-xs text-muted">v{s.published_version}</code></span>
                 <Badge>{t(`skills:hub.visibilities.${s.visibility}`)}</Badge>
                 <Button size="sm" variant={s.is_featured ? "secondary" : "outline"} onClick={() => feature.mutate({ skillId: s.id, featured: !s.is_featured })}><Star className="h-3.5 w-3.5" />{s.is_featured ? t("skills:hub.unfeature") : t("skills:hub.feature")}</Button>
+                <Button size="sm" variant="ghost" title={t("skills:hub.promoteHelp")} onClick={() => promote.mutate(s.id, { onSuccess: () => toast.success(t("skills:hub.promoted")) })}><PackagePlus className="h-3.5 w-3.5" />{t("skills:hub.promote")}</Button>
               </li>
             ))}
           </ul>
@@ -45,6 +50,44 @@ export default function HubAdminTab() {
           </form>
         </CardBody>
       </Card>
+      <Card>
+        <CardHeader title={t("skills:hub.lists")} description={t("skills:hub.listsHelp")} />
+        <CardBody className="space-y-3">
+          <form className="flex flex-wrap items-end gap-2" onSubmit={(e) => { e.preventDefault(); createList.mutate({ slug: listForm.slug, name: { en: listForm.en, it: listForm.it || listForm.en } }, { onSuccess: () => setListForm({ slug: "", en: "", it: "" }) }); }}>
+            <Field label="Slug"><Input required pattern="[a-z0-9]+(-[a-z0-9]+)*" value={listForm.slug} onChange={(e) => setListForm({ ...listForm, slug: e.target.value })} /></Field>
+            <Field label="EN"><Input required value={listForm.en} onChange={(e) => setListForm({ ...listForm, en: e.target.value })} /></Field>
+            <Field label="IT"><Input value={listForm.it} onChange={(e) => setListForm({ ...listForm, it: e.target.value })} /></Field>
+            <Button type="submit" loading={createList.isPending}>{t("common:actions.add")}</Button>
+          </form>
+          <ul className="divide-y divide-border text-sm">
+            {lists.data?.map((l) => (
+              <li key={l.id} className="space-y-1 py-2">
+                <div className="flex items-center gap-2">
+                  <span className="flex-1 font-medium">{l.name[lang] ?? l.name.en ?? l.slug} <code className="text-xs text-muted">{l.slug}</code> <Badge>{l.count}</Badge></span>
+                  <select className="h-8 rounded-lg border border-border bg-card px-2 text-xs" value={pick[l.id] ?? ""} onChange={(e) => setPick({ ...pick, [l.id]: e.target.value })}>
+                    <option value="">{t("skills:hub.addToList")}</option>
+                    {published.data?.map((s) => <option key={s.id} value={s.id}>{s.title}</option>)}
+                  </select>
+                  <Button size="sm" variant="outline" disabled={!pick[l.id]} onClick={() => addItem.mutate({ listId: l.id, skillId: pick[l.id] })}>{t("common:actions.add")}</Button>
+                  <Button size="icon" variant="ghost" aria-label={t("common:actions.delete")} onClick={() => removeList.mutate(l.id)}><Trash2 className="h-4 w-4 text-danger" /></Button>
+                </div>
+                <ListItems listId={l.id} slug={l.slug} onRemove={(skillId) => removeItem.mutate({ listId: l.id, skillId })} />
+              </li>
+            ))}
+          </ul>
+        </CardBody>
+      </Card>
     </div>
+  );
+}
+
+function ListItems({ listId, slug, onRemove }: { listId: string; slug: string; onRemove: (skillId: string) => void }) {
+  const { t } = useTranslation(["common"]);
+  const list = useHubList(slug);
+  if (!list.data || !list.data.items.length) return null;
+  return (
+    <ul className="flex flex-wrap gap-1 text-xs" data-list={listId}>
+      {list.data.items.map((s) => <li key={s.id} className="flex items-center gap-1 rounded-full border border-border px-2 py-0.5">{s.title}<button aria-label={t("common:actions.remove")} onClick={() => onRemove(s.id)}>×</button></li>)}
+    </ul>
   );
 }

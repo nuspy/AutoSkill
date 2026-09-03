@@ -560,12 +560,55 @@
       "published": "Newest",
       "installs": "Most installed",
       "updated": "Recently updated",
-      "title": "Name"
+      "title": "Name",
+      "rating": "Top rated"
     },
     "adminPublished": "Published skills",
     "feature": "Feature",
     "unfeature": "Unfeature",
-    "categories": "Categories"
+    "categories": "Categories",
+    "topRated": "Top rated",
+    "lists": "Curated lists",
+    "listsHelp": "Hand-picked groups of published skills shown on the hub home page.",
+    "listCount": "{{n}} skills",
+    "addToList": "Add a skill…",
+    "promote": "To the catalog",
+    "promoteHelp": "Turn the published version into a library component that authors can reuse.",
+    "promoted": "Added to the component catalog",
+    "rating": {
+      "title": "Your rating",
+      "help": "How well does this skill do its job for you?",
+      "yours": "You rated it {{stars}}/5.",
+      "comment": "A short comment (optional)",
+      "saved": "Rating saved",
+      "remove": "Remove my rating"
+    },
+    "mirror": {
+      "url": "External git mirror (optional)",
+      "help": "Every publish is also pushed to this remote (main + version tag). Leave empty to disable.",
+      "token": "Access token",
+      "tokenHelp": "Personal access token with push rights; stored encrypted and never shown again.",
+      "tokenSet": "A token is stored. Enter a new one to replace it.",
+      "lastPush": "Last push: {{when}}",
+      "error": "Last push failed"
+    },
+    "contribute": {
+      "title": "Contributions",
+      "help": "This is a variant of a hub skill: propose your changes to the original. Its owners get a draft version to test, review and publish.",
+      "receivedHelp": "Changes proposed by people who made a variant of this skill.",
+      "message": "What did you change and why?",
+      "action": "Propose to the original",
+      "sent": "Contribution sent to the owners of the original",
+      "accept": "Accept as a new draft",
+      "reject": "Reject",
+      "accepted": "Draft version created from the contribution",
+      "draftCreated": "See the draft version",
+      "state": {
+        "open": "waiting",
+        "accepted": "accepted",
+        "rejected": "rejected"
+      }
+    }
   },
   "installs": {
     "title": "My installs",

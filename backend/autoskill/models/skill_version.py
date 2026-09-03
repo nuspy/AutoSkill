@@ -20,7 +20,7 @@ VERSION_STATES = (
     "deprecated",
     "discarded",
 )
-VERSION_ORIGINS = ("interview", "manual", "improvement", "fork", "trial_corrections", "import")
+VERSION_ORIGINS = ("interview", "manual", "improvement", "fork", "trial_corrections", "import", "contribution")
 
 
 class SkillVersion(IdMixin, TimestampMixin, Base):

@@ -96,3 +96,36 @@ async def upload_pack(bare: Path, body: bytes) -> bytes:
 
 def list_tags(bare: Path) -> list[str]:
     return [t for t in _run(["tag", "--list"], cwd=bare).decode().split("\n") if t]
+
+
+def push_external(bare: Path, remote_url: str, token: str | None, version: str) -> str:
+    """Mirror main and the version tag to an external remote (GitHub, GitLab, Gitea...).
+
+    The token, when given, is supplied through a temporary GIT_ASKPASS helper so it never appears in
+    the command line or in the remote URL stored on disk. Returns the pushed commit sha.
+    """
+    if GIT is None:
+        raise RuntimeError("git executable not available")
+    env = {"GIT_TERMINAL_PROMPT": "0"}
+    helper_dir: Path | None = None
+    try:
+        if token:
+            helper_dir = Path(tempfile.mkdtemp(prefix="autoskill-askpass-"))
+            helper = helper_dir / "askpass.sh"
+            # username prompt -> a placeholder, password prompt -> the token
+            helper.write_text(
+                '#!/bin/sh\ncase "$1" in *sername*) echo autoskill;; *) cat "$(dirname "$0")/token";; esac\n'
+            )
+            (helper_dir / "token").write_text(token)
+            helper.chmod(0o700)
+            (helper_dir / "token").chmod(0o600)
+            env["GIT_ASKPASS"] = str(helper)
+        _run(
+            ["push", "--force", remote_url, "main:main", f"refs/tags/v{version}:refs/tags/v{version}"],
+            cwd=bare,
+            env=env,
+        )
+        return _run(["rev-parse", "main"], cwd=bare).decode().strip()
+    finally:
+        if helper_dir is not None:
+            shutil.rmtree(helper_dir, ignore_errors=True)

@@ -22,6 +22,7 @@ import ImprovementsTab from "@/features/improvements/ImprovementsTab";
 import { Link } from "react-router-dom";
 import { timeAgo } from "@/lib/format";
 import { PublishSettingsCard } from "@/features/hub/PublishSettingsCard";
+import { ContributeCard } from "@/features/hub/ContributeCard";
 
 const TABS = ["overview", "interview", "knowledge", "memory", "versions", "trials", "runs", "improvements"] as const;
 
@@ -91,6 +92,7 @@ function OverviewTab() {
   return (
     <div className="grid gap-4 md:grid-cols-2">
       <div className="md:col-span-2"><PublishSettingsCard skill={s} canEdit /></div>
+      <div className="md:col-span-2"><ContributeCard skill={s} canEdit /></div>
       <Card>
         <CardHeader title={t("skills:tabs.interview")} />
         <CardBody>

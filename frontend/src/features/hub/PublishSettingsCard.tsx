@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { useCategories, usePublishSettings } from "@/api/hooks/hub";
+import { useCategories, useMirror, usePublishSettings } from "@/api/hooks/hub";
 import type { Skill } from "@/api/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
@@ -15,7 +15,11 @@ export function PublishSettingsCard({ skill, canEdit }: { skill: Skill & { categ
   const [visibility, setVisibility] = useState(skill.visibility);
   const [category, setCategory] = useState(skill.category_id ?? "");
   const [tags, setTags] = useState(skill.tags.join(", "));
+  const mirror = useMirror(skill.id);
+  const [remote, setRemote] = useState<string | null>(null);
+  const [token, setToken] = useState("");
   const lang = i18n.language.slice(0, 2);
+  const remoteValue = remote ?? mirror.data?.external_remote_url ?? "";
   return (
     <Card>
       <CardHeader title={t("skills:hub.settings")} description={t("skills:hub.settingsHelp")} />
@@ -29,7 +33,11 @@ export function PublishSettingsCard({ skill, canEdit }: { skill: Skill & { categ
           <Select disabled={!canEdit} value={category} onChange={(e) => setCategory(e.target.value)}><option value="">—</option>{categories.data?.map((c) => <option key={c.id} value={c.id}>{c.name[lang] ?? c.name.en ?? c.slug}</option>)}</Select>
         </Field>
         <Field label={t("skills:hub.tags")}><Input disabled={!canEdit} value={tags} onChange={(e) => setTags(e.target.value)} placeholder="invoices, monday" /></Field>
-        {canEdit && <Button loading={save.isPending} onClick={() => save.mutate({ visibility, category_id: category || null, tags: tags.split(",").map((x) => x.trim()).filter(Boolean) }, { onSuccess: () => toast.success(t("common:status.saved")), onError: (e) => toast.error(errorMessage(e, t)) })}>{t("common:actions.save")}</Button>}
+        <Field label={t("skills:hub.mirror.url")} hint={t("skills:hub.mirror.help")}><Input disabled={!canEdit} value={remoteValue} onChange={(e) => setRemote(e.target.value)} placeholder="https://github.com/org/skill.git" /></Field>
+        {remoteValue && <Field label={t("skills:hub.mirror.token")} hint={mirror.data?.has_token ? t("skills:hub.mirror.tokenSet") : t("skills:hub.mirror.tokenHelp")}><Input disabled={!canEdit} type="password" autoComplete="off" value={token} onChange={(e) => setToken(e.target.value)} /></Field>}
+        {mirror.data?.last_external_push_at && <p className="text-xs text-muted">{t("skills:hub.mirror.lastPush", { when: new Date(mirror.data.last_external_push_at).toLocaleString() })}</p>}
+        {mirror.data?.last_external_error && <p className="text-xs text-danger">{t("skills:hub.mirror.error")}: {mirror.data.last_external_error}</p>}
+        {canEdit && <Button loading={save.isPending} onClick={() => save.mutate({ visibility, category_id: category || null, tags: tags.split(",").map((x) => x.trim()).filter(Boolean), ...(remote !== null ? { external_remote_url: remote } : {}), ...(token ? { external_token: token } : {}) }, { onSuccess: () => { setToken(""); toast.success(t("common:status.saved")); }, onError: (e) => toast.error(errorMessage(e, t)) })}>{t("common:actions.save")}</Button>}
       </CardBody>
     </Card>
   );

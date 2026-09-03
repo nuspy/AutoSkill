@@ -131,6 +131,10 @@ export interface Skill {
   current_published_version_id: string | null;
   latest_version_id: string | null;
   tags: string[];
+  rating_avg?: number | null;
+  rating_count?: number;
+  forked_from_skill_id?: string | null;
+  fork_kind?: string | null;
   category_id?: string | null;
   install_count?: number;
   created_by: string | null;
@@ -583,6 +587,8 @@ export interface VersionTransition {
 }
 
 export interface HubSkill extends Skill {
+  rating_avg: number | null;
+  rating_count: number;
   published_version: string | null;
   published_version_id: string | null;
   category_slug: string | null;
@@ -606,6 +612,8 @@ export interface HubHome {
   featured: HubSkill[];
   latest: HubSkill[];
   most_installed: HubSkill[];
+  top_rated: HubSkill[];
+  lists: CuratedList[];
   categories: Category[];
   public: boolean;
 }
@@ -620,6 +628,56 @@ export interface HubSkillDetail {
   git_url: string | null;
   zip_url: string | null;
   my_installation: Installation | null;
+  my_rating: Rating | null;
+  ratings: Rating[];
+}
+
+export interface Rating {
+  id: string;
+  user_id: string;
+  skill_id: string;
+  skill_version_id: string | null;
+  stars: number;
+  comment: string | null;
+  created_at: string;
+  updated_at: string;
+  user_name: string;
+}
+
+export interface CuratedList {
+  id: string;
+  slug: string;
+  name: Record<string, string>;
+  description: string | null;
+  ordinal: number;
+  is_public: boolean;
+  count: number;
+}
+
+export interface Contribution {
+  id: string;
+  source_skill_id: string;
+  source_version_id: string;
+  target_skill_id: string;
+  target_version_id: string | null;
+  proposed_by: string;
+  message: string | null;
+  state: "open" | "accepted" | "rejected";
+  decided_by: string | null;
+  decided_at: string | null;
+  decision_comment: string | null;
+  created_at: string;
+  source_title: string;
+  source_version: string;
+  target_title: string;
+  proposed_by_name: string;
+}
+
+export interface MirrorStatus {
+  external_remote_url: string | null;
+  has_token: boolean;
+  last_external_push_at: string | null;
+  last_external_error: string | null;
 }
 
 export interface Installation {

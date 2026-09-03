@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
@@ -17,6 +18,7 @@ from autoskill.api.v1.router import api_router
 from autoskill.config import get_settings
 from autoskill.core.errors import AppError
 from autoskill.jobs import register_all_jobs
+from autoskill.models import *  # noqa: F401,F403  (tables for the e2e reset)
 
 
 @asynccontextmanager
@@ -25,6 +27,15 @@ async def lifespan(app: FastAPI):
     logging.basicConfig(level=settings.log_level)
     settings.data_dir.mkdir(parents=True, exist_ok=True)
     register_all_jobs()
+    if os.environ.get("AUTOSKILL_E2E_RESET") == "1" and settings.is_sqlite:
+        # end-to-end runs: start from an empty schema (SQLite file recreated by create_all)
+        from autoskill.db.base import Base
+        from autoskill.db.session import get_engine
+
+        engine = get_engine()
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.drop_all)
+            await conn.run_sync(Base.metadata.create_all)
     yield
 
 

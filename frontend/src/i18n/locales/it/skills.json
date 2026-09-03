@@ -560,12 +560,55 @@
       "published": "Più recenti",
       "installs": "Più installate",
       "updated": "Aggiornate di recente",
-      "title": "Nome"
+      "title": "Nome",
+      "rating": "Le più votate"
     },
     "adminPublished": "Skill pubblicate",
     "feature": "Metti in evidenza",
     "unfeature": "Togli evidenza",
-    "categories": "Categorie"
+    "categories": "Categorie",
+    "topRated": "Le più votate",
+    "lists": "Liste curate",
+    "listsHelp": "Gruppi scelti a mano di skill pubblicate mostrati nella home dell'hub.",
+    "listCount": "{{n}} skill",
+    "addToList": "Aggiungi una skill…",
+    "promote": "Nel catalogo",
+    "promoteHelp": "Trasforma la versione pubblicata in un componente della libreria che gli autori possono riusare.",
+    "promoted": "Aggiunta al catalogo dei componenti",
+    "rating": {
+      "title": "La tua valutazione",
+      "help": "Quanto bene fa il suo lavoro questa skill per te?",
+      "yours": "Le hai dato {{stars}}/5.",
+      "comment": "Un breve commento (facoltativo)",
+      "saved": "Valutazione salvata",
+      "remove": "Rimuovi la mia valutazione"
+    },
+    "mirror": {
+      "url": "Mirror git esterno (facoltativo)",
+      "help": "Ogni pubblicazione viene inviata anche a questo remoto (main + tag di versione). Lascia vuoto per disattivare.",
+      "token": "Token di accesso",
+      "tokenHelp": "Token personale con permessi di push; salvato cifrato e mai più mostrato.",
+      "tokenSet": "Un token è salvato. Inseriscine uno nuovo per sostituirlo.",
+      "lastPush": "Ultimo push: {{when}}",
+      "error": "Ultimo push fallito"
+    },
+    "contribute": {
+      "title": "Contributi",
+      "help": "Questa è una variante di una skill dell'hub: proponi le tue modifiche all'originale. I suoi proprietari ricevono una versione bozza da provare, revisionare e pubblicare.",
+      "receivedHelp": "Modifiche proposte da chi ha creato una variante di questa skill.",
+      "message": "Cosa hai cambiato e perché?",
+      "action": "Proponi all'originale",
+      "sent": "Contributo inviato ai proprietari dell'originale",
+      "accept": "Accetta come nuova bozza",
+      "reject": "Rifiuta",
+      "accepted": "Versione bozza creata dal contributo",
+      "draftCreated": "Vedi la versione bozza",
+      "state": {
+        "open": "in attesa",
+        "accepted": "accettato",
+        "rejected": "rifiutato"
+      }
+    }
   },
   "installs": {
     "title": "Le mie installazioni",

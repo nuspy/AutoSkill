@@ -144,3 +144,47 @@ async def test_anthropic_adapter_converts_messages_and_tools():
     assert body["messages"][-1]["content"][0]["type"] == "tool_result"
     assert res.text == "hi" and res.message.tool_calls[0].name == "respond"
     assert res.usage.output_tokens == 2
+
+
+async def test_demo_provider_answers_every_purpose_with_valid_structures(monkeypatch):
+    """AUTOSKILL_LLM_FAKE=demo drives the whole flow without a model (used by the e2e suite)."""
+    from autoskill.llm.fake import DemoProvider
+    from autoskill.llm.provider import ChatMessage, ChatRequest
+    from autoskill.llm.registry import get_fake_provider, set_fake_provider
+    from autoskill.llm.structured import structured
+    from autoskill.schemas.draft import DraftSpec
+    from autoskill.schemas.knowledge import KnowledgeDocModel, QuestionSpec, SupervisorDecision
+
+    set_fake_provider(None)
+    monkeypatch.setenv("AUTOSKILL_LLM_FAKE", "demo")
+    try:
+        demo = get_fake_provider()
+        assert isinstance(demo, DemoProvider)
+
+        async def ask(purpose, text, model):
+            return (
+                await structured(
+                    demo, ChatRequest(messages=[ChatMessage(role="user", content=text)], purpose=purpose), model
+                )
+            ).value
+
+        doc = await ask("interviewer", "Build the knowledge document from this description", KnowledgeDocModel)
+        assert [s.key for s in doc.steps] == ["open-sheet", "flag", "send"] and not doc.open_questions
+        q = await ask("interviewer", "Ask the person ONE question in English to make progress on gate G3", QuestionSpec)
+        assert q.question
+        sup = await ask("supervisor", "Decide whether the knowledge document is complete", SupervisorDecision)
+        assert sup.decision == "proceed"
+        spec = await ask("author", "Write the skill draft", DraftSpec)
+        assert len(spec.steps) == 3 and spec.steps[2].side_effects == "irreversible"
+        # plain-text summary and scripted overrides still work
+        res = await demo.chat(
+            ChatRequest(
+                messages=[
+                    ChatMessage(role="user", content="Write a short summary of the knowledge document for the person")
+                ],
+                purpose="interviewer",
+            )
+        )
+        assert "Monday" in res.message.content
+    finally:
+        set_fake_provider(None)

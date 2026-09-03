@@ -5,7 +5,17 @@ from autoskill.models.audit import AuditLog
 from autoskill.models.blob import Blob
 from autoskill.models.data_source import DataSource
 from autoskill.models.device import Device, DeviceAuthorization
-from autoskill.models.hub import Category, DownloadGrant, Favorite, Installation, SkillRepo
+from autoskill.models.hub import (
+    Category,
+    Contribution,
+    CuratedList,
+    CuratedListItem,
+    DownloadGrant,
+    Favorite,
+    Installation,
+    Rating,
+    SkillRepo,
+)
 from autoskill.models.improvement import ImprovementProposal
 from autoskill.models.interview import InterviewMessage, InterviewSession, KnowledgeDoc
 from autoskill.models.job import Job
@@ -29,6 +39,10 @@ __all__ = [
     "McpServerVersion",
     "Category",
     "DownloadGrant",
+    "Rating",
+    "Contribution",
+    "CuratedList",
+    "CuratedListItem",
     "Favorite",
     "Installation",
     "SkillRepo",

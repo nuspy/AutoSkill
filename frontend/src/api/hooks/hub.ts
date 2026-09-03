@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/api/client";
-import type { Category, HubHome, HubSkill, HubSkillDetail, Installation, Skill } from "@/api/types";
+import type { Category, Contribution, CuratedList, HubHome, HubSkill, HubSkillDetail, Installation, MirrorStatus, Rating, Skill } from "@/api/types";
 
 export function useHubHome() {
   return useQuery({ queryKey: ["hub", "home"], queryFn: () => api<HubHome>("/hub") });
@@ -46,7 +46,7 @@ export function useFork() {
 
 export function usePublishSettings(skillId: string) {
   const qc = useQueryClient();
-  return useMutation({ mutationFn: (body: { visibility?: string; category_id?: string | null; tags?: string[] }) => api<Skill>(`/skills/${skillId}/publish-settings`, { method: "PATCH", body }), onSuccess: () => { qc.invalidateQueries({ queryKey: ["skills", skillId] }); qc.invalidateQueries({ queryKey: ["hub"] }); } });
+  return useMutation({ mutationFn: (body: { visibility?: string; category_id?: string | null; tags?: string[]; external_remote_url?: string; external_token?: string }) => api<Skill>(`/skills/${skillId}/publish-settings`, { method: "PATCH", body }), onSuccess: () => { qc.invalidateQueries({ queryKey: ["skills", skillId] }); qc.invalidateQueries({ queryKey: ["hub"] }); } });
 }
 
 export function useCategories() {
@@ -61,4 +61,44 @@ export function useAdminHub() {
   const createCategory = useMutation({ mutationFn: (body: { slug: string; name: Record<string, string>; ordinal?: number }) => api<Category>("/admin/hub/categories", { method: "POST", body }), onSuccess: invalidate });
   const deleteCategory = useMutation({ mutationFn: (id: string) => api(`/admin/hub/categories/${id}`, { method: "DELETE" }), onSuccess: invalidate });
   return { published, feature, createCategory, deleteCategory };
+}
+
+export function useRate(skillId: string) {
+  const qc = useQueryClient();
+  const invalidate = () => qc.invalidateQueries({ queryKey: ["hub"] });
+  const rate = useMutation({ mutationFn: (body: { stars: number; comment?: string }) => api<Rating>(`/hub/skills/${skillId}/rating`, { method: "PUT", body }), onSuccess: invalidate });
+  const unrate = useMutation({ mutationFn: () => api(`/hub/skills/${skillId}/rating`, { method: "DELETE" }), onSuccess: invalidate });
+  return { rate, unrate };
+}
+
+export function useHubList(slug: string) {
+  return useQuery({ queryKey: ["hub", "list", slug], queryFn: () => api<{ list: CuratedList; items: HubSkill[] }>(`/hub/lists/${slug}`), enabled: !!slug });
+}
+
+export function useContributions(skillId: string) {
+  return useQuery({ queryKey: ["skills", skillId, "contributions"], queryFn: () => api<Contribution[]>(`/skills/${skillId}/contributions`), enabled: !!skillId });
+}
+
+export function useContributionMutations(skillId: string) {
+  const qc = useQueryClient();
+  const invalidate = () => { qc.invalidateQueries({ queryKey: ["skills"] }); qc.invalidateQueries({ queryKey: ["me", "notifications"] }); };
+  const contribute = useMutation({ mutationFn: (body: { version_id?: string; message?: string }) => api<Contribution>(`/skills/${skillId}/contribute`, { method: "POST", body }), onSuccess: invalidate });
+  const decide = useMutation({ mutationFn: ({ id, ...body }: { id: string; accept: boolean; comment?: string }) => api<Contribution>(`/contributions/${id}/decision`, { method: "POST", body }), onSuccess: invalidate });
+  return { contribute, decide };
+}
+
+export function useMirror(skillId: string) {
+  return useQuery({ queryKey: ["skills", skillId, "mirror"], queryFn: () => api<MirrorStatus>(`/skills/${skillId}/mirror`), enabled: !!skillId });
+}
+
+export function useAdminLists() {
+  const qc = useQueryClient();
+  const invalidate = () => qc.invalidateQueries({ queryKey: ["hub"] });
+  const lists = useQuery({ queryKey: ["hub", "admin", "lists"], queryFn: () => api<CuratedList[]>("/admin/hub/lists") });
+  const create = useMutation({ mutationFn: (body: { slug: string; name: Record<string, string>; description?: string | null; ordinal?: number; is_public?: boolean }) => api<CuratedList>("/admin/hub/lists", { method: "POST", body }), onSuccess: invalidate });
+  const remove = useMutation({ mutationFn: (id: string) => api(`/admin/hub/lists/${id}`, { method: "DELETE" }), onSuccess: invalidate });
+  const addItem = useMutation({ mutationFn: ({ listId, skillId }: { listId: string; skillId: string }) => api(`/admin/hub/lists/${listId}/items/${skillId}`, { method: "POST" }), onSuccess: invalidate });
+  const removeItem = useMutation({ mutationFn: ({ listId, skillId }: { listId: string; skillId: string }) => api(`/admin/hub/lists/${listId}/items/${skillId}`, { method: "DELETE" }), onSuccess: invalidate });
+  const promote = useMutation({ mutationFn: (skillId: string) => api(`/library/from-skill/${skillId}`, { method: "POST" }), onSuccess: () => qc.invalidateQueries({ queryKey: ["library"] }) });
+  return { lists, create, remove, addItem, removeItem, promote };
 }

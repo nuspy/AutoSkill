@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import JSON, Boolean, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import JSON, Boolean, Float, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from autoskill.db.base import Base, IdMixin, TimestampMixin, TZDateTime
@@ -34,5 +34,7 @@ class Skill(IdMixin, TimestampMixin, Base):
     featured_at: Mapped[datetime | None] = mapped_column(TZDateTime)
     published_at: Mapped[datetime | None] = mapped_column(TZDateTime)
     install_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    rating_avg: Mapped[float | None] = mapped_column(Float)
+    rating_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     created_by: Mapped[str | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
     archived_at: Mapped[datetime | None] = mapped_column(TZDateTime)

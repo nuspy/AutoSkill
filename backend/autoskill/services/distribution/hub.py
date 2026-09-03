@@ -20,6 +20,21 @@ from autoskill.services.targets import list_targets
 
 log = logging.getLogger(__name__)
 
+# (skill_id, version_id) pairs whose external mirror push must be enqueued once the publish is committed
+pending_external_pushes: list[dict] = []
+
+
+async def flush_external_pushes(project_id: str | None = None) -> int:
+    """Enqueue the mirror pushes recorded by after_publish (call after the transaction is committed)."""
+    from autoskill.core.jobs import get_job_runner
+
+    count = 0
+    while pending_external_pushes:
+        item = pending_external_pushes.pop(0)
+        await get_job_runner().enqueue("distribution.push_external", item, project_id=project_id, user_id=None)
+        count += 1
+    return count
+
 
 async def after_publish(session: AsyncSession, skill: Skill, version: SkillVersion, actor: User) -> None:
     skill.published_at = utcnow()
@@ -87,5 +102,7 @@ async def after_publish(session: AsyncSession, skill: Skill, version: SkillVersi
         repo.last_pushed_at = utcnow()
         repo.public_clone = skill.visibility == "public"
         log.info("published %s v%s to git (%s)", skill.name, version.version, sha[:8])
+        if repo.external_remote_url:
+            pending_external_pushes.append({"skill_id": skill.id, "version_id": version.id})
     except Exception as exc:  # noqa: BLE001 - git problems must not block publishing
         log.exception("git publish failed for %s: %s", skill.name, exc)

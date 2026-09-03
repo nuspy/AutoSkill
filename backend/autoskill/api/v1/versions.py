@@ -395,12 +395,15 @@ async def diff(version_id: str, session: SessionDep, user: CurrentUser, to: str 
 @router.post("/versions/{version_id}/authorize", response_model=AuthorizationOut)
 async def authorize(version_id: str, body: AuthorizeIn, session: SessionDep, user: CurrentUser):
     """Human authorization to publish (from approved) or deprecate (from published)."""
-    version, _ = await _version(session, user, version_id, ProjectRole.editor)
+    version, skill = await _version(session, user, version_id, ProjectRole.editor)
     auth = await authorize_version(
         session, version, user, action=body.action, checklist=body.checklist, comment=body.comment
     )
     await session.commit()
     await session.refresh(auth)
+    from autoskill.services.distribution.hub import flush_external_pushes
+
+    await flush_external_pushes(skill.project_id)
     return auth
 
 

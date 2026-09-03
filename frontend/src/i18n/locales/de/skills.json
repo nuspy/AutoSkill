@@ -560,12 +560,55 @@
       "published": "Neueste",
       "installs": "Am häufigsten installiert",
       "updated": "Zuletzt aktualisiert",
-      "title": "Name"
+      "title": "Name",
+      "rating": "Am besten bewertet"
     },
     "adminPublished": "Veröffentlichte Skills",
     "feature": "Hervorheben",
     "unfeature": "Hervorhebung aufheben",
-    "categories": "Kategorien"
+    "categories": "Kategorien",
+    "topRated": "Am besten bewertet",
+    "lists": "Kuratierte Listen",
+    "listsHelp": "Von Hand ausgewählte Gruppen veröffentlichter Skills auf der Hub-Startseite.",
+    "listCount": "{{n}} Skills",
+    "addToList": "Skill hinzufügen…",
+    "promote": "In den Katalog",
+    "promoteHelp": "Macht die veröffentlichte Version zu einer Bibliothekskomponente, die Autoren wiederverwenden können.",
+    "promoted": "Zum Komponentenkatalog hinzugefügt",
+    "rating": {
+      "title": "Deine Bewertung",
+      "help": "Wie gut erledigt diese Skill ihre Aufgabe für dich?",
+      "yours": "Du hast {{stars}}/5 vergeben.",
+      "comment": "Ein kurzer Kommentar (optional)",
+      "saved": "Bewertung gespeichert",
+      "remove": "Meine Bewertung entfernen"
+    },
+    "mirror": {
+      "url": "Externer Git-Spiegel (optional)",
+      "help": "Jede Veröffentlichung wird auch an dieses Remote gepusht (main + Versions-Tag). Leer lassen zum Deaktivieren.",
+      "token": "Zugriffstoken",
+      "tokenHelp": "Persönliches Token mit Push-Rechten; verschlüsselt gespeichert und nie wieder angezeigt.",
+      "tokenSet": "Ein Token ist gespeichert. Gib ein neues ein, um es zu ersetzen.",
+      "lastPush": "Letzter Push: {{when}}",
+      "error": "Letzter Push fehlgeschlagen"
+    },
+    "contribute": {
+      "title": "Beiträge",
+      "help": "Dies ist eine Variante einer Hub-Skill: schlage deine Änderungen dem Original vor. Dessen Eigentümer erhalten eine Entwurfsversion zum Testen, Prüfen und Veröffentlichen.",
+      "receivedHelp": "Änderungen, die von Personen mit einer Variante dieser Skill vorgeschlagen wurden.",
+      "message": "Was hast du geändert und warum?",
+      "action": "Dem Original vorschlagen",
+      "sent": "Beitrag an die Eigentümer des Originals gesendet",
+      "accept": "Als neuen Entwurf annehmen",
+      "reject": "Ablehnen",
+      "accepted": "Entwurfsversion aus dem Beitrag erstellt",
+      "draftCreated": "Entwurfsversion ansehen",
+      "state": {
+        "open": "wartet",
+        "accepted": "angenommen",
+        "rejected": "abgelehnt"
+      }
+    }
   },
   "installs": {
     "title": "Meine Installationen",

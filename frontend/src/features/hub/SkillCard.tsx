@@ -5,6 +5,7 @@ import type { HubSkill } from "@/api/types";
 import { useToggleFavorite } from "@/api/hooks/hub";
 import { Card, CardBody } from "@/components/ui/card";
 import { Badge } from "@/components/ui/misc";
+import { Stars } from "@/components/ui/stars";
 import { cn } from "@/lib/cn";
 
 export function SkillCard({ skill }: { skill: HubSkill }) {
@@ -22,7 +23,7 @@ export function SkillCard({ skill }: { skill: HubSkill }) {
           <code className="rounded bg-accent px-1">v{skill.published_version}</code>
           {skill.category_slug && <Badge>{skill.category_slug}</Badge>}
           {skill.tags.slice(0, 3).map((tg) => <Badge key={tg} tone="neutral">#{tg}</Badge>)}
-          <span className="ml-auto flex items-center gap-1"><Download className="h-3 w-3" />{skill.install_count}</span>
+          <span className="ml-auto flex items-center gap-2">{skill.rating_count > 0 && <Stars value={skill.rating_avg} count={skill.rating_count} size="h-3 w-3" />}<span className="flex items-center gap-1"><Download className="h-3 w-3" />{skill.install_count}</span></span>
         </div>
       </CardBody>
     </Card>

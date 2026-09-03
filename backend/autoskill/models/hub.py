@@ -59,6 +59,64 @@ class SkillRepo(Base):
     head_version_id: Mapped[str | None] = mapped_column(String(36))
     last_pushed_at: Mapped[datetime | None] = mapped_column(TZDateTime)
     public_clone: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    # optional mirror: every publish is pushed to this remote (token stored encrypted, never returned)
+    external_remote_url: Mapped[str | None] = mapped_column(String(500))
+    external_token_encrypted: Mapped[str | None] = mapped_column(Text)
+    last_external_push_at: Mapped[datetime | None] = mapped_column(TZDateTime)
+    last_external_error: Mapped[str | None] = mapped_column(Text)
+
+
+class Rating(IdMixin, TimestampMixin, Base):
+    __tablename__ = "ratings"
+    __table_args__ = (UniqueConstraint("user_id", "skill_id", name="uq_rating"),)
+
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
+    skill_id: Mapped[str] = mapped_column(ForeignKey("skills.id", ondelete="CASCADE"), index=True, nullable=False)
+    skill_version_id: Mapped[str | None] = mapped_column(String(36))
+    stars: Mapped[int] = mapped_column(Integer, nullable=False)
+    comment: Mapped[str | None] = mapped_column(Text)
+
+
+class Contribution(IdMixin, TimestampMixin, Base):
+    """A variant proposes its changes back to the skill it was forked from."""
+
+    __tablename__ = "contributions"
+
+    source_skill_id: Mapped[str] = mapped_column(
+        ForeignKey("skills.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    source_version_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    target_skill_id: Mapped[str] = mapped_column(
+        ForeignKey("skills.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    target_version_id: Mapped[str | None] = mapped_column(String(36))  # draft created on acceptance
+    proposed_by: Mapped[str] = mapped_column(String(36), nullable=False)
+    message: Mapped[str | None] = mapped_column(Text)
+    state: Mapped[str] = mapped_column(String(16), default="open", nullable=False)  # open | accepted | rejected
+    decided_by: Mapped[str | None] = mapped_column(String(36))
+    decided_at: Mapped[datetime | None] = mapped_column(TZDateTime)
+    decision_comment: Mapped[str | None] = mapped_column(Text)
+
+
+class CuratedList(IdMixin, TimestampMixin, Base):
+    __tablename__ = "curated_lists"
+
+    slug: Mapped[str] = mapped_column(String(80), unique=True, index=True, nullable=False)
+    name: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)  # {"en": ..., "it": ...}
+    description: Mapped[str | None] = mapped_column(Text)
+    ordinal: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    is_public: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    created_by: Mapped[str | None] = mapped_column(String(36))
+
+
+class CuratedListItem(IdMixin, Base):
+    __tablename__ = "curated_list_items"
+    __table_args__ = (UniqueConstraint("list_id", "skill_id", name="uq_list_item"),)
+
+    list_id: Mapped[str] = mapped_column(ForeignKey("curated_lists.id", ondelete="CASCADE"), index=True, nullable=False)
+    skill_id: Mapped[str] = mapped_column(ForeignKey("skills.id", ondelete="CASCADE"), index=True, nullable=False)
+    ordinal: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    note: Mapped[str | None] = mapped_column(Text)
 
 
 class DownloadGrant(IdMixin, TimestampMixin, Base):

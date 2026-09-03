@@ -21,6 +21,10 @@ class SkillOut(ORMModel):
     tags: list[str]
     category_id: str | None = None
     install_count: int = 0
+    rating_avg: float | None = None
+    rating_count: int = 0
+    forked_from_skill_id: str | None = None
+    fork_kind: str | None = None
     created_by: str | None
     created_at: datetime
     updated_at: datetime

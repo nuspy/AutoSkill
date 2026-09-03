@@ -9,7 +9,9 @@ export default defineConfig({
   resolve: { alias: { "@": path.resolve(__dirname, "src") } },
   server: {
     port: 5173,
-    proxy: { "/api": { target: process.env.VITE_API_URL || "http://localhost:8000", changeOrigin: true } },
+    proxy: Object.fromEntries(
+      ["/api", "/dl", "/git"].map((prefix) => [prefix, { target: process.env.VITE_API_URL || "http://localhost:8000", changeOrigin: true }]),
+    ),
   },
-  test: { environment: "jsdom", globals: true, setupFiles: ["./src/test/setup.ts"] },
+  test: { environment: "jsdom", globals: true, setupFiles: ["./src/test/setup.ts"], exclude: ["e2e/**", "node_modules/**", "dist/**"] },
 });

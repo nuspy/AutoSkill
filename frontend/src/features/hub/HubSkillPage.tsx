@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Copy, Download, GitFork, Star } from "lucide-react";
 import { toast } from "sonner";
-import { useFork, useHubSkill, useInstallationMutations, useToggleFavorite } from "@/api/hooks/hub";
+import { useFork, useHubSkill, useInstallationMutations, useRate, useToggleFavorite } from "@/api/hooks/hub";
 import { useProjects } from "@/api/hooks/projects";
 import { downloadZip } from "@/api/hooks/versions";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { Field, Input, Select } from "@/components/ui/input";
 import { Markdown } from "@/components/ui/markdown";
 import { Badge, ErrorState, PageHeader, Skeleton } from "@/components/ui/misc";
+import { Stars } from "@/components/ui/stars";
 import { InstallGuide } from "@/features/versions/InstallGuide";
 import { TrialLauncher } from "@/features/trials/TrialLauncher";
 import { useSession } from "@/stores/session";
@@ -33,6 +34,8 @@ export default function HubSkillPage() {
   const [forkOpen, setForkOpen] = useState(false);
   const [forkProject, setForkProject] = useState("");
   const [forkTitle, setForkTitle] = useState("");
+  const [comment, setComment] = useState("");
+  const { rate, unrate } = useRate(skillId);
   if (detail.isLoading || !detail.data) return <Skeleton className="h-64" />;
   const d = detail.data;
   const s = d.skill;
@@ -52,6 +55,7 @@ export default function HubSkillPage() {
         <code className="rounded bg-accent px-1.5 py-0.5">{s.project_slug}/{s.name}</code><Badge tone="success">v{s.published_version}</Badge>
         {s.category_slug && <Badge>{s.category_slug}</Badge>}{s.tags.map((tg) => <Badge key={tg}>#{tg}</Badge>)}
         <span className="flex items-center gap-1"><Download className="h-3.5 w-3.5" />{s.install_count} {t("skills:hub.installs")}</span>
+        <Stars value={s.rating_avg} count={s.rating_count} />
         {d.my_installation && <Badge tone={d.my_installation.update_available ? "warning" : "primary"}>{d.my_installation.update_available ? t("skills:hub.updateAvailable") : t("skills:hub.installedByYou", { version: d.my_installation.installed_version })}</Badge>}
       </div>
       <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
@@ -78,6 +82,21 @@ export default function HubSkillPage() {
               {d.dependencies.length > 0 && <p className="text-xs text-muted">{t("skills:versions.dependsOn")}: {d.dependencies.map((x) => x.component_slug).join(", ")}</p>}
             </CardBody>
           </Card>
+          {user && (
+            <Card>
+              <CardHeader title={t("skills:hub.rating.title")} description={d.my_rating ? t("skills:hub.rating.yours", { stars: d.my_rating.stars }) : t("skills:hub.rating.help")} />
+              <CardBody className="space-y-2 text-sm">
+                <Stars value={d.my_rating?.stars ?? 0} onChange={(stars) => rate.mutate({ stars, comment: comment || d.my_rating?.comment || undefined }, { onSuccess: () => toast.success(t("skills:hub.rating.saved")) })} size="h-6 w-6" />
+                <Input placeholder={t("skills:hub.rating.comment")} value={comment} onChange={(e) => setComment(e.target.value)} />
+                {d.my_rating && <Button size="sm" variant="ghost" onClick={() => unrate.mutate()}>{t("skills:hub.rating.remove")}</Button>}
+                {d.ratings.length > 0 && (
+                  <ul className="divide-y divide-border">
+                    {d.ratings.map((r) => <li key={r.id} className="py-2"><Stars value={r.stars} size="h-3 w-3" /> <span className="text-xs text-muted">{r.user_name}</span>{r.comment && <p className="text-muted">{r.comment}</p>}</li>)}
+                  </ul>
+                )}
+              </CardBody>
+            </Card>
+          )}
           {d.memory_public.length > 0 && (
             <Card>
               <CardHeader title={t("skills:hub.why")} />

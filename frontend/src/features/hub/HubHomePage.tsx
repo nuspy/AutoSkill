@@ -30,7 +30,7 @@ export default function HubHomePage() {
       <div className="mb-6 flex flex-wrap items-center gap-2">
         <div className="relative flex-1 min-w-64"><Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-muted" /><Input className="pl-9" placeholder={t("skills:hub.searchPlaceholder")} value={q} onChange={(e) => setQ(e.target.value)} /></div>
         <select className="h-10 rounded-lg border border-border bg-card px-3 text-sm" value={sort} onChange={(e) => setSort(e.target.value)}>
-          <option value="published">{t("skills:hub.sort.published")}</option><option value="installs">{t("skills:hub.sort.installs")}</option><option value="updated">{t("skills:hub.sort.updated")}</option><option value="title">{t("skills:hub.sort.title")}</option>
+          <option value="published">{t("skills:hub.sort.published")}</option><option value="installs">{t("skills:hub.sort.installs")}</option><option value="rating">{t("skills:hub.sort.rating")}</option><option value="updated">{t("skills:hub.sort.updated")}</option><option value="title">{t("skills:hub.sort.title")}</option>
         </select>
       </div>
       {home.data && home.data.categories.length > 0 && (
@@ -47,6 +47,15 @@ export default function HubHomePage() {
           <Section title={t("skills:hub.featured")} items={home.data.featured} />
           <Section title={t("skills:hub.latest")} items={home.data.latest} />
           <Section title={t("skills:hub.mostInstalled")} items={home.data.most_installed} />
+          <Section title={t("skills:hub.topRated")} items={home.data.top_rated} />
+          {home.data.lists.length > 0 && (
+            <section>
+              <h2 className="mb-3 text-lg font-semibold">{t("skills:hub.lists")}</h2>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {home.data.lists.map((l) => <Link key={l.id} to={`/hub/lists/${l.slug}`} className="rounded-xl border border-border p-4 hover:border-primary/50"><p className="font-semibold">{l.name[lang] ?? l.name.en ?? l.slug}</p>{l.description && <p className="text-sm text-muted">{l.description}</p>}<p className="mt-1 text-xs text-muted">{t("skills:hub.listCount", { n: l.count })}</p></Link>)}
+              </div>
+            </section>
+          )}
           {home.data.latest.length === 0 && <EmptyState title={t("skills:hub.empty")} description={t("skills:hub.emptyHelp")} action={<Link to="/" className="text-primary hover:underline">{t("nav.projects", { ns: "common" })}</Link>} />}
         </div>
       ) : null}

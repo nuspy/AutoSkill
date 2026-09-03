@@ -123,3 +123,54 @@ async def download_artifact(component_id: str, session: SessionDep, user: Curren
         media_type=record.get("content_type", "application/octet-stream"),
         headers={"Content-Disposition": f'attachment; filename="{record["filename"]}"'},
     )
+
+
+@router.post("/from-skill/{skill_id}", response_model=LibraryComponentOut, status_code=201)
+async def promote_from_skill(skill_id: str, session: SessionDep, admin: AdminUser):
+    """Turn the published version of a hub skill into a catalog component (kind skill, artifact = skill folder)."""
+    from autoskill.models.skill import Skill
+    from autoskill.services.hub.catalog import published_version
+    from autoskill.services.packaging.store import load_package
+
+    skill = await session.get(Skill, skill_id)
+    if skill is None:
+        raise NotFound("skill_not_found")
+    version = await published_version(session, skill)
+    if version is None:
+        raise Conflict("skill_not_published", message="Publish the skill first.")
+    slug = skill.name
+    existing = (
+        await session.execute(select(LibraryComponent).where(LibraryComponent.slug == slug))
+    ).scalar_one_or_none()
+    pkg = load_package(skill.name, version)
+    fm = pkg.frontmatter()
+    row = existing or LibraryComponent(
+        kind="skill",
+        slug=slug,
+        name=skill.title,
+        description=skill.summary or fm.get("description", ""),
+        added_by=admin.id,
+    )
+    row.kind = "skill"
+    row.name = skill.title
+    row.description = (skill.summary or fm.get("description") or skill.title)[:4000]
+    row.version = version.version
+    row.source = {"type": "hub_skill", "skill_id": skill.id, "version_id": version.id, "project_id": skill.project_id}
+    row.docs = pkg.body()[:8000]
+    row.tags = list(skill.tags)
+    row.is_enabled = True
+    if existing is None:
+        session.add(row)
+        await session.flush()
+    store_artifact(row, f"{slug}.zip", pkg.to_zip())
+    await record_audit(
+        session,
+        "library.promote",
+        actor_user_id=admin.id,
+        subject_type="library_component",
+        subject_id=row.id,
+        after={"skill_id": skill.id},
+    )
+    await session.commit()
+    await session.refresh(row)
+    return row

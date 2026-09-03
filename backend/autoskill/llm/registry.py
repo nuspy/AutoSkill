@@ -11,7 +11,7 @@ from autoskill.core.crypto import decrypt
 from autoskill.core.errors import AppError
 from autoskill.llm.adapters.anthropic import AnthropicProvider
 from autoskill.llm.adapters.openai_compat import OpenAICompatProvider
-from autoskill.llm.fake import FakeLlmProvider
+from autoskill.llm.fake import DemoProvider, FakeLlmProvider
 from autoskill.llm.provider import Capabilities, LlmProvider
 from autoskill.models.llm_provider import LlmProvider as LlmProviderRow
 
@@ -26,8 +26,11 @@ def set_fake_provider(provider: FakeLlmProvider | None) -> None:
 
 def get_fake_provider() -> FakeLlmProvider | None:
     global _fake
-    if _fake is None and os.environ.get("AUTOSKILL_LLM_FAKE") == "1":
+    mode = os.environ.get("AUTOSKILL_LLM_FAKE")
+    if _fake is None and mode == "1":
         _fake = FakeLlmProvider()
+    elif _fake is None and mode == "demo":
+        _fake = DemoProvider()
     return _fake
 
 

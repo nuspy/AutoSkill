@@ -560,12 +560,55 @@
       "published": "Les plus récentes",
       "installs": "Les plus installées",
       "updated": "Récemment mises à jour",
-      "title": "Nom"
+      "title": "Nom",
+      "rating": "Les mieux notées"
     },
     "adminPublished": "Skills publiées",
     "feature": "Mettre à la une",
     "unfeature": "Retirer de la une",
-    "categories": "Catégories"
+    "categories": "Catégories",
+    "topRated": "Les mieux notées",
+    "lists": "Listes sélectionnées",
+    "listsHelp": "Groupes de skills publiées choisis à la main, affichés sur l'accueil du hub.",
+    "listCount": "{{n}} skills",
+    "addToList": "Ajouter une skill…",
+    "promote": "Vers le catalogue",
+    "promoteHelp": "Transforme la version publiée en composant de bibliothèque réutilisable par les auteurs.",
+    "promoted": "Ajoutée au catalogue de composants",
+    "rating": {
+      "title": "Votre note",
+      "help": "Cette skill fait-elle bien son travail pour vous ?",
+      "yours": "Vous lui avez donné {{stars}}/5.",
+      "comment": "Un court commentaire (facultatif)",
+      "saved": "Note enregistrée",
+      "remove": "Retirer ma note"
+    },
+    "mirror": {
+      "url": "Miroir git externe (facultatif)",
+      "help": "Chaque publication est aussi poussée vers ce dépôt distant (main + tag de version). Laissez vide pour désactiver.",
+      "token": "Jeton d'accès",
+      "tokenHelp": "Jeton personnel avec droits de push ; stocké chiffré et jamais réaffiché.",
+      "tokenSet": "Un jeton est stocké. Saisissez-en un nouveau pour le remplacer.",
+      "lastPush": "Dernier push : {{when}}",
+      "error": "Dernier push échoué"
+    },
+    "contribute": {
+      "title": "Contributions",
+      "help": "Ceci est une variante d'une skill du hub : proposez vos modifications à l'original. Ses propriétaires reçoivent une version brouillon à essayer, relire et publier.",
+      "receivedHelp": "Modifications proposées par les personnes ayant créé une variante de cette skill.",
+      "message": "Qu'avez-vous changé et pourquoi ?",
+      "action": "Proposer à l'original",
+      "sent": "Contribution envoyée aux propriétaires de l'original",
+      "accept": "Accepter comme nouveau brouillon",
+      "reject": "Rejeter",
+      "accepted": "Version brouillon créée à partir de la contribution",
+      "draftCreated": "Voir la version brouillon",
+      "state": {
+        "open": "en attente",
+        "accepted": "acceptée",
+        "rejected": "rejetée"
+      }
+    }
   },
   "installs": {
     "title": "Mes installations",

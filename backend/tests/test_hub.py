@@ -1,5 +1,6 @@
 """Skill Hub: visibility, search, favorites, installations + update notifications, forks, git repo."""
 
+import json
 import subprocess
 import tempfile
 from pathlib import Path
@@ -236,3 +237,159 @@ async def test_git_repo_publish_and_smart_http(app_client, monkeypatch):
     ).status_code == 403
     detail = (await app_client.get(f"/api/v1/hub/skills/{skill_id}", headers=a)).json()
     assert detail["git_url"].endswith(f"/git/{project['slug']}/invoice-check.git")
+
+
+async def test_ratings_lists_contributions_promotion_and_mirror(app_client, monkeypatch):
+    """Phase 8 hub features: star ratings, curated lists, contribute back from a variant, promotion of a hub
+    skill to the component catalog, and mirroring a publish to an external git remote."""
+    admin, a, project = await setup_project(app_client)
+    bob = await register(app_client, "bob@example.com")
+    b = auth(bob["access_token"])
+    fake = FakeLlmProvider()
+    set_fake_provider(fake)
+    try:
+        skill_id, version = await publish_skill(app_client, a, project, fake)
+        await app_client.patch(f"/api/v1/skills/{skill_id}/publish-settings", json={"visibility": "shared"}, headers=a)
+
+        # --- ratings ---
+        bad = await app_client.put(f"/api/v1/hub/skills/{skill_id}/rating", json={"stars": 6}, headers=b)
+        assert bad.status_code == 422
+        r1 = await app_client.put(
+            f"/api/v1/hub/skills/{skill_id}/rating", json={"stars": 4, "comment": "Works well"}, headers=b
+        )
+        assert r1.status_code == 200 and r1.json()["user_name"] == "bob"
+        await app_client.put(f"/api/v1/hub/skills/{skill_id}/rating", json={"stars": 2}, headers=a)
+        detail = (await app_client.get(f"/api/v1/hub/skills/{skill_id}", headers=b)).json()
+        assert detail["skill"]["rating_avg"] == 3.0 and detail["skill"]["rating_count"] == 2
+        assert detail["my_rating"]["stars"] == 4 and len(detail["ratings"]) == 2
+        # re-rating replaces, not duplicates; removing recomputes
+        await app_client.put(f"/api/v1/hub/skills/{skill_id}/rating", json={"stars": 5}, headers=b)
+        assert (await app_client.get(f"/api/v1/hub/skills/{skill_id}", headers=b)).json()["skill"]["rating_avg"] == 3.5
+        await app_client.delete(f"/api/v1/hub/skills/{skill_id}/rating", headers=a)
+        home = (await app_client.get("/api/v1/hub", headers=b)).json()
+        assert home["top_rated"][0]["id"] == skill_id and home["top_rated"][0]["rating_count"] == 1
+        search = (await app_client.get("/api/v1/hub/search?sort=rating", headers=b)).json()
+        assert search["items"][0]["id"] == skill_id
+
+        # --- curated lists ---
+        lst = await app_client.post(
+            "/api/v1/admin/hub/lists",
+            json={"slug": "starters", "name": {"en": "Starters", "it": "Per iniziare"}},
+            headers=a,
+        )
+        assert lst.status_code == 201, lst.text
+        assert (
+            await app_client.post("/api/v1/admin/hub/lists", json={"slug": "starters", "name": {"en": "x"}}, headers=a)
+        ).status_code == 409
+        added = await app_client.post(f"/api/v1/admin/hub/lists/{lst.json()['id']}/items/{skill_id}", headers=a)
+        assert added.status_code == 200 and [s["id"] for s in added.json()["items"]] == [skill_id]
+        assert (
+            await app_client.post("/api/v1/admin/hub/lists", json={"slug": "x", "name": {}}, headers=b)
+        ).status_code == 403
+        home = (await app_client.get("/api/v1/hub", headers=b)).json()
+        assert home["lists"][0]["slug"] == "starters" and home["lists"][0]["count"] == 1
+        one = (await app_client.get("/api/v1/hub/lists/starters", headers=b)).json()
+        assert one["list"]["name"]["it"] == "Per iniziare" and one["items"][0]["id"] == skill_id
+        assert (await app_client.get("/api/v1/hub/lists/nope", headers=b)).status_code == 404
+        removed = await app_client.delete(f"/api/v1/admin/hub/lists/{lst.json()['id']}/items/{skill_id}", headers=a)
+        assert removed.json()["items"] == []
+
+        # --- contribute back: bob forks, tests and proposes; alice accepts -> draft on the original ---
+        bobs_project = (await app_client.post("/api/v1/projects", json={"name": "Bob"}, headers=b)).json()
+        fork = (
+            await app_client.post(
+                f"/api/v1/skills/{skill_id}/fork", json={"target_project_id": bobs_project["id"]}, headers=b
+            )
+        ).json()
+        fv = (await app_client.get(f"/api/v1/skills/{fork['id']}/versions", headers=b)).json()[0]
+        early = await app_client.post(f"/api/v1/skills/{fork['id']}/contribute", json={}, headers=b)
+        assert early.status_code == 409 and early.json()["error"]["code"] == "version_not_contributable"
+        await accepted_trial(app_client, b, fv["id"], fake)
+        not_fork = await app_client.post(f"/api/v1/skills/{skill_id}/contribute", json={}, headers=a)
+        assert not_fork.status_code == 422
+        contrib = await app_client.post(
+            f"/api/v1/skills/{fork['id']}/contribute", json={"message": "I fixed the month sheet"}, headers=b
+        )
+        assert contrib.status_code == 201, contrib.text
+        contrib = contrib.json()
+        assert (
+            contrib["state"] == "open"
+            and contrib["target_skill_id"] == skill_id
+            and contrib["proposed_by_name"] == "bob"
+        )
+        assert (await app_client.post(f"/api/v1/skills/{fork['id']}/contribute", json={}, headers=b)).status_code == 409
+        notes = (await app_client.get("/api/v1/me/notifications", headers=a)).json()["items"]
+        assert any(n["kind"] == "contribution_received" for n in notes)
+        listed = (await app_client.get(f"/api/v1/skills/{skill_id}/contributions", headers=a)).json()
+        assert [c["id"] for c in listed] == [contrib["id"]] and listed[0]["source_title"] == fork["title"]
+        assert (
+            await app_client.post(f"/api/v1/contributions/{contrib['id']}/decision", json={"accept": True}, headers=b)
+        ).status_code == 403
+        decided = await app_client.post(
+            f"/api/v1/contributions/{contrib['id']}/decision", json={"accept": True, "comment": "thanks"}, headers=a
+        )
+        assert decided.status_code == 200, decided.text
+        assert decided.json()["state"] == "accepted" and decided.json()["target_version_id"]
+        versions = (await app_client.get(f"/api/v1/skills/{skill_id}/versions", headers=a)).json()
+        newest = versions[0]
+        assert newest["id"] == decided.json()["target_version_id"] and newest["state"] == "draft"
+        assert newest["origin"] == "contribution" and newest["version"] == "0.1.1"
+        md = (await app_client.get(f"/api/v1/versions/{newest['id']}/files/SKILL.md", headers=a)).json()["content"]
+        assert "name: invoice-check\n" in md and "contributed_from:" in md
+        assert (
+            await app_client.post(f"/api/v1/contributions/{contrib['id']}/decision", json={"accept": False}, headers=a)
+        ).status_code == 409
+        assert any(
+            n["kind"] == "contribution_decided"
+            for n in (await app_client.get("/api/v1/me/notifications", headers=b)).json()["items"]
+        )
+
+        # --- promote the published skill to the component catalog ---
+        promoted = await app_client.post(f"/api/v1/library/from-skill/{skill_id}", headers=a)
+        assert promoted.status_code == 201, promoted.text
+        comp = promoted.json()
+        assert comp["kind"] == "skill" and comp["slug"] == "invoice-check" and comp["source"]["type"] == "hub_skill"
+        assert comp["artifact"]["filename"] == "invoice-check.zip" and comp["version"] == version["version"]
+        again = await app_client.post(f"/api/v1/library/from-skill/{skill_id}", headers=a)
+        assert again.status_code == 201 and again.json()["id"] == comp["id"]
+        assert (await app_client.post(f"/api/v1/library/from-skill/{fork['id']}", headers=a)).status_code == 409
+        assert (await app_client.post(f"/api/v1/library/from-skill/{skill_id}", headers=b)).status_code == 403
+
+        # --- external mirror: configured through publish settings, pushed by the job after a publish ---
+        if git_repo.git_available():
+            remote = Path(tempfile.mkdtemp(prefix="autoskill-mirror-"))
+            subprocess.run(["git", "init", "--bare", "--quiet", "--initial-branch=main", str(remote)], check=True)
+            bad = await app_client.patch(
+                f"/api/v1/skills/{skill_id}/publish-settings", json={"external_remote_url": "ftp://x"}, headers=a
+            )
+            assert bad.status_code == 422
+            ok = await app_client.patch(
+                f"/api/v1/skills/{skill_id}/publish-settings",
+                json={"external_remote_url": f"file://{remote}", "external_token": "secret-token"},
+                headers=a,
+            )
+            assert ok.status_code == 200
+            status = (await app_client.get(f"/api/v1/skills/{skill_id}/mirror", headers=a)).json()
+            assert status["external_remote_url"] == f"file://{remote}" and status["has_token"] is True
+            assert "secret-token" not in json.dumps(status)
+            # publish the accepted contribution draft (trial -> review -> authorize) and expect the mirror push
+            await accepted_trial(app_client, a, newest["id"], fake)
+            req = (await app_client.post(f"/api/v1/versions/{newest['id']}/submit-review", json={}, headers=a)).json()
+            await app_client.post(f"/api/v1/review/{req['id']}/decision", json={"decision": "approved"}, headers=a)
+            pub = await app_client.post(
+                f"/api/v1/versions/{newest['id']}/authorize",
+                json={"action": "publish", "checklist": CHECKLIST},
+                headers=a,
+            )
+            assert pub.status_code == 200, pub.text
+            await get_job_runner().wait_all()
+            status = (await app_client.get(f"/api/v1/skills/{skill_id}/mirror", headers=a)).json()
+            assert status["last_external_error"] is None and status["last_external_push_at"], status
+            tags = subprocess.run(["git", "tag", "--list"], cwd=remote, capture_output=True, text=True).stdout.split()
+            assert "v0.1.1" in tags
+            tree = subprocess.run(
+                ["git", "ls-tree", "--name-only", "main"], cwd=remote, capture_output=True, text=True
+            ).stdout
+            assert "SKILL.md" in tree and "autoskill.json" in tree
+    finally:
+        set_fake_provider(None)

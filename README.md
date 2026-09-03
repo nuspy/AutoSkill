@@ -80,3 +80,11 @@ Each trial, download link and public skill exposes an online-reachable bundle un
 `INSTALL.<agent>.md`, `install.json`, `skill.zip`, the generated MCP server and the catalog components the
 skill depends on, all with absolute URLs and SHA-256 checksums, no login required. Hand the address to your
 agent or run `autoskill install --from <install.json url>`. See `docs/local-testing.md`.
+
+## Hub extras
+
+Ratings and "top rated", curated lists (admin-picked groups of published skills), contributions from a
+variant back to its original (accepted as a new draft that follows trial → review → publish), promotion
+of a published hub skill to the component catalog, and an optional external git mirror pushed on every
+publish. `AUTOSKILL_LLM_FAKE=demo` runs the whole product with canned model answers (used by the
+Playwright suite: `cd frontend && npm run e2e`).

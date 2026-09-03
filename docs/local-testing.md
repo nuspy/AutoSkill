@@ -88,3 +88,16 @@ gives the agent a concrete download address and install command, plus the compon
 - **Memory.** After a trial ends with *accepted* or *changes requested*, and after every improvement
   proposal, the `memory.extract` job turns corrections, coach discussions, summaries and analyses into
   skill memory entries (source `trial_discussion` / `improvement`), visible in the Memory tab.
+
+## End-to-end tests (Playwright)
+
+`cd frontend && npm run e2e` starts a real backend (temporary SQLite, inline jobs, console email backend,
+`AUTOSKILL_LLM_FAKE=demo`) and the Vite dev server, then drives the browser through registration, project
+creation, an interview that completes in one turn with the demo provider, the automatic draft, a trial with
+its online install address (fetched without a login), download links, the admin component library with an
+uploaded package, and the hub. The demo provider (`autoskill/llm/fake.py::DemoProvider`) answers every
+purpose with fixed, well-formed structures, so the same environment is a good way to demo AutoSkill
+without a model: `AUTOSKILL_LLM_FAKE=demo make backend-dev`.
+
+In CI the `e2e` job installs Chromium with `npx playwright install --with-deps chromium`; locally the
+preinstalled browsers under `PLAYWRIGHT_BROWSERS_PATH` are used. Reports land in `frontend/playwright-report`.
