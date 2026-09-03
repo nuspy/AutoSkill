@@ -395,5 +395,77 @@
       "corrected": "Corretta",
       "wrong": "Sbagliata"
     }
+  },
+  "review": {
+    "queue": "Coda di revisione",
+    "queueHelp": "Versioni in attesa di un revisore prima di poter essere pubblicate nell'hub.",
+    "assignedToMe": "Assegnate a me",
+    "empty": "Niente da revisionare.",
+    "open": "Apri",
+    "trialsAccepted": "prove accettate",
+    "firstVersion": "prima versione",
+    "suggestedBump": "suggerito: {{bump}}",
+    "stepsAdded": "passi aggiunti",
+    "stepsChanged": "passi modificati",
+    "stepsRemoved": "passi rimossi",
+    "noChanges": "Nessun file modificato.",
+    "assignMe": "Assegna a me",
+    "withdraw": "Ritira",
+    "decision": "La tua decisione",
+    "comment": "Commento",
+    "decided": "Decisione registrata",
+    "history": "Decisioni",
+    "memoryCount": "{{count}} voci di memoria",
+    "tabs": {
+      "diff": "Modifiche",
+      "skill": "SKILL.md",
+      "checklist": "Checklist"
+    },
+    "state": {
+      "open": "Aperta",
+      "in_review": "In revisione",
+      "decided": "Decisa",
+      "withdrawn": "Ritirata"
+    },
+    "decisions": {
+      "approved": "Approva",
+      "changes_requested": "Richiedi modifiche",
+      "rejected": "Rifiuta"
+    },
+    "checklist": {
+      "validation_ok": "Validazione del pacchetto superata",
+      "steps_total": "Passi",
+      "steps_confirmed": "Passi confermati nelle prove",
+      "irreversible_steps": "Passi irreversibili",
+      "trials": "Prove",
+      "trials_accepted": "Prove accettate",
+      "runs": "Esecuzioni registrate",
+      "golden_runs": "Esecuzioni golden",
+      "signature_present": "Pacchetto firmato",
+      "secrets_scan_ok": "Nessun segreto rilevato"
+    }
+  },
+  "lifecycle": {
+    "markTested": "Segna come testata",
+    "submitReview": "Invia in revisione",
+    "backToTesting": "Torna in prova",
+    "publish": "Pubblica",
+    "deprecate": "Ritira",
+    "waitingReview": "In attesa di un revisore",
+    "byPerson": "da una persona",
+    "bySystem": "dal sistema",
+    "submitted": "Inviata in revisione",
+    "submitHelp": "Un revisore (amministratore o super utente) controllerà le modifiche, gli esiti delle prove e la guida di installazione prima che la versione possa essere pubblicata.",
+    "summary": "Cosa è cambiato e perché (per il revisore)",
+    "authorize": "Autorizza",
+    "authorized": "Autorizzata",
+    "publishHelp": "La pubblicazione rende questa versione installabile dall'hub e avvisa chi ha installato una versione precedente. Solo una persona può autorizzarla.",
+    "deprecateHelp": "Il ritiro toglie questa versione dall'hub come versione corrente. Le copie installate continuano a funzionare finché non vengono aggiornate.",
+    "checks": {
+      "reviewed_diff": "Ho rivisto le modifiche e i commenti del revisore",
+      "trial_accepted": "È stata provata su un agente reale e accettata",
+      "install_docs_checked": "La guida di installazione è corretta per gli agenti target",
+      "installers_notified": "Chi l'ha installata è stato informato"
+    }
   }
 }

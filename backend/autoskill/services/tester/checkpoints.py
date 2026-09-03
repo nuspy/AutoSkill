@@ -155,6 +155,8 @@ async def create_checkpoint(
         cp.decision = auto
         cp.decided_by = None
         cp.decided_at = utcnow()
+        if auto == "approve_and_authorize_next" and trial is not None and step is not None:
+            _apply_approval(step, trial, step_key)
     else:
         payload = {
             "checkpoint_id": cp.id,
@@ -167,6 +169,11 @@ async def create_checkpoint(
         await emit(user_channel(trial.user_id), "checkpoint.waiting", payload)
         await emit(project_channel(run.project_id), "checkpoint.waiting", payload)
     return cp
+
+
+def _apply_approval(step: StepDefinition, trial: TrialSession, step_key: str) -> None:
+    step.test_status = "corrected" if any(c["step_key"] == step_key for c in trial.corrections) else "confirmed"
+    step.confirmations_count += 1
 
 
 async def _skipped(session: AsyncSession, run_id: str, step_key: str, iteration: int) -> bool:

@@ -77,8 +77,9 @@ async def create_trial(
     session.add(trial)
     await session.flush()
     if version.state == "draft":
-        version.state = "testing"
-        version.state_changed_at = utcnow()
+        from autoskill.services.versioning.state_machine import transition
+
+        await transition(session, version, "testing", actor=None, reason="trial requested")
     await emit(user_channel(user_id), "trial.updated", {"trial_id": trial.id, "state": trial.state})
     return trial, token
 
@@ -196,11 +197,14 @@ async def set_outcome(
             raise ValidationFailed("steps_not_confirmed", steps=untested)
         trial.state = "decided"
         if version is not None and version.state in ("draft", "testing") and trial.purpose in ("develop", "retest"):
-            version.state = "tested"
-            version.state_changed_at = utcnow()
+            from autoskill.services.versioning.state_machine import transition
+
             for s in steps:
                 if s.test_status == "corrected":
                     s.test_status = "confirmed"
+            if version.state == "draft":
+                await transition(session, version, "testing", actor=None, reason="trial accepted")
+            await transition(session, version, "tested", actor=None, reason="trial accepted")
         # mark the latest run as human-approved
         run = (
             await session.execute(
@@ -233,8 +237,7 @@ async def set_outcome(
         trial.state = "removed" if outcome == "removed" else ("abandoned" if outcome == "abandoned" else "decided")
         trial.keep_installed = False
         if outcome == "major_rework" and version is not None and version.state == "testing":
-            version.state = "draft"
-            version.state_changed_at = utcnow()
+            version.rationale = ((version.rationale or "") + "\nmajor rework requested after trial").strip()
     await emit(
         user_channel(trial.user_id), "trial.updated", {"trial_id": trial.id, "state": trial.state, "outcome": outcome}
     )

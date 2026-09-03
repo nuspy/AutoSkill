@@ -76,7 +76,9 @@ async def patch_step_instruction(
     step.instruction = new_instruction.strip()
     step.test_status = "corrected"
     if version.state == "draft":
-        version.state = "testing"
+        from autoskill.services.versioning.state_machine import transition
+
+        await transition(session, version, "testing", actor=None, reason="step corrected during trial")
     changelog = (version.changelog or "").rstrip()
     version.changelog = (
         changelog + "\n" if changelog else ""

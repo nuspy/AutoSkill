@@ -12,6 +12,7 @@ from autoskill.models.memory import SkillMemoryEntry
 from autoskill.models.notification import Notification, NotificationPreference
 from autoskill.models.procedure import Procedure, ProcedureStep
 from autoskill.models.project import Project, ProjectMember
+from autoskill.models.review import Authorization, ReviewDecision, ReviewRequest, VersionTransition
 from autoskill.models.skill import Skill
 from autoskill.models.skill_version import LibraryComponent, SkillDependency, SkillVersion, StepDefinition
 from autoskill.models.system_setting import SystemSetting
@@ -20,6 +21,10 @@ from autoskill.models.usage import ProjectUsageDaily
 from autoskill.models.user import RefreshToken, User
 
 __all__ = [
+    "Authorization",
+    "ReviewDecision",
+    "ReviewRequest",
+    "VersionTransition",
     "Checkpoint",
     "Run",
     "RunAnnotation",

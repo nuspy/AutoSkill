@@ -14,6 +14,7 @@ import { Markdown } from "@/components/ui/markdown";
 import { Badge, EmptyState, ErrorState, Skeleton } from "@/components/ui/misc";
 import { InstallGuide } from "./InstallGuide";
 import { TrialLauncher } from "@/features/trials/TrialLauncher";
+import { LifecyclePanel } from "./LifecyclePanel";
 import { errorMessage } from "@/lib/errors";
 import { timeAgo } from "@/lib/format";
 import { cn } from "@/lib/cn";
@@ -91,6 +92,7 @@ function VersionDetail({ versionId, skillName, onDiscard }: { versionId: string;
         ))}
       </div>
       <CardBody>
+        <div className="mb-4 rounded-lg border border-border p-3"><LifecyclePanel version={v} canEdit /></div>
         {!v.validation_report.ok && <ErrorState message={v.validation_report.issues.filter((i) => i.level === "error").map((i) => i.message).join("; ")} />}
         {tab === "steps" && <StepList steps={v.steps} dependencies={v.dependencies} />}
         {tab === "files" && (

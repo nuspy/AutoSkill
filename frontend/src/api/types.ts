@@ -477,3 +477,63 @@ export interface Discussion {
   messages: { role: string; content: string; at: string; proposal?: { new_instruction?: string | null; change_summary?: string | null; memory_entries?: { kind: string; title: string; body: string }[] } | null }[];
   created_at: string;
 }
+
+export interface ReviewRequest {
+  id: string;
+  skill_version_id: string;
+  skill_id: string;
+  project_id: string;
+  requested_by: string;
+  state: string;
+  assignee_id: string | null;
+  summary: string | null;
+  checklist: Record<string, unknown>;
+  priority: string;
+  decided_at: string | null;
+  created_at: string;
+  updated_at: string;
+  skill_title?: string;
+  skill_name?: string;
+  version?: string;
+  requested_by_name?: string;
+}
+
+export interface ReviewDecision {
+  id: string;
+  review_request_id: string;
+  reviewer_id: string;
+  decision: string;
+  comment: string | null;
+  file_comments: { path: string; line?: number; text: string }[];
+  created_at: string;
+}
+
+export interface VersionDiff {
+  from: string | null;
+  to: string;
+  files: { path: string; status: string; diff: string | null }[];
+  steps: { added: string[]; removed: string[]; changed: string[]; reordered: string[] };
+  suggested_bump: string;
+}
+
+export interface ReviewBundle {
+  request: ReviewRequest;
+  skill_title: string;
+  skill_name: string;
+  version: string;
+  version_id: string;
+  previous_version: string | null;
+  diff: VersionDiff;
+  files: { path: string; size: number }[];
+  decisions: ReviewDecision[];
+  memory_count: number;
+}
+
+export interface VersionTransition {
+  id: string;
+  from_state: string;
+  to_state: string;
+  actor_user_id: string | null;
+  reason: string | null;
+  created_at: string;
+}

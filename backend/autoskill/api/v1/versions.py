@@ -11,13 +11,18 @@ from autoskill.config import get_settings
 from autoskill.core.errors import Conflict, NotFound, ValidationFailed
 from autoskill.core.jobs import get_job_runner
 from autoskill.models.project import Project, ProjectRole
+from autoskill.models.review import Authorization, VersionTransition
 from autoskill.models.skill import Skill
 from autoskill.models.skill_version import LibraryComponent, SkillDependency, SkillVersion, StepDefinition
 from autoskill.schemas.draft import FileContent, GenerateRequest, InstallDoc, StepOut, VersionDetail, VersionOut
+from autoskill.schemas.review import AuthorizationOut, AuthorizeIn, TransitionIn, TransitionOut
 from autoskill.services.packaging.skill_package import TEXT_EXTENSIONS
 from autoskill.services.packaging.store import load_package
+from autoskill.services.review.service import authorize as authorize_version
 from autoskill.services.targets import get_adapter, list_targets
 from autoskill.services.targets.base import InstallContext, McpServerSpec
+from autoskill.services.versioning.changes import compare
+from autoskill.services.versioning.state_machine import allowed_targets, transition
 
 router = APIRouter(tags=["versions"])
 
@@ -231,12 +236,73 @@ def _autoskill_json(skill: Skill, version: SkillVersion, pkg) -> str:
 @router.post("/versions/{version_id}/discard", response_model=VersionOut)
 async def discard(version_id: str, session: SessionDep, user: CurrentUser):
     version, skill = await _version(session, user, version_id, ProjectRole.editor)
-    if version.state not in ("draft", "testing", "tested", "changes_requested"):
-        raise Conflict("cannot_discard", state=version.state)
-    version.state = "discarded"
-    version.is_current_draft = False
+    await transition(session, version, "discarded", actor=user, reason="discarded by author")
     if skill.latest_version_id == version.id:
         skill.latest_version_id = version.parent_version_id
     await session.commit()
     await session.refresh(version)
     return version
+
+
+@router.post("/versions/{version_id}/transition", response_model=VersionOut)
+async def do_transition(version_id: str, body: TransitionIn, session: SessionDep, user: CurrentUser):
+    """Author-side moves: back to testing, mark tested (all steps confirmed), discard."""
+    version, _ = await _version(session, user, version_id, ProjectRole.editor)
+    await transition(session, version, body.to_state, actor=user, reason=body.reason)
+    await session.commit()
+    await session.refresh(version)
+    return version
+
+
+@router.get("/versions/{version_id}/transitions", response_model=list[TransitionOut])
+async def transitions(version_id: str, session: SessionDep, user: CurrentUser):
+    version, _ = await _version(session, user, version_id)
+    res = await session.execute(
+        select(VersionTransition)
+        .where(VersionTransition.skill_version_id == version.id)
+        .order_by(VersionTransition.created_at)
+    )
+    return res.scalars().all()
+
+
+@router.get("/versions/{version_id}/allowed")
+async def allowed(version_id: str, session: SessionDep, user: CurrentUser) -> dict:
+    version, _ = await _version(session, user, version_id)
+    return {"state": version.state, "allowed": allowed_targets(version.state)}
+
+
+@router.get("/versions/{version_id}/diff")
+async def diff(version_id: str, session: SessionDep, user: CurrentUser, to: str | None = None) -> dict:
+    """Compare this version with `to` (older version id) or with its parent / the published version."""
+    version, skill = await _version(session, user, version_id)
+    older = None
+    if to:
+        older = await session.get(SkillVersion, to)
+        if older is None or older.skill_id != skill.id:
+            raise NotFound("version_not_found")
+    elif version.parent_version_id:
+        older = await session.get(SkillVersion, version.parent_version_id)
+    elif skill.current_published_version_id and skill.current_published_version_id != version.id:
+        older = await session.get(SkillVersion, skill.current_published_version_id)
+    return await compare(session, skill, version, older)
+
+
+@router.post("/versions/{version_id}/authorize", response_model=AuthorizationOut)
+async def authorize(version_id: str, body: AuthorizeIn, session: SessionDep, user: CurrentUser):
+    """Human authorization to publish (from approved) or deprecate (from published)."""
+    version, _ = await _version(session, user, version_id, ProjectRole.editor)
+    auth = await authorize_version(
+        session, version, user, action=body.action, checklist=body.checklist, comment=body.comment
+    )
+    await session.commit()
+    await session.refresh(auth)
+    return auth
+
+
+@router.get("/versions/{version_id}/authorizations", response_model=list[AuthorizationOut])
+async def authorizations(version_id: str, session: SessionDep, user: CurrentUser):
+    version, _ = await _version(session, user, version_id)
+    res = await session.execute(
+        select(Authorization).where(Authorization.subject_id == version.id).order_by(Authorization.created_at)
+    )
+    return res.scalars().all()

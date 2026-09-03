@@ -395,5 +395,77 @@
       "corrected": "Corrected",
       "wrong": "Wrong"
     }
+  },
+  "review": {
+    "queue": "Review queue",
+    "queueHelp": "Versions waiting for a reviewer before they can be published to the hub.",
+    "assignedToMe": "Assigned to me",
+    "empty": "Nothing to review.",
+    "open": "Open",
+    "trialsAccepted": "trials accepted",
+    "firstVersion": "first version",
+    "suggestedBump": "suggested: {{bump}}",
+    "stepsAdded": "steps added",
+    "stepsChanged": "steps changed",
+    "stepsRemoved": "steps removed",
+    "noChanges": "No file changed.",
+    "assignMe": "Assign to me",
+    "withdraw": "Withdraw",
+    "decision": "Your decision",
+    "comment": "Comment",
+    "decided": "Decision recorded",
+    "history": "Decisions",
+    "memoryCount": "{{count}} memory entries",
+    "tabs": {
+      "diff": "Changes",
+      "skill": "SKILL.md",
+      "checklist": "Checklist"
+    },
+    "state": {
+      "open": "Open",
+      "in_review": "In review",
+      "decided": "Decided",
+      "withdrawn": "Withdrawn"
+    },
+    "decisions": {
+      "approved": "Approve",
+      "changes_requested": "Request changes",
+      "rejected": "Reject"
+    },
+    "checklist": {
+      "validation_ok": "Package validation passed",
+      "steps_total": "Steps",
+      "steps_confirmed": "Steps confirmed in trials",
+      "irreversible_steps": "Irreversible steps",
+      "trials": "Trials",
+      "trials_accepted": "Trials accepted",
+      "runs": "Runs recorded",
+      "golden_runs": "Golden runs",
+      "signature_present": "Package signed",
+      "secrets_scan_ok": "No secrets detected"
+    }
+  },
+  "lifecycle": {
+    "markTested": "Mark as tested",
+    "submitReview": "Submit for review",
+    "backToTesting": "Back to testing",
+    "publish": "Publish",
+    "deprecate": "Deprecate",
+    "waitingReview": "Waiting for a reviewer",
+    "byPerson": "by a person",
+    "bySystem": "by the system",
+    "submitted": "Submitted for review",
+    "submitHelp": "A reviewer (admin or super user) will check the changes, the trial results and the install docs before this version can be published.",
+    "summary": "What changed and why (for the reviewer)",
+    "authorize": "Authorize",
+    "authorized": "Authorized",
+    "publishHelp": "Publishing makes this version installable from the hub and notifies people who installed a previous version. Only a person can authorize it.",
+    "deprecateHelp": "Deprecating removes this version from the hub as the current one. Installed copies keep working until updated.",
+    "checks": {
+      "reviewed_diff": "I reviewed the changes and the reviewer's comments",
+      "trial_accepted": "It was tested on a real agent and accepted",
+      "install_docs_checked": "The installation guide is correct for the target agents",
+      "installers_notified": "People who installed it have been informed"
+    }
   }
 }

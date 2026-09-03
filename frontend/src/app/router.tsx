@@ -19,6 +19,8 @@ const HubPlaceholder = lazy(() => import("@/features/projects/HubPlaceholder"));
 const NewSkillPage = lazy(() => import("@/features/skills/NewSkillPage"));
 const SkillPage = lazy(() => import("@/features/skills/SkillPage"));
 const MyTrialsPage = lazy(() => import("@/features/trials/MyTrialsPage"));
+const ReviewQueuePage = lazy(() => import("@/features/review/ReviewQueuePage"));
+const ReviewPage = lazy(() => import("@/features/review/ReviewPage"));
 
 const fallback = <div className="flex justify-center py-16"><Spinner /></div>;
 const page = (el: React.ReactNode) => <Suspense fallback={fallback}>{el}</Suspense>;
@@ -53,6 +55,8 @@ const router = createBrowserRouter([
           { path: "/me/devices", element: page(<DevicesPage />) },
           { path: "/me/notifications", element: page(<NotificationsPage />) },
           { path: "/me/trials", element: page(<MyTrialsPage />) },
+          { path: "/review", element: page(<ReviewQueuePage />) },
+          { path: "/review/:requestId", element: page(<ReviewPage />) },
           {
             element: <RequireAdmin />,
             children: [{ path: "/admin/*", element: page(<AdminPage />) }],

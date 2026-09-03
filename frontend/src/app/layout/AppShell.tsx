@@ -2,7 +2,7 @@ import { useCallback } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
-import { Bell, FlaskConical, FolderKanban, LogOut, Menu, Moon, MonitorSmartphone, Settings2, ShieldCheck, Store, Sun, User as UserIcon } from "lucide-react";
+import { Bell, ClipboardCheck, FlaskConical, FolderKanban, LogOut, Menu, Moon, MonitorSmartphone, Settings2, ShieldCheck, Store, Sun, User as UserIcon } from "lucide-react";
 import { toast } from "sonner";
 import { useSession } from "@/stores/session";
 import { useUi } from "@/stores/ui";
@@ -64,6 +64,7 @@ export function AppShell() {
           <NavItem to="/me/trials" icon={FlaskConical} label={t("nav.trials")} />
           <NavItem to="/me/devices" icon={MonitorSmartphone} label={t("nav.devices")} />
           <NavItem to="/me/notifications" icon={Bell} label={t("nav.notifications")} />
+          {(user?.role === "admin" || user?.role === "reviewer") && <NavItem to="/review" icon={ClipboardCheck} label={t("nav.review")} />}
           {user?.role === "admin" && <NavItem to="/admin" icon={ShieldCheck} label={t("nav.admin")} />}
         </nav>
         <div className="border-t border-border p-3">

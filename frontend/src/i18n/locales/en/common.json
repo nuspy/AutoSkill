@@ -1,28 +1,74 @@
 {
-  "app": { "name": "AutoSkill", "tagline": "Turn how you work into skills your agent can run" },
+  "app": {
+    "name": "AutoSkill",
+    "tagline": "Turn how you work into skills your agent can run"
+  },
   "nav": {
-    "projects": "Projects", "hub": "Skill Hub", "admin": "Administration", "notifications": "Notifications",
-    "devices": "My devices", "profile": "Profile", "logout": "Sign out", "installs": "My installs", "trials": "My trials"
+    "projects": "Projects",
+    "hub": "Skill Hub",
+    "admin": "Administration",
+    "notifications": "Notifications",
+    "devices": "My devices",
+    "profile": "Profile",
+    "logout": "Sign out",
+    "installs": "My installs",
+    "trials": "My trials",
+    "review": "Review"
   },
   "actions": {
-    "save": "Save", "cancel": "Cancel", "create": "Create", "delete": "Delete", "edit": "Edit", "close": "Close",
-    "confirm": "Confirm", "back": "Back", "retry": "Retry", "copy": "Copy", "copied": "Copied", "add": "Add",
-    "remove": "Remove", "search": "Search", "refresh": "Refresh", "markAllRead": "Mark all as read", "approve": "Approve", "deny": "Deny"
+    "save": "Save",
+    "cancel": "Cancel",
+    "create": "Create",
+    "delete": "Delete",
+    "edit": "Edit",
+    "close": "Close",
+    "confirm": "Confirm",
+    "back": "Back",
+    "retry": "Retry",
+    "copy": "Copy",
+    "copied": "Copied",
+    "add": "Add",
+    "remove": "Remove",
+    "search": "Search",
+    "refresh": "Refresh",
+    "markAllRead": "Mark all as read",
+    "approve": "Approve",
+    "deny": "Deny"
   },
-  "status": { "loading": "Loading…", "empty": "Nothing here yet", "error": "Something went wrong", "saved": "Saved" },
-  "theme": { "light": "Light", "dark": "Dark", "system": "System" },
+  "status": {
+    "loading": "Loading…",
+    "empty": "Nothing here yet",
+    "error": "Something went wrong",
+    "saved": "Saved"
+  },
+  "theme": {
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System"
+  },
   "roles": {
-    "admin": "Administrator", "reviewer": "Reviewer", "member": "Member",
-    "owner": "Owner", "editor": "Editor", "viewer": "Viewer"
+    "admin": "Administrator",
+    "reviewer": "Reviewer",
+    "member": "Member",
+    "owner": "Owner",
+    "editor": "Editor",
+    "viewer": "Viewer"
   },
   "errors": {
-    "invalid_credentials": "Email or password is incorrect.", "email_taken": "An account with this email already exists.",
+    "invalid_credentials": "Email or password is incorrect.",
+    "email_taken": "An account with this email already exists.",
     "registration_closed": "Registration is closed. Ask an administrator for an invitation.",
-    "not_authenticated": "Please sign in.", "forbidden": "You do not have permission to do this.",
-    "not_found": "Not found.", "validation_failed": "Please check the form.", "last_owner": "A project needs at least one owner.",
-    "already_member": "This user is already a member.", "user_not_found": "No user with that email.",
-    "cannot_demote_self": "You cannot change your own role.", "cannot_disable_self": "You cannot disable your own account.",
-    "device_request_not_found": "This code was not found or already used.", "device_request_expired": "This code has expired. Run the login command again.",
+    "not_authenticated": "Please sign in.",
+    "forbidden": "You do not have permission to do this.",
+    "not_found": "Not found.",
+    "validation_failed": "Please check the form.",
+    "last_owner": "A project needs at least one owner.",
+    "already_member": "This user is already a member.",
+    "user_not_found": "No user with that email.",
+    "cannot_demote_self": "You cannot change your own role.",
+    "cannot_disable_self": "You cannot disable your own account.",
+    "device_request_not_found": "This code was not found or already used.",
+    "device_request_expired": "This code has expired. Run the login command again.",
     "generic": "Something went wrong. Please try again."
   }
 }
