@@ -133,7 +133,9 @@ metadata:
   name: autoskill-web
   namespace: autoskill
 spec:
-  # What the reverse proxy points at: autoskill-web.autoskill.svc.cluster.local:80
+  # What the reverse proxy points at. Nginx Proxy Manager runs on the host network, so it reaches
+  # this the way every other site on this node is reached: the node address on a fixed NodePort.
+  type: NodePort
   selector: { app: autoskill, component: web }
   ports:
-    - { name: http, port: 80, targetPort: http }
+    - { name: http, port: 80, targetPort: http, nodePort: 30890 }

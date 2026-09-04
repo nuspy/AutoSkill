@@ -4,7 +4,9 @@ FROM node:20-alpine AS build
 
 WORKDIR /app
 COPY frontend/package.json frontend/package-lock.json ./
-RUN npm ci --no-audit --no-fund
+# The registry times out from this node often enough that the default single attempt loses a
+# ten-minute build to a transient socket error.
+RUN npm ci --no-audit --no-fund --fetch-retries 5 --fetch-retry-maxtimeout 120000 --fetch-timeout 600000
 COPY frontend/ ./
 RUN npm run build
 

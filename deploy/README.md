@@ -1,4 +1,9 @@
-# Deploying AutoSkill on a server (no Docker)
+# Deploying AutoSkill
+
+Two paths, and they do not mix: systemd on a bare server, or two containers on k3s.
+The container path is the one skills.tadamoo.com runs on - see the end of this file.
+
+## On a bare server, under systemd
 
 Requirements: Linux with systemd, Python 3.11+, Node 20+ (only to build the frontend), nginx.
 Optional for the multi-process mode: PostgreSQL 14+ and Redis 6+.
@@ -67,3 +72,60 @@ Invitations, password resets and the notifications a person opted into by email 
 `AUTOSKILL_SMTP_PORT`, `AUTOSKILL_SMTP_USERNAME`, `AUTOSKILL_SMTP_PASSWORD`, `AUTOSKILL_SMTP_STARTTLS`,
 `AUTOSKILL_EMAIL_FROM`) or `none`. Messages are sent in the recipient's language (en, it, de, es, fr, hu).
 With registration closed (admin setting), new people join through invitations sent from Admin → Users.
+
+
+## On k3s, in containers
+
+What runs at <https://skills.tadamoo.com>. Two images - `autoskill/api` (the FastAPI application on a
+virtualenv that also carries `llmswitch`) and `autoskill/web` (the built SPA behind an nginx that
+forwards `/api/`, `/dl/` and `/git/` to the API). The web image is the only front door: the reverse
+proxy outside the cluster has one upstream to point at, not two.
+
+```bash
+# On the node. The sources arrive however you like; a git archive over ssh is enough.
+bash deploy/docker/build.sh --llmswitch /opt/build/llmswitch
+
+kubectl create namespace autoskill
+kubectl -n autoskill create secret generic autoskill-secrets     --from-literal=secret-key="$(openssl rand -base64 48 | tr -d '
+')"
+kubectl apply -f deploy/k8s/configmap.yaml -f deploy/k8s/autoskill.yaml
+kubectl -n autoskill rollout status deploy/autoskill-api deploy/autoskill-web
+```
+
+`build.sh` ends by piping both images through `docker save` into `ctr -n k8s.io images import`: k3s
+runs containerd, so an image built by docker is invisible to the cluster until it is handed over.
+This is why both deployments carry `imagePullPolicy: IfNotPresent` - there is no registry to pull
+from, and `Always` would make every pod fail on `ErrImagePull`. Build on the node, or push to a
+registry and change the two image references.
+
+The build is long (`npm ci` alone takes minutes) and dies with the ssh session that started it, so
+start it detached:
+
+```bash
+ssh root@node 'cd /opt/build/autoskill && setsid nohup bash deploy/docker/build.sh     --llmswitch /opt/build/llmswitch > /opt/build/autoskill-build.log 2>&1 < /dev/null &'
+```
+
+### The public hostname
+
+`autoskill-web` is a NodePort on **30890**, because the reverse proxy in front of this cluster
+(Nginx Proxy Manager) runs on the host network and reaches every other site the same way. The
+proxy host is `skills.tadamoo.com` -> `http://<node address>:30890`, with websockets enabled -
+the interview and the job log are server-sent events, and `proxy_buffering off` is already set
+inside the web image. Let's Encrypt issues the certificate from the same panel.
+
+DNS is one A record, `skills` -> the node address, at the registrar.
+
+Three settings in `configmap.yaml` depend on that hostname and have to move with it:
+`AUTOSKILL_PUBLIC_URL` (embedded in every install bundle), `AUTOSKILL_CORS_ORIGINS`, and
+`AUTOSKILL_COOKIE_SECURE`.
+
+### State
+
+One replica, on purpose: `AUTOSKILL_JOBS=inline` and `AUTOSKILL_EVENTS=memory` are correct for one
+process and wrong for two. Everything that must survive a redeploy is on the `autoskill-data` PVC
+mounted at `/data` - the SQLite database, the content store, and `llm_providers.json` with the
+provider API keys. The API keys are therefore never in an image layer. Growing past one replica
+means Postgres and Redis, both already in this cluster; see the table above.
+
+The first account registered through the web UI becomes the administrator, who can then close
+registration from the admin area.

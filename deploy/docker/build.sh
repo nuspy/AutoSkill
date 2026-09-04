@@ -51,9 +51,16 @@ say "Building autoskill/web:$TAG"
 docker build -f "$CONTEXT/deploy/docker/web.Dockerfile" -t "autoskill/web:$TAG" "$CONTEXT"
 
 if [ "$IMPORT" -eq 1 ]; then
-    command -v ctr >/dev/null 2>&1 || command -v k3s >/dev/null 2>&1 \
-        || die "neither ctr nor k3s found: run with --no-import, or import the images yourself"
-    CTR="ctr"; command -v ctr >/dev/null 2>&1 || CTR="k3s ctr"
+    # A node running both docker and k3s has two containerd instances, each with a k8s.io
+    # namespace of its own on a socket of its own. Only k3s's is the one the kubelet asks: a plain
+    # `ctr` imports into docker's, where the image exists and the cluster still cannot see it.
+    if command -v k3s >/dev/null 2>&1; then
+        CTR="k3s ctr"
+    elif command -v ctr >/dev/null 2>&1; then
+        CTR="ctr"
+    else
+        die "neither k3s nor ctr found: run with --no-import, or import the images yourself"
+    fi
     for image in "autoskill/api:$TAG" "autoskill/web:$TAG"; do
         say "Importing $image into containerd"
         docker save "docker.io/$image" | $CTR -n k8s.io images import -
