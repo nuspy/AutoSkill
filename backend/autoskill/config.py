@@ -46,6 +46,15 @@ class Settings(BaseSettings):
     # where built wheels of autoskill-local are served from (deploy/install.sh fills it); default data_dir/dist
     local_dist_dir: Path | None = None
 
+    # llmswitch: the LLM providers of the machine this server runs on (see autoskill/llm/switch.py).
+    # The registry file holds API keys, so it lives outside the repository: leave the path empty to
+    # use the library default (%LOCALAPPDATA%/autoskill or ~/.config/autoskill).
+    llmswitch_enabled: bool = True
+    llmswitch_registry: Path | None = None
+    # Local engines only: True lets a request load the chosen model when the GPU is idle, False
+    # limits the VRAM rule to using what is already in memory.
+    llmswitch_load_models: bool = True
+
     @property
     def dist_dir(self) -> Path:
         return self.local_dist_dir or (self.data_dir / "dist")

@@ -86,7 +86,7 @@ async def coach_turn(
     checkpoint = await session.get(Checkpoint, disc.checkpoint_id) if disc.checkpoint_id else None
     trial = await session.get(TrialSession, disc.trial_session_id) if disc.trial_session_id else None
     messages = [*disc.messages, {"role": "user", "content": user_message, "at": utcnow().isoformat()}]
-    provider, provider_id = await get_provider(session, skill.project_id, "coach")
+    provider, provider_id = await get_provider("coach")
     lang = LANGUAGE_NAMES.get(language, "English")
     prompt = render(
         "coach_turn",

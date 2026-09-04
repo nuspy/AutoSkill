@@ -114,7 +114,7 @@ def _lang(interview: InterviewSession) -> str:
 async def _llm(
     ctx: ProcedureContext, interview: InterviewSession, purpose: str, prompt: str, model, temperature: float = 0.1
 ):
-    provider, provider_id = await get_provider(ctx.session, interview.project_id, purpose)
+    provider, provider_id = await get_provider(purpose)
     req = ChatRequest(
         messages=[
             ChatMessage(role="system", content=render("interview_system", language_name=_lang(interview))),
@@ -277,7 +277,7 @@ async def confirm_summary(ctx: ProcedureContext):
     assert knowledge is not None
     if ctx.human_input is None:
         if not ctx.state.get("summary_text"):
-            provider, provider_id = await get_provider(ctx.session, interview.project_id, "interviewer")
+            provider, provider_id = await get_provider("interviewer")
             req = ChatRequest(
                 messages=[
                     ChatMessage(role="system", content=render("interview_system", language_name=_lang(interview))),

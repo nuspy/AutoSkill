@@ -297,47 +297,8 @@ async def test_skill_suspend_resume_and_memory_management(app_client):
     assert (await app_client.get(f"/api/v1/skills/{skill_id}/memory", headers=headers)).json() == []
 
 
-async def test_providers_and_data_sources_api(app_client):
+async def test_data_sources_api(app_client):
     user, headers, project = await setup_project(app_client)
-    bob = await register(app_client, "bob@example.com")
-    b = auth(bob["access_token"])
-    # system provider: admin only
-    denied = await app_client.post(
-        "/api/v1/providers", json={"name": "Ollama", "adapter": "openai_compat", "model": "llama3"}, headers=b
-    )
-    assert denied.status_code == 403
-    created = await app_client.post(
-        "/api/v1/providers",
-        json={
-            "name": "Ollama",
-            "adapter": "openai_compat",
-            "model": "llama3",
-            "base_url": "http://localhost:11434/v1",
-            "api_key": "secret",
-            "is_default": True,
-            "purposes": ["interviewer"],
-        },
-        headers=headers,
-    )
-    assert created.status_code == 201
-    assert created.json()["has_api_key"] is True and "secret" not in created.text
-    unknown = await app_client.post(
-        "/api/v1/providers", json={"name": "x", "adapter": "magic", "model": "m"}, headers=headers
-    )
-    assert unknown.status_code == 422
-    listed = await app_client.get("/api/v1/providers", headers=b)
-    assert len(listed.json()) == 1 and listed.json()[0]["scope"] == "system"
-    # project provider by owner
-    pp = await app_client.post(
-        f"/api/v1/providers?project_id={project['id']}",
-        json={"name": "Claude", "adapter": "anthropic", "model": "claude-sonnet-5", "api_key": "k"},
-        headers=headers,
-    )
-    assert pp.status_code == 201 and pp.json()["scope"] == "project"
-    # test connection fails gracefully (no server at that url)
-    test = await app_client.post(f"/api/v1/providers/{created.json()['id']}/test", headers=headers)
-    assert test.status_code == 200 and test.json()["ok"] is False
-
     ds = await app_client.post(
         f"/api/v1/projects/{project['id']}/data-sources",
         json={

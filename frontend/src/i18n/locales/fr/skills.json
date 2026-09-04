@@ -169,40 +169,6 @@
       "secret": "Secret"
     }
   },
-  "providers": {
-    "title": "Fournisseurs d'IA",
-    "subtitle": "Modèles locaux (Ollama, LM Studio, llama.cpp, vLLM) ou dans le cloud utilisés par l'intervieweur, l'auteur et le superviseur.",
-    "system": "Fournisseurs système",
-    "project": "Fournisseurs du projet",
-    "add": "Ajouter un fournisseur",
-    "name": "Nom",
-    "adapter": "Type",
-    "model": "Modèle",
-    "baseUrl": "URL de base",
-    "apiKey": "Clé API",
-    "apiKeyHint": "Stockée chiffrée. Laissez vide pour les serveurs locaux.",
-    "purposes": "Utiliser pour",
-    "default": "Par défaut",
-    "enabled": "Activé",
-    "test": "Tester la connexion",
-    "testOk": "Connecté en {{ms}} ms",
-    "testFail": "Connexion échouée : {{message}}",
-    "empty": "Aucun fournisseur configuré. Les entretiens en ont besoin d'un.",
-    "adapters": {
-      "openai_compat": "Compatible OpenAI (Ollama, LM Studio, vLLM…)",
-      "anthropic": "Anthropic",
-      "openai": "OpenAI",
-      "google": "Google",
-      "openrouter": "OpenRouter"
-    },
-    "purposeNames": {
-      "interviewer": "Intervieweur",
-      "supervisor": "Superviseur",
-      "author": "Auteur",
-      "coach": "Coach",
-      "analyst": "Analyste"
-    }
-  },
   "versions": {
     "generate": "Rédiger la skill",
     "regenerate": "Nouvelle version à partir des corrections",
@@ -294,7 +260,8 @@
       "git_url": "Dépôt git",
       "url": "URL directe",
       "manual": "Instructions manuelles"
-    }
+    },
+    "enabled": "Activé"
   },
   "trials": {
     "title": "Essais sur votre agent",

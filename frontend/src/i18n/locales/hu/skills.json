@@ -169,40 +169,6 @@
       "secret": "Titkos"
     }
   },
-  "providers": {
-    "title": "AI-szolgáltatók",
-    "subtitle": "Helyi (Ollama, LM Studio, llama.cpp, vLLM) vagy felhőalapú modellek az interjúztatónak, a szerzőnek és a felügyelőnek.",
-    "system": "Rendszerszintű szolgáltatók",
-    "project": "Projektszintű szolgáltatók",
-    "add": "Szolgáltató hozzáadása",
-    "name": "Név",
-    "adapter": "Típus",
-    "model": "Modell",
-    "baseUrl": "Alap-URL",
-    "apiKey": "API-kulcs",
-    "apiKeyHint": "Titkosítva tároljuk. Helyi szerverekhez hagyd üresen.",
-    "purposes": "Használat",
-    "default": "Alapértelmezett",
-    "enabled": "Engedélyezve",
-    "test": "Kapcsolat tesztelése",
-    "testOk": "Kapcsolódva {{ms}} ms alatt",
-    "testFail": "Kapcsolódás sikertelen: {{message}}",
-    "empty": "Nincs beállított szolgáltató. Az interjúkhoz szükség van egyre.",
-    "adapters": {
-      "openai_compat": "OpenAI-kompatibilis (Ollama, LM Studio, vLLM…)",
-      "anthropic": "Anthropic",
-      "openai": "OpenAI",
-      "google": "Google",
-      "openrouter": "OpenRouter"
-    },
-    "purposeNames": {
-      "interviewer": "Interjúztató",
-      "supervisor": "Felügyelő",
-      "author": "Szerző",
-      "coach": "Coach",
-      "analyst": "Elemző"
-    }
-  },
   "versions": {
     "generate": "Skill vázlatának elkészítése",
     "regenerate": "Új verzió a javításokból",
@@ -294,7 +260,8 @@
       "git_url": "Git-tároló",
       "url": "Közvetlen URL",
       "manual": "Kézi útmutató"
-    }
+    },
+    "enabled": "Engedélyezve"
   },
   "trials": {
     "title": "Próbák az ügynöködön",

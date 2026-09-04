@@ -97,7 +97,7 @@ export default function LibraryAdminPage({ canEdit }: { canEdit: boolean }) {
             <Field label={t("skills:library.description")}><Textarea required rows={2} value={form.description ?? ""} onChange={(e) => setForm({ ...form, description: e.target.value })} /></Field>
             <div className="grid grid-cols-2 gap-3">
               <Field label={t("skills:library.version")}><Input value={form.version ?? ""} onChange={(e) => setForm({ ...form, version: e.target.value })} /></Field>
-              <label className="mt-6 flex items-center gap-2 text-sm"><input type="checkbox" checked={form.is_enabled ?? true} onChange={(e) => setForm({ ...form, is_enabled: e.target.checked })} />{t("skills:providers.enabled")}</label>
+              <label className="mt-6 flex items-center gap-2 text-sm"><input type="checkbox" checked={form.is_enabled ?? true} onChange={(e) => setForm({ ...form, is_enabled: e.target.checked })} />{t("skills:library.enabled")}</label>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <Field label={t("skills:library.sourceType")} hint={t("skills:library.sourceHint")}>

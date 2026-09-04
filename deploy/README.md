@@ -32,6 +32,28 @@ public `https://` address (it is embedded in every bundle). Set `AUTOSKILL_COOKI
 Admin settings (web UI) that bound the download surface: `download_rate_per_minute` (per token / IP,
 shared across API workers when `AUTOSKILL_EVENTS=redis`) and `max_active_download_links_per_user`.
 
+## LLM providers of the server
+
+The models AutoSkill calls are configured from *Administration → AI providers*, and that panel is
+the only source of the choice — local engines, API keys, subscriptions reused from an official CLI.
+It needs the `llmswitch` library in the same virtualenv; it is installed separately because it is
+not on a public index, but without it no generative step can run:
+
+```bash
+sudo /opt/autoskill/venv/bin/pip install <llmswitch repository or path>
+sudo -u autoskill mkdir -p /var/lib/autoskill
+echo 'AUTOSKILL_LLMSWITCH_REGISTRY=/var/lib/autoskill/llm_providers.json' | sudo tee -a /opt/autoskill/autoskill.env
+sudo systemctl restart autoskill-api autoskill-worker
+```
+
+That file holds API keys, so it must be owned by the `autoskill` user and readable only by it; it is
+deliberately outside `/opt/autoskill/app`, which `install.sh` overwrites on every update. Without the
+library the panel says so and every interview, draft and coach reply answers `no_llm_provider`.
+
+On a server with a GPU, `AUTOSKILL_LLMSWITCH_LOAD_MODELS=0` stops a background job from loading a
+model on its own initiative: a local engine is then used only for what is already in memory. See
+[`docs/llm-providers.md`](../docs/llm-providers.md).
+
 ## Smoke test
 
 `./deploy/smoke.sh` installs into a temporary prefix without systemd or nginx, starts the API, checks

@@ -169,40 +169,6 @@
       "secret": "Segreto"
     }
   },
-  "providers": {
-    "title": "Provider AI",
-    "subtitle": "Modelli locali (Ollama, LM Studio, llama.cpp, vLLM) o cloud usati da intervistatore, autore e supervisore.",
-    "system": "Provider di sistema",
-    "project": "Provider del progetto",
-    "add": "Aggiungi provider",
-    "name": "Nome",
-    "adapter": "Tipo",
-    "model": "Modello",
-    "baseUrl": "URL base",
-    "apiKey": "Chiave API",
-    "apiKeyHint": "Salvata cifrata. Lascia vuoto per i server locali.",
-    "purposes": "Usa per",
-    "default": "Predefinito",
-    "enabled": "Abilitato",
-    "test": "Prova connessione",
-    "testOk": "Connesso in {{ms}} ms",
-    "testFail": "Connessione fallita: {{message}}",
-    "empty": "Nessun provider configurato. Le interviste ne hanno bisogno.",
-    "adapters": {
-      "openai_compat": "Compatibile OpenAI (Ollama, LM Studio, vLLM…)",
-      "anthropic": "Anthropic",
-      "openai": "OpenAI",
-      "google": "Google",
-      "openrouter": "OpenRouter"
-    },
-    "purposeNames": {
-      "interviewer": "Intervistatore",
-      "supervisor": "Supervisore",
-      "author": "Autore",
-      "coach": "Coach",
-      "analyst": "Analista"
-    }
-  },
   "versions": {
     "generate": "Genera la bozza della skill",
     "regenerate": "Nuova versione dalle correzioni",
@@ -294,7 +260,8 @@
       "git_url": "Repository git",
       "url": "URL diretto",
       "manual": "Istruzioni manuali"
-    }
+    },
+    "enabled": "Abilitato"
   },
   "trials": {
     "title": "Prove sul tuo agente",

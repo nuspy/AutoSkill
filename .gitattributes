@@ -1,0 +1,4 @@
+# `core.autocrlf=true` on a Windows checkout would give the shell scripts CRLF endings, and a
+# Linux server then answers `bad interpreter: /usr/bin/env bash^M`. Pin what each side needs.
+*.sh text eol=lf
+*.ps1 text eol=crlf

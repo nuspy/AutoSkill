@@ -33,4 +33,5 @@ autoskill-companion MCP ──REST──▶ inline runner (single process) or ar
 | Hub catalog, forks, installations, git distribution | `services/hub/`, `services/distribution/` |
 | MCP generation and static checks | `services/mcpgen/` |
 | Improvement analysis and proposals | `services/improvement/` |
+| LLM adapters, provider resolution, llmswitch bridge | `llm/`, see [llm-providers.md](llm-providers.md) |
 | User-side CLI and companion MCP | `packages/autoskill-local/` |

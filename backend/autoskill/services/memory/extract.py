@@ -44,7 +44,7 @@ async def extract_memory(
     """Return (entries created, error). Uses the provider configured for `purpose`."""
     if not transcript:
         return 0, None
-    provider, provider_id = await get_provider(session, project_id, purpose)
+    provider, provider_id = await get_provider(purpose)
     messages = []
     if system_prompt:
         messages.append(ChatMessage(role="system", content=system_prompt))

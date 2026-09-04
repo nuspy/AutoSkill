@@ -169,40 +169,6 @@
       "secret": "Geheim"
     }
   },
-  "providers": {
-    "title": "KI-Anbieter",
-    "subtitle": "Lokale (Ollama, LM Studio, llama.cpp, vLLM) oder Cloud-Modelle für Interviewer, Autor und Supervisor.",
-    "system": "Systemanbieter",
-    "project": "Projektanbieter",
-    "add": "Anbieter hinzufügen",
-    "name": "Name",
-    "adapter": "Typ",
-    "model": "Modell",
-    "baseUrl": "Basis-URL",
-    "apiKey": "API-Schlüssel",
-    "apiKeyHint": "Verschlüsselt gespeichert. Für lokale Server leer lassen.",
-    "purposes": "Verwenden für",
-    "default": "Standard",
-    "enabled": "Aktiviert",
-    "test": "Verbindung testen",
-    "testOk": "Verbunden in {{ms}} ms",
-    "testFail": "Verbindung fehlgeschlagen: {{message}}",
-    "empty": "Kein Anbieter konfiguriert. Interviews brauchen einen.",
-    "adapters": {
-      "openai_compat": "OpenAI-kompatibel (Ollama, LM Studio, vLLM…)",
-      "anthropic": "Anthropic",
-      "openai": "OpenAI",
-      "google": "Google",
-      "openrouter": "OpenRouter"
-    },
-    "purposeNames": {
-      "interviewer": "Interviewer",
-      "supervisor": "Supervisor",
-      "author": "Autor",
-      "coach": "Coach",
-      "analyst": "Analyst"
-    }
-  },
   "versions": {
     "generate": "Skill entwerfen",
     "regenerate": "Neue Version aus Korrekturen",
@@ -294,7 +260,8 @@
       "git_url": "Git-Repository",
       "url": "Direkte URL",
       "manual": "Manuelle Anleitung"
-    }
+    },
+    "enabled": "Aktiviert"
   },
   "trials": {
     "title": "Tests auf deinem Agenten",

@@ -19,7 +19,6 @@ from autoskill.models.hub import (
 from autoskill.models.improvement import ImprovementProposal
 from autoskill.models.interview import InterviewMessage, InterviewSession, KnowledgeDoc
 from autoskill.models.job import Job
-from autoskill.models.llm_provider import LlmProvider
 from autoskill.models.mcp import McpServer, McpServerVersion
 from autoskill.models.memory import SkillMemoryEntry
 from autoskill.models.notification import Notification, NotificationPreference
@@ -71,7 +70,6 @@ __all__ = [
     "InterviewSession",
     "KnowledgeDoc",
     "Job",
-    "LlmProvider",
     "SkillMemoryEntry",
     "Notification",
     "NotificationPreference",

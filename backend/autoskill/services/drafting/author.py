@@ -88,7 +88,7 @@ async def generate_draft(
         if previous is not None:
             previous_md = load_package(skill.name, previous).skill_md
 
-    provider, provider_id = await get_provider(session, skill.project_id, "author")
+    provider, provider_id = await get_provider("author")
     system = render(
         "author_system", language_name=LANGUAGE_NAMES.get(language, "English"), allowed_packages=ALLOWED_PACKAGES
     )

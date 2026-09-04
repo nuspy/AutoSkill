@@ -187,7 +187,7 @@ async def summarize(session: AsyncSession, trial: TrialSession, language: str = 
         run_status=runs[0].status if runs else "no run",
         issues=len(issues),
     )
-    provider, provider_id = await get_provider(session, trial.project_id, "coach")
+    provider, provider_id = await get_provider("coach")
     res = await provider.chat(
         ChatRequest(
             messages=[ChatMessage(role="user", content=prompt)], temperature=0.2, max_tokens=800, purpose="coach"

@@ -13,7 +13,7 @@ import { Badge, ErrorState, PageHeader, Skeleton } from "@/components/ui/misc";
 import { errorMessage } from "@/lib/errors";
 import { formatDate } from "@/lib/format";
 import { cn } from "@/lib/cn";
-import { ProvidersCard } from "@/features/providers/ProvidersCard";
+import { LlmSwitchCard } from "@/features/providers/LlmSwitchCard";
 import LibraryAdminPage from "@/features/library/LibraryAdminPage";
 import HubAdminTab from "./HubAdminTab";
 
@@ -39,7 +39,7 @@ export default function AdminPage() {
         <Route index element={<Navigate to="users" replace />} />
         <Route path="users" element={<UsersTab />} />
         <Route path="projects" element={<ProjectsTab />} />
-        <Route path="providers" element={<ProvidersCard canEdit />} />
+        <Route path="providers" element={<LlmSwitchCard />} />
         <Route path="library" element={<LibraryAdminPage canEdit />} />
         <Route path="hub" element={<HubAdminTab />} />
         <Route path="settings" element={<SettingsTab />} />

@@ -1,8 +1,10 @@
-.PHONY: setup backend-dev frontend-dev worker test test-backend test-local test-frontend lint typecheck migrate local-wheel ci
+.PHONY: setup backend-dev frontend-dev worker test test-backend test-local test-frontend lint typecheck migrate local-wheel llmswitch ci
 
 PY ?= python3
 VENV ?= .venv
 BIN := $(VENV)/bin
+# clone of https://.../llmswitch.git, or the package name once it is on an index
+LLMSWITCH ?= ../llmswitch
 
 setup:              ## create the backend venv, install backend + local package, frontend deps
 	$(PY) -m venv $(VENV)
@@ -24,6 +26,9 @@ migrate:
 
 local-wheel:        ## build the autoskill-local wheel served at /dl/autoskill-local/ (DIST defaults to data/dist)
 	$(BIN)/pip wheel --no-deps -w $${DIST:-backend/data/dist} packages/autoskill-local
+
+llmswitch:          ## install the provider library (LLMSWITCH=path-or-git-url), optional
+	$(BIN)/pip install -e "$(LLMSWITCH)"
 
 test: test-backend test-local test-frontend
 

@@ -264,30 +264,82 @@ export interface DataSource {
   updated_at: string;
 }
 
-export interface Provider {
+/** The machine's own providers, kept by the llmswitch library outside the repository. */
+export interface LlmSwitchProvider {
   id: string;
-  scope: "system" | "project";
-  project_id: string | null;
+  type: string;
   name: string;
-  adapter: string;
-  base_url: string | null;
+  base_url: string;
   model: string;
-  models: string[];
-  purposes: string[];
-  extra: Record<string, unknown>;
-  is_default: boolean;
-  is_enabled: boolean;
-  has_api_key: boolean;
-  health: { ok?: boolean; message?: string; latency_ms?: number };
-  created_at: string;
+  embed_model: string;
+  has_key: boolean;
+  oauth_account: string;
+  oauth_connected: boolean;
+  local: boolean;
+  auth: "none" | "api_key" | "either" | "oauth" | "cli";
+  label: string;
+  note: string;
+  /** false for the CLI agents: seconds per answer, fine in the background, not for live work */
+  realtime: boolean;
+  command: string;
 }
 
-export interface ProviderTestResult {
+export interface LlmSwitchType {
+  type: string;
+  label: string;
+  auth: "none" | "api_key" | "either" | "oauth" | "cli";
+  local?: boolean;
+  base_url?: string;
+  note?: string;
+  realtime: boolean;
+}
+
+/** Status of a subscription reused from an already authenticated CLI (fields come from the library). */
+export interface LlmSwitchSubscription {
+  id: string;
+  label: string;
+  esiste: boolean;
+  strumento_installato?: boolean;
+  collegato?: boolean;
+  utilizzabile?: boolean;
+  impedimento?: string;
+  rinnovabile?: boolean;
+  scade_fra_ore?: number | null;
+  come_accedere?: string | string[];
+}
+
+export interface LlmSwitchState {
+  available: boolean;
+  reason: string;
+  version: string;
+  registry_path: string;
+  loads_models: boolean;
+  providers: LlmSwitchProvider[];
+  types: LlmSwitchType[];
+  assignments: Record<string, string>;
+  consumers: string[];
+  subscriptions: LlmSwitchSubscription[];
+  agents: string[];
+}
+
+export interface LlmSwitchModel {
+  id: string;
+  label: string;
+  loaded?: boolean;
+  quant?: string;
+  size_h?: string;
+}
+
+export interface LlmSwitchModels {
+  models: LlmSwitchModel[];
+  error: string;
+}
+
+export interface LlmSwitchTestResult {
   ok: boolean;
-  message: string;
-  latency_ms: number | null;
-  models: string[];
-  capabilities: Record<string, boolean>;
+  models: number;
+  sample: string[];
+  error: string;
 }
 
 export interface StepDefinition {

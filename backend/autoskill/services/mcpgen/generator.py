@@ -103,7 +103,7 @@ async def generate_mcp(
         await session.get(KnowledgeDoc, version.knowledge_snapshot_id) if version.knowledge_snapshot_id else None
     )
     server_name = server_name_for(skill)
-    provider, provider_id = await get_provider(session, skill.project_id, "author")
+    provider, provider_id = await get_provider("author")
     memory = await memory_context(session, skill.id, budget_tokens=1500)
     system = render(
         "mcp_system", allowed=", ".join(sorted(ALLOWED_TOP_LEVEL_IMPORTS - {"os", "shutil", "tempfile", "glob"}))

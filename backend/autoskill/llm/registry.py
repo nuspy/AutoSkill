@@ -1,19 +1,21 @@
-"""Resolve the provider to use for a (project, purpose) and build the adapter."""
+"""Which provider answers for a purpose, and the adapter to talk to it.
+
+There is one source of truth: the llmswitch registry of the machine the server runs on, where the
+administrator assigns a provider to each purpose (see `llm/switch.py`). A purpose with none of its
+own falls back to the `default` consumer. Nothing about the choice lives in the database — a model
+and its API key belong to the machine, not to a row somebody can edit through the application.
+
+Tests, and `AUTOSKILL_LLM_FAKE`, short-circuit all of it with a scripted provider.
+"""
 
 from __future__ import annotations
 
 import os
 
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from autoskill.core.crypto import decrypt
 from autoskill.core.errors import AppError
-from autoskill.llm.adapters.anthropic import AnthropicProvider
-from autoskill.llm.adapters.openai_compat import OpenAICompatProvider
+from autoskill.llm import switch
 from autoskill.llm.fake import DemoProvider, FakeLlmProvider
-from autoskill.llm.provider import Capabilities, LlmProvider
-from autoskill.models.llm_provider import LlmProvider as LlmProviderRow
+from autoskill.llm.provider import LlmProvider
 
 _fake: FakeLlmProvider | None = None
 
@@ -39,68 +41,14 @@ class NoProviderConfigured(AppError):
     code = "no_llm_provider"
 
 
-def build_provider(row: LlmProviderRow) -> LlmProvider:
-    api_key = decrypt(row.api_key_encrypted) if row.api_key_encrypted else None
-    extra = row.extra or {}
-    caps = Capabilities(
-        tools=bool(extra.get("supports_tools", True)),
-        json_schema=bool(extra.get("supports_json_schema", row.adapter in ("openai", "openai_compat", "openrouter"))),
-        vision=bool(extra.get("supports_vision", False)),
-        max_context=int(extra.get("max_context", 32_000)),
-    )
-    if row.adapter == "anthropic":
-        if not api_key:
-            raise NoProviderConfigured(message="anthropic provider needs an API key")
-        return AnthropicProvider(
-            model=row.model, api_key=api_key, base_url=row.base_url or "https://api.anthropic.com", capabilities=caps
-        )
-    base_urls = {
-        "openai": "https://api.openai.com/v1",
-        "openrouter": "https://openrouter.ai/api/v1",
-        "google": "https://generativelanguage.googleapis.com/v1beta/openai",
-        "openai_compat": "http://localhost:11434/v1",
-    }
-    headers = (
-        {"HTTP-Referer": "https://autoskill.local", "X-Title": "AutoSkill"} if row.adapter == "openrouter" else None
-    )
-    return OpenAICompatProvider(
-        model=row.model,
-        base_url=row.base_url or base_urls.get(row.adapter, base_urls["openai_compat"]),
-        api_key=api_key,
-        capabilities=caps,
-        extra_headers=headers,
-    )
-
-
-async def resolve_provider_row(session: AsyncSession, project_id: str | None, purpose: str) -> LlmProviderRow | None:
-    """Purpose-specific project provider -> project default -> purpose-specific system -> system default."""
-    candidates: list[LlmProviderRow] = []
-    if project_id:
-        res = await session.execute(
-            select(LlmProviderRow).where(LlmProviderRow.project_id == project_id, LlmProviderRow.is_enabled.is_(True))
-        )
-        candidates.extend(res.scalars().all())
-    res = await session.execute(
-        select(LlmProviderRow).where(LlmProviderRow.scope == "system", LlmProviderRow.is_enabled.is_(True))
-    )
-    system_rows = list(res.scalars().all())
-    for pool in (candidates, system_rows):
-        for row in pool:
-            if purpose in (row.purposes or []):
-                return row
-        for row in pool:
-            if row.is_default:
-                return row
-        if pool:
-            return pool[0]
-    return None
-
-
-async def get_provider(session: AsyncSession, project_id: str | None, purpose: str) -> tuple[LlmProvider, str | None]:
+async def get_provider(purpose: str) -> tuple[LlmProvider, str | None]:
+    """The adapter for this purpose, and the id the usage counters record it under."""
     fake = get_fake_provider()
     if fake is not None:
         return fake, None
-    row = await resolve_provider_row(session, project_id, purpose)
-    if row is None:
-        raise NoProviderConfigured(message="No LLM provider configured. Add one in Settings.")
-    return build_provider(row), row.id
+    chosen = await switch.provider_for(purpose)
+    if chosen is None:
+        raise NoProviderConfigured(
+            message="No LLM provider configured. An administrator sets one up in Administration → AI providers."
+        )
+    return chosen

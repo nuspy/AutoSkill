@@ -17,19 +17,47 @@ improvement loop whose new versions are always authorized by a human.
 | `deploy/` | Server installation without Docker: `install.sh`, systemd units, nginx site |
 | `docs/` | Architecture, data model, state machines, security notes |
 
-## Local development
+## Install and run
+
+Two scripts at the root do everything — virtualenv, backend, the `autoskill-local` CLI, the
+llmswitch provider library, the database schema, the agent wheel and the frontend dependencies.
+Run the installer again after every pull: each step is idempotent.
 
 ```bash
-make setup            # backend venv (uv) + frontend npm install
-cp .env.example backend/.env
-make backend-dev      # API with reload on http://localhost:8000  (docs at /docs)
-make frontend-dev     # UI on http://localhost:5173 (proxies /api to the backend)
-make test             # pytest + vitest
-make lint             # ruff + eslint
+./install.sh          # Linux, macOS, Git Bash
+./start.sh            # API on :8000, UI on :5173, worker when the configuration asks for one
 ```
+
+```powershell
+.\install.ps1         # Windows PowerShell 5.1 or PowerShell 7
+.\start.ps1
+```
+
+`install` picks up a `llmswitch` clone sitting next to this repository; point it somewhere else
+with `--llmswitch <path-or-git-url>` / `-LlmSwitch`. It updates `node_modules` in place; ask for
+`--clean-frontend` / `-CleanFrontend` to rebuild it from the lockfile, with the dev server stopped
+(on Windows a `.node` binary a running server has loaded cannot be deleted). `start` takes `--backend-only`,
+`--frontend-only`, `--api-port`, `--web-port`, `--no-reload` (and the `-BackendOnly` … equivalents);
+`--help` / `Get-Help` lists them all. Ctrl+C stops every component, and if one dies the others are
+shut down rather than left pretending the stack is up.
+
+The `Makefile` covers the same ground in pieces for those who prefer it (`make setup`,
+`make backend-dev`, `make frontend-dev`, `make test`, `make lint`).
 
 The first account registered in the UI becomes the administrator. Development uses SQLite, inline
 background jobs and in-memory events, so no database server or Redis is required.
+
+## Choosing the model
+
+Every generative step goes to the provider an administrator picked in *Administration → AI
+providers*. The single source of that choice is the [`llmswitch`](docs/llm-providers.md) registry of
+the machine the server runs on, installed by `./install.sh`: local engines that
+respect the GPU's memory, pay-per-use API keys, subscriptions reused from an official CLI that is
+already signed in, and the CLI agents themselves. Each stage — interviewer, supervisor, author,
+coach, analyst — is pointed at one of them, or at the default.
+
+API keys live in a file outside the repository, never in the database and never in the answers the
+browser gets back. Details and failure modes in [`docs/llm-providers.md`](docs/llm-providers.md).
 
 ## Server deployment
 
@@ -63,7 +91,8 @@ All planned phases are implemented and covered by tests (backend 58, local packa
 | Area | What exists |
 |---|---|
 | Foundation | multi-user auth (admin / reviewer / member), projects and members, API keys, device login for the CLI, notifications + SSE, jobs (inline or arq), audit log, admin area |
-| Interview | deterministic procedure engine with supervisor steps, one question per turn, ten completeness gates, knowledge document, per-skill memory, LLM providers (OpenAI-compatible local or cloud, Anthropic) |
+| Providers | the machine's own, through llmswitch: local engines with the VRAM rule, pay-per-use keys, subscriptions reused from an authenticated CLI, CLI agents; assigned per purpose from the admin area, keys outside the repository |
+| Interview | deterministic procedure engine with supervisor steps, one question per turn, ten completeness gates, knowledge document, per-skill memory |
 | Drafting | Agent Skills packaging and validation, author model + code-owned SKILL.md, install guides for Hermes, OpenClaw, Claude Code, Codex, Antigravity, admin component library |
 | Local trials | `autoskill` CLI + `autoskill-companion` MCP; phased checkpoints (explain / preview / execute / verify), simulation of irreversible steps, coach discussions patching the skill, suspend/resume, re-test any version, telemetry with redaction |
 | Lifecycle | version state machine, review queue with checklist, human-only publish/deprecate authorizations, diffs and semver hints |

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/api/client";
-import type { DataSource, InterviewDetail, InterviewSession, KnowledgeDoc, MemoryEntry, Provider, ProviderTestResult, Skill } from "@/api/types";
+import type { DataSource, InterviewDetail, InterviewSession, KnowledgeDoc, MemoryEntry, Skill } from "@/api/types";
 
 export const skillKeys = {
   list: (projectId: string) => ["projects", projectId, "skills"] as const,
@@ -10,7 +10,6 @@ export const skillKeys = {
   interview: (id: string) => ["interviews", id] as const,
   interviews: (projectId: string, skillId?: string) => ["projects", projectId, "interviews", skillId ?? ""] as const,
   dataSources: (projectId: string) => ["projects", projectId, "data-sources"] as const,
-  providers: (projectId?: string) => ["providers", projectId ?? "system"] as const,
 };
 
 export function useSkills(projectId: string) {
@@ -115,17 +114,3 @@ export function useDataSourceMutations(projectId: string) {
   return { create, update, remove };
 }
 
-export function useProviders(projectId?: string) {
-  return useQuery({ queryKey: skillKeys.providers(projectId), queryFn: () => api<Provider[]>(`/providers${projectId ? `?project_id=${projectId}` : ""}`) });
-}
-
-export function useProviderMutations(projectId?: string) {
-  const qc = useQueryClient();
-  const invalidate = () => qc.invalidateQueries({ queryKey: ["providers"] });
-  const suffix = projectId ? `?project_id=${projectId}` : "";
-  const create = useMutation({ mutationFn: (body: Record<string, unknown>) => api<Provider>(`/providers${suffix}`, { method: "POST", body }), onSuccess: invalidate });
-  const update = useMutation({ mutationFn: ({ id, ...body }: Record<string, unknown> & { id: string }) => api<Provider>(`/providers/${id}`, { method: "PATCH", body }), onSuccess: invalidate });
-  const remove = useMutation({ mutationFn: (id: string) => api(`/providers/${id}`, { method: "DELETE" }), onSuccess: invalidate });
-  const test = useMutation({ mutationFn: (id: string) => api<ProviderTestResult>(`/providers/${id}/test`, { method: "POST" }), onSuccess: invalidate });
-  return { create, update, remove, test };
-}

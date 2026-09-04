@@ -92,7 +92,7 @@ async def run_proposal(session: AsyncSession, proposal_id: str, *, language: str
             proposal.error = "nothing to improve: no failures, issues or corrections in the window"
             await session.commit()
             return proposal
-        provider, provider_id = await get_provider(session, skill.project_id, "analyst")
+        provider, provider_id = await get_provider("analyst")
         prompt = render(
             "improvement_rationale",
             language_name=LANGUAGE_NAMES.get(language, "English"),

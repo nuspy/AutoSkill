@@ -169,40 +169,6 @@
       "secret": "Secret"
     }
   },
-  "providers": {
-    "title": "AI providers",
-    "subtitle": "Local (Ollama, LM Studio, llama.cpp, vLLM) or cloud models used by the interviewer, author and supervisor.",
-    "system": "System providers",
-    "project": "Project providers",
-    "add": "Add provider",
-    "name": "Name",
-    "adapter": "Type",
-    "model": "Model",
-    "baseUrl": "Base URL",
-    "apiKey": "API key",
-    "apiKeyHint": "Stored encrypted. Leave empty for local servers.",
-    "purposes": "Use for",
-    "default": "Default",
-    "enabled": "Enabled",
-    "test": "Test connection",
-    "testOk": "Connected in {{ms}} ms",
-    "testFail": "Connection failed: {{message}}",
-    "empty": "No provider configured. Interviews need one.",
-    "adapters": {
-      "openai_compat": "OpenAI-compatible (Ollama, LM Studio, vLLM…)",
-      "anthropic": "Anthropic",
-      "openai": "OpenAI",
-      "google": "Google",
-      "openrouter": "OpenRouter"
-    },
-    "purposeNames": {
-      "interviewer": "Interviewer",
-      "supervisor": "Supervisor",
-      "author": "Author",
-      "coach": "Coach",
-      "analyst": "Analyst"
-    }
-  },
   "versions": {
     "generate": "Draft the skill",
     "regenerate": "New version from corrections",
@@ -294,7 +260,8 @@
       "git_url": "Git repository",
       "url": "Direct URL",
       "manual": "Manual instructions"
-    }
+    },
+    "enabled": "Enabled"
   },
   "trials": {
     "title": "Trials on your agent",
