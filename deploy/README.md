@@ -82,12 +82,15 @@ forwards `/api/`, `/dl/` and `/git/` to the API). The web image is the only fron
 proxy outside the cluster has one upstream to point at, not two.
 
 ```bash
-# On the node. The sources arrive however you like; a git archive over ssh is enough.
+# On the node. AutoSkill's sources arrive however you like - `git archive HEAD` over ssh is enough.
+# llmswitch does NOT: send its working tree, `tar --exclude=.git`. Half of what the provider panel
+# calls lives in files that are not committed, and an image built from its HEAD starts, serves
+# every other page, and answers the provider panel with `has no attribute 'panoramica'`.
 bash deploy/docker/build.sh --llmswitch /opt/build/llmswitch
 
 kubectl create namespace autoskill
-kubectl -n autoskill create secret generic autoskill-secrets     --from-literal=secret-key="$(openssl rand -base64 48 | tr -d '
-')"
+kubectl -n autoskill create secret generic autoskill-secrets \
+    --from-literal=secret-key="$(openssl rand -base64 48 | tr -d '\n')"
 kubectl apply -f deploy/k8s/configmap.yaml -f deploy/k8s/autoskill.yaml
 kubectl -n autoskill rollout status deploy/autoskill-api deploy/autoskill-web
 ```
@@ -102,7 +105,20 @@ The build is long (`npm ci` alone takes minutes) and dies with the ssh session t
 start it detached:
 
 ```bash
-ssh root@node 'cd /opt/build/autoskill && setsid nohup bash deploy/docker/build.sh     --llmswitch /opt/build/llmswitch > /opt/build/autoskill-build.log 2>&1 < /dev/null &'
+ssh root@node 'cd /opt/build/autoskill && setsid nohup bash deploy/docker/build.sh \
+    --llmswitch /opt/build/llmswitch > /opt/build/autoskill-build.log 2>&1 < /dev/null &'
+```
+
+A workstation usually builds this faster than the node does. Build there and hand the result over:
+the import runs on the node either way, and it is the slow half - five to nine minutes for the API
+image.
+
+```bash
+bash deploy/docker/build.sh --no-import        # llmswitch defaults to ../llmswitch
+for image in api web; do
+    docker save "docker.io/autoskill/$image:latest" \
+        | ssh root@node 'k3s ctr -n k8s.io images import -'
+done
 ```
 
 ### The public hostname
