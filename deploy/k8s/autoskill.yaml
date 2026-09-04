@@ -1,0 +1,139 @@
+# AutoSkill on k3s. One API pod and one web pod in a namespace of their own; the outer reverse
+# proxy points at the `autoskill-web` service.
+#
+# The secret is NOT here: create it once with
+#   kubectl -n autoskill create secret generic autoskill-secrets \
+#       --from-literal=secret-key="$(openssl rand -base64 48 | tr -d '\n')"
+#
+# Single replica on purpose. This configuration runs jobs inline and keeps the event bus in
+# memory, on SQLite: correct for one process, wrong for two. Postgres and Redis are already in
+# this cluster when it needs to grow - see deploy/README.md.
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: autoskill
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: autoskill-data
+  namespace: autoskill
+spec:
+  # The database, the content store, and the llmswitch registry with its API keys.
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: autoskill-api
+  namespace: autoskill
+  labels: { app: autoskill, component: api }
+spec:
+  replicas: 1
+  strategy:
+    # ReadWriteOnce on a single node: the old pod has to let go before the new one starts.
+    type: Recreate
+  selector:
+    matchLabels: { app: autoskill, component: api }
+  template:
+    metadata:
+      labels: { app: autoskill, component: api }
+    spec:
+      securityContext:
+        fsGroup: 10001
+      initContainers:
+        - name: migrate
+          image: autoskill/api:latest
+          imagePullPolicy: IfNotPresent
+          command: ["alembic", "upgrade", "head"]
+          envFrom:
+            - configMapRef: { name: autoskill-config }
+          env:
+            - name: AUTOSKILL_SECRET_KEY
+              valueFrom:
+                secretKeyRef: { name: autoskill-secrets, key: secret-key }
+          volumeMounts:
+            - { name: data, mountPath: /data }
+      containers:
+        - name: api
+          image: autoskill/api:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - { name: http, containerPort: 8000 }
+          envFrom:
+            - configMapRef: { name: autoskill-config }
+          env:
+            - name: AUTOSKILL_SECRET_KEY
+              valueFrom:
+                secretKeyRef: { name: autoskill-secrets, key: secret-key }
+          volumeMounts:
+            - { name: data, mountPath: /data }
+          readinessProbe:
+            httpGet: { path: /api/v1/health, port: http }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /api/v1/health, port: http }
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            failureThreshold: 5
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits: { memory: 1Gi }
+      volumes:
+        - name: data
+          persistentVolumeClaim: { claimName: autoskill-data }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: autoskill-api
+  namespace: autoskill
+spec:
+  selector: { app: autoskill, component: api }
+  ports:
+    - { name: http, port: 8000, targetPort: http }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: autoskill-web
+  namespace: autoskill
+  labels: { app: autoskill, component: web }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: autoskill, component: web }
+  template:
+    metadata:
+      labels: { app: autoskill, component: web }
+    spec:
+      containers:
+        - name: web
+          image: autoskill/web:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - { name: http, containerPort: 8080 }
+          readinessProbe:
+            httpGet: { path: /healthz, port: http }
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          resources:
+            requests: { cpu: 20m, memory: 32Mi }
+            limits: { memory: 128Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: autoskill-web
+  namespace: autoskill
+spec:
+  # What the reverse proxy points at: autoskill-web.autoskill.svc.cluster.local:80
+  selector: { app: autoskill, component: web }
+  ports:
+    - { name: http, port: 80, targetPort: http }

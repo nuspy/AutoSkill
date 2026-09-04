@@ -1,0 +1,34 @@
+# Everything that is not a secret. The hostname appears three times because three different
+# things depend on it: the links inside install bundles, the origins the browser is allowed to
+# come from, and whether the session cookie may travel over plain HTTP.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: autoskill-config
+  namespace: autoskill
+data:
+  AUTOSKILL_ENV: "prod"
+  AUTOSKILL_PUBLIC_URL: "https://skills.tadamoo.com"
+  AUTOSKILL_CORS_ORIGINS: '["https://skills.tadamoo.com"]'
+  AUTOSKILL_COOKIE_SECURE: "true"
+
+  # One process: jobs run as asyncio tasks and events stay in memory. Moving to the cluster's
+  # Postgres and Redis is what makes a second replica possible.
+  AUTOSKILL_DATABASE_URL: "sqlite+aiosqlite:////data/autoskill.db"
+  AUTOSKILL_JOBS: "inline"
+  AUTOSKILL_EVENTS: "memory"
+
+  AUTOSKILL_DATA_DIR: "/data"
+  AUTOSKILL_LOG_LEVEL: "INFO"
+
+  # Providers live in a file on the persistent volume, so the keys survive a redeploy and never
+  # sit in an image layer. A container has no GPU and no local engine: it must never try to load
+  # a model on its own initiative.
+  AUTOSKILL_LLMSWITCH_ENABLED: "1"
+  AUTOSKILL_LLMSWITCH_REGISTRY: "/data/llm_providers.json"
+  AUTOSKILL_LLMSWITCH_LOAD_MODELS: "0"
+
+  # Registration stays open until the first account is created - that one becomes the
+  # administrator, who can then close it from the admin area.
+  AUTOSKILL_REGISTRATION_OPEN: "true"
+  AUTOSKILL_EMAIL_BACKEND: "console"
