@@ -1,5 +1,6 @@
 {
   "manifest_version": 3,
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAgze1dTvJQtc3BtbPyOposrUuncQvGy8eiCo+FzQYkJuRZAh0qO1LpcFkxYm9JMwrAKX1M1YLNH0x6Ml6r0x+HdEGmAeN1D1vIrnKsxyTfND5nwJyVpDZtLRgrORx9riCrBcXK1jfsSWXD75iG1VBkBXH/6GlXjiAdeZDSucPV1vyidvhC6HxuqcSbkhh/OXa2vI5lpa93Txzs+H0/ZnDtat7I5TT3cANXM5QJ0ZNSCiWtHYqqHzl1o1B1wgOOYMB3JBiGkqWnlsHoyz4dpRdbdAxpUhKxeLhJsMAU3wguZkMBJXYCvYUbzvG53AnYVvgFxukRL3/j48Csf0OeZkMiQIDAQAB",
   "name": "AutoSkill",
   "version": "0.1.0",
   "description": "Installs AutoSkill skills and trials on this machine, from the AutoSkill page you are already looking at.",

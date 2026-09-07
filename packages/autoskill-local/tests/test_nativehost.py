@@ -190,3 +190,27 @@ def test_the_real_process_speaks_the_protocol_on_its_own_streams(monkeypatch):
     )
     assert refused.returncode == 1
     assert next(iter(nh.read_messages(io.BytesIO(refused.stdout))))["code"] == "origin_not_allowed"
+
+
+def test_the_shipped_id_is_the_one_the_manifest_actually_produces():
+    """Three places have to name the same extension, and two of them cannot check each other.
+
+    Chrome derives an extension's id from the public key pinned in its manifest. The allow-list here
+    and the id the server puts in its setup script are both written by hand against that derivation —
+    so a changed key silently leaves a host that refuses the extension it was installed for, and a
+    setup that looks complete. This is the one place the three can be compared.
+    """
+    import base64
+    import hashlib
+    import json
+    from pathlib import Path
+
+    manifest_path = Path(nh.__file__).parents[3] / "extension" / "manifest.json"
+    if not manifest_path.is_file():  # the wheel ships without the extension beside it
+        pytest.skip("extension/ is not in this tree")
+    key = json.loads(manifest_path.read_text(encoding="utf-8")).get("key")
+    assert key, "without a pinned key the id changes on every machine and no allow-list can be written"
+
+    digest = hashlib.sha256(base64.b64decode(key)).hexdigest()[:32]
+    derived = "".join(chr(ord("a") + int(c, 16)) for c in digest)
+    assert derived in nh.EXTENSION_IDS, f"the manifest produces {derived}, which this host does not allow"

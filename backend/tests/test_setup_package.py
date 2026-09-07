@@ -93,3 +93,20 @@ async def test_the_extension_can_be_fetched_without_logging_in(app_client):
     assert res.status_code == 200
     assert res.headers["content-type"] == "application/zip"
     assert b"manifest.json" in res.content
+
+
+def test_the_id_this_server_hands_out_is_the_extension_it_ships():
+    """The setup script registers a host that accepts one id; the extension it unpacks has another
+    only if somebody changed one and not the other. Then the host refuses the extension it was
+    installed for, and nothing in the setup says so — it simply does not work."""
+    import base64
+    import hashlib
+    import json
+
+    from autoskill.config import get_settings
+
+    manifest_path = setup_package.EXTENSION_DIR / "manifest.json"
+    key = json.loads(manifest_path.read_text(encoding="utf-8"))["key"]
+    digest = hashlib.sha256(base64.b64decode(key)).hexdigest()[:32]
+    derived = "".join(chr(ord("a") + int(c, 16)) for c in digest)
+    assert get_settings().extension_id == derived, "the default must name the extension this server serves"

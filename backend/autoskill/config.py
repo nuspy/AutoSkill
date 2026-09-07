@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     # The browser extension this server pairs with. It goes into the setup script, which registers the
     # native messaging host to accept that id and no other — so an operator running their own AutoSkill
     # with their own build of the extension sets this, and the two halves still match.
-    extension_id: str = ""
+    extension_id: str = "cnkodldlkekifpmakgkkmpdikbobbjff"
 
     access_token_minutes: int = 15
     refresh_token_days: int = 30

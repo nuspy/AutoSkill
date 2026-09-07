@@ -40,7 +40,7 @@ _HEADER = struct.Struct("<I")
 # change on every machine and this list could not be written at all. `AUTOSKILL_ALLOWED_EXTENSIONS`
 # (comma-separated ids) exists for developing against an unpacked copy, and is a development door:
 # it widens who may drive this machine, so it is read once, at start, and never from a message.
-EXTENSION_IDS = ()
+EXTENSION_IDS = ("cnkodldlkekifpmakgkkmpdikbobbjff",)
 
 
 def allowed_origins() -> set[str]:
