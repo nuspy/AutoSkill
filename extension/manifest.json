@@ -1,0 +1,40 @@
+{
+  "manifest_version": 3,
+  "name": "AutoSkill",
+  "version": "0.1.0",
+  "description": "Installs AutoSkill skills and trials on this machine, from the AutoSkill page you are already looking at.",
+  "minimum_chrome_version": "116",
+  "permissions": [
+    "nativeMessaging",
+    "storage",
+    "scripting"
+  ],
+  "host_permissions": [
+    "http://localhost:5173/*",
+    "http://localhost:8000/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "http://localhost:5173/*",
+        "http://localhost:8000/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_start"
+    }
+  ],
+  "options_page": "options.html",
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "AutoSkill"
+  },
+  "optional_host_permissions": [
+    "https://*/*"
+  ]
+}

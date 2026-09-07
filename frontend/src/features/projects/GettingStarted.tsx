@@ -6,6 +6,7 @@ import { useLlmSwitch } from "@/api/hooks/llmswitch";
 import { useCompanion, useDevices } from "@/api/hooks/me";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
+import { CopyRow } from "@/components/ui/copy-row";
 import { useSession } from "@/stores/session";
 
 const DISMISSED_KEY = "autoskill.gettingStarted.dismissed";
@@ -43,8 +44,11 @@ function Step({ index, done, title, children }: { index: number; done: boolean; 
   );
 }
 
+// The three commands that start everything used to be text with no way to take them: a person
+// following the checklist had to retype them. `CopyRow` without a label is the same block, plus the
+// button — and later the place the "do it for me" action attaches to.
 function Command({ children }: { children: string }) {
-  return <pre className="overflow-x-auto rounded-lg bg-accent p-3 font-mono text-xs text-fg">{children}</pre>;
+  return <CopyRow value={children} />;
 }
 
 /** Admin-only, and a component of its own so the hook behind it never runs for a member. */

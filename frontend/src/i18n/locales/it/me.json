@@ -16,7 +16,10 @@
     "lastSeen": "Ultimo accesso",
     "agents": "Agenti",
     "remove": "Scollega",
-    "assistantSkill": "La terza riga installa la skill che insegna al tuo agente a lavorare con AutoSkill: senza, non saprà cosa fare quando gli chiedi di automatizzare qualcosa."
+    "assistantSkill": "La terza riga installa la skill che insegna al tuo agente a lavorare con AutoSkill: senza, non saprà cosa fare quando gli chiedi di automatizzare qualcosa.",
+    "setupCommands": "Esegui questi tre comandi",
+    "thisMachine": "Su questa macchina",
+    "thisMachineHelp": "Letto dal helper del browser ({{version}}): ciò che c'è sul disco adesso, non ciò che era stato riferito l'ultima volta."
   },
   "notifications": {
     "title": "Notifiche",

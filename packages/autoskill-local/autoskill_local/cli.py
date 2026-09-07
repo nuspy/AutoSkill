@@ -16,6 +16,7 @@ import tempfile
 import time
 import webbrowser
 import zipfile
+from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Any
 
@@ -26,6 +27,33 @@ from autoskill_local.client import Client, ServerError, fetch_json, fetch_url
 from autoskill_local.config import HOME, LocalConfig, config_path
 from autoskill_local.targets import TARGETS, detect_targets, get_target, set_home_overrides
 from autoskill_local.targets.base import McpRegistration
+
+# --- what a second caller needs -----------------------------------------------------------------
+#
+# Everything below exists so these functions can be driven by something other than a terminal — the
+# browser extension's native messaging host is the first such caller. Three things stood in the way:
+# the install prompts on a TTY, it reports by printing, and it fails by raising `typer.Exit`. Each is
+# now a parameter with the old behaviour as its default, so no existing command changes.
+
+EnvProvider = Callable[[list[str]], dict[str, str]]
+Progress = Callable[[str], None]
+
+
+class LocalError(RuntimeError):
+    """A failure with a name, so a caller that is not a terminal can act on it.
+
+    `typer.Exit` says only "stop"; a host relaying to a web page has to say *what* went wrong, and a
+    checksum mismatch is a different matter from an agent that is not installed.
+
+    It stays a `RuntimeError` deliberately: existing handlers catch that (`_promote_to_permanent`
+    among them), and giving a failure a name must not quietly stop it from being caught.
+    """
+
+    def __init__(self, code: str, message: str, **details: Any) -> None:
+        self.code = code
+        self.details = details
+        super().__init__(message)
+
 
 # `pretty_exceptions_enable=False`: a refusal from the server is an answer, not a crash, and forty
 # lines of frames spanning httpx and typer buried the one line that said what happened. `main` turns
@@ -204,41 +232,78 @@ def skill_assistant(
     typer.echo("Restart your agent session so it picks the skill up.")
 
 
-@app.command()
-def doctor() -> None:
-    """Show detected agents, configuration and companion registration."""
-    cfg = _cfg()
-    typer.echo(
-        f"server: {cfg.server_url or '-'}   logged in: {'yes' if cfg.api_key else 'no'}   device: {cfg.device_id or '-'}"
-    )
-    # Every known agent is listed, found or not, with the directory that was resolved and how. The
-    # earlier version printed only what detection found, which is exactly the information that is
-    # useless when detection is the thing that went wrong: an agent installed somewhere unusual was
-    # simply absent from the list, indistinguishable from one that is not installed at all.
-    found = detect_targets()
-    typer.echo("agents detected: " + (", ".join(found) or "none"))
-    typer.echo("where each agent is looked for:")
+def machine_state(cfg: LocalConfig | None = None) -> dict[str, Any]:
+    """What this machine looks like: the server it answers to, every known agent, the open trials.
+
+    Every known agent is described, found or not, with the directory that was resolved and how it was
+    decided — which is exactly the information that is useless when it arrives only for the agents
+    detection already found. An agent installed somewhere unusual was simply absent from the list,
+    indistinguishable from one that is not installed at all.
+
+    A value rather than print output, because the browser extension needs the same answer `doctor`
+    prints, and reading it back off a terminal is not an interface.
+    """
+    cfg = cfg or _cfg()
+    agents = []
     for tid in TARGETS:
         t = get_target(tid)
         here = t.detect()
-        mark = "✓" if here else " "
         # `registered_mcps` reads the agent's config file; there is nothing to read if it is absent.
-        companion = "-"
+        companion = None
         if here:
             try:
                 companion = "registered" if "autoskill-companion" in t.registered_mcps() else "missing"
             except Exception as exc:  # noqa: BLE001 - a config we cannot parse is a finding, not a crash
                 companion = f"unreadable ({exc.__class__.__name__})"
-        typer.echo(f"  {mark} {t.display_name} [{tid}]")
-        typer.echo(f"      dir: {t.base}  ({t.base_source})")
-        typer.echo(f"      skills: {t.skill_dir}   config: {t.mcp_config}   companion: {companion}")
+        agents.append(
+            {
+                "id": tid,
+                "display_name": t.display_name,
+                "detected": here,
+                "base": str(t.base),
+                "base_source": t.base_source,
+                "skill_dir": str(t.skill_dir),
+                "mcp_config": str(t.mcp_config),
+                "companion": companion,
+            }
+        )
+    return {
+        "cli_version": __version__,
+        "server_url": cfg.server_url,
+        "logged_in": bool(cfg.api_key),
+        "device_id": cfg.device_id,
+        "config_path": str(config_path()),
+        "agents": agents,
+        "trials": [
+            {"id": sid, "skill": v.get("skill"), "version": v.get("version"), "target": v.get("target")}
+            for sid, v in cfg.trials.items()
+        ],
+        "installs": sorted(cfg.installs),
+    }
+
+
+@app.command()
+def doctor() -> None:
+    """Show detected agents, configuration and companion registration."""
+    state = machine_state()
+    typer.echo(
+        f"server: {state['server_url'] or '-'}   logged in: {'yes' if state['logged_in'] else 'no'}   "
+        f"device: {state['device_id'] or '-'}"
+    )
+    found = [a["id"] for a in state["agents"] if a["detected"]]
+    typer.echo("agents detected: " + (", ".join(found) or "none"))
+    typer.echo("where each agent is looked for:")
+    for a in state["agents"]:
+        typer.echo(f"  {'✓' if a['detected'] else ' '} {a['display_name']} [{a['id']}]")
+        typer.echo(f"      dir: {a['base']}  ({a['base_source']})")
+        typer.echo(f"      skills: {a['skill_dir']}   config: {a['mcp_config']}   companion: {a['companion'] or '-'}")
     typer.echo(
         f"an agent living elsewhere: add it to {config_path()} as\n"
         '  [targets.<agent>]\n  home = "<full path to the agent directory>"'
     )
-    if cfg.trials:
+    if state["trials"]:
         typer.echo(
-            "open trials: " + ", ".join(f"{v['skill']}@{v['version']} ({v['target']})" for v in cfg.trials.values())
+            "open trials: " + ", ".join(f"{v['skill']}@{v['version']} ({v['target']})" for v in state["trials"])
         )
 
 
@@ -261,6 +326,40 @@ def companion(action: str = typer.Argument("register"), target: str = typer.Opti
     else:
         t.unregister_mcp("autoskill-companion")
         typer.echo("autoskill-companion removed")
+
+
+browser_app = typer.Typer(help="The browser extension that installs skills without a terminal.")
+app.add_typer(browser_app, name="browser")
+
+
+@browser_app.command("install")
+def browser_install(
+    extension_id: list[str] = typer.Option(  # noqa: B008 - typer declares options this way
+        [], "--extension-id", help="ids permitted to drive this machine; the shipped one by default"
+    ),
+    browser: list[str] = typer.Option([], "--browser", help="chrome, chromium, opera, edge; all by default"),  # noqa: B008
+) -> None:
+    """Tell this machine's browsers about the AutoSkill native messaging host.
+
+    The half of the bootstrap that can be automated. It writes under the current user and needs no
+    administrator; what it cannot do is install the extension itself, because Chrome has not allowed
+    an extension to be installed from a local file since version 33.
+    """
+    from autoskill_local import browserhost, nativehost
+
+    ids = list(extension_id) or list(nativehost.EXTENSION_IDS)
+    if not ids:
+        _fail(
+            "no extension id: pass --extension-id <id> (Chrome shows it on chrome://extensions with "
+            "Developer mode on). Registering a host that nothing is allowed to call would do nothing."
+        )
+    written = browserhost.install(ids, browsers=list(browser) or None)
+    if not written:
+        _fail("no browser on this machine has a place to register the host")
+    for where in written:
+        typer.echo(f"registered in {where}")
+    typer.secho(f"{browserhost.HOST_NAME} -> {browserhost.host_executable()}", fg=typer.colors.GREEN)
+    typer.echo(f"allowed to call it: {', '.join(ids)}")
 
 
 def _download_package(client: Client, path: str) -> tuple[Path, dict[str, Any], str]:
@@ -299,7 +398,9 @@ def _install(
     return manifest
 
 
-def _register_installation(cfg: LocalConfig, version_id: str, target: str, channel: str) -> str | None:
+def _register_installation(
+    cfg: LocalConfig, version_id: str, target: str, channel: str, say: Progress = typer.echo
+) -> str | None:
     """Tell the server this machine installed the version, and keep the id it answers with.
 
     The id was thrown away, which left removal with nothing to address: `autoskill remove` deleted the
@@ -319,11 +420,11 @@ def _register_installation(cfg: LocalConfig, version_id: str, target: str, chann
         )
         return res.get("id") if isinstance(res, dict) else None
     except Exception as exc:  # noqa: BLE001
-        typer.echo(f"(could not register the installation with AutoSkill: {exc})")
+        say(f"(could not register the installation with AutoSkill: {exc})")
         return None
 
 
-def _report_removal(cfg: LocalConfig, manifest: dict[str, Any], target: str) -> None:
+def _report_removal(cfg: LocalConfig, manifest: dict[str, Any], target: str, say: Progress = typer.echo) -> None:
     """Tell the server the skill is no longer installed here.
 
     The id comes from the install record; installs made before it was kept have none, so the row is
@@ -350,7 +451,7 @@ def _report_removal(cfg: LocalConfig, manifest: dict[str, Any], target: str) -> 
         if installation_id:
             client.request("DELETE", f"/me/installations/{installation_id}")
     except Exception as exc:  # noqa: BLE001
-        typer.echo(f"(could not tell AutoSkill about the removal: {exc})")
+        say(f"(could not tell AutoSkill about the removal: {exc})")
 
 
 def _sha256(data: bytes) -> str:
@@ -362,7 +463,11 @@ def _fetch_artifact(ref: dict[str, Any]) -> bytes:
     data = fetch_url(ref["url"])
     expected = ref.get("sha256")
     if expected and _sha256(data) != expected:
-        raise RuntimeError(f"checksum mismatch for {ref['url']}: refusing to install")
+        raise LocalError(
+            "checksum_mismatch",
+            f"checksum mismatch for {ref['url']}: refusing to install",
+            url=ref["url"],
+        )
     return data
 
 
@@ -399,7 +504,9 @@ def _is_newer(advertised: str | None, installed: str) -> bool:
         return False
 
 
-def _companion_install_failed(exc: Exception, *, updating: bool, wanted: str | None, url: str) -> None:
+def _companion_install_failed(
+    exc: Exception, *, updating: bool, wanted: str | None, url: str, say: Progress = typer.echo
+) -> None:
     """Explain a failed companion install, and name the cause when it is the usual one.
 
     On Windows an upgrade fails whenever the agent is running, which is nearly always: the companion
@@ -412,16 +519,15 @@ def _companion_install_failed(exc: Exception, *, updating: bool, wanted: str | N
     locked = "os error 32" in text or "used by another process" in text or "being used by another" in text
     what = "update" if updating else "install"
     if locked:
-        typer.secho(
+        say(
             f"Could not {what} autoskill-local to {wanted}: your agent is running the current companion "
-            "and is holding its files open.",
-            fg=typer.colors.YELLOW,
+            "and is holding its files open."
         )
-        typer.echo("  Close the agent, run this, then start it again:")
-        typer.echo(f"    pipx install --force {url}")
-        typer.echo("  Everything else was installed; the companion you already have keeps working.")
+        say("  Close the agent, run this, then start it again:")
+        say(f"    pipx install --force {url}")
+        say("  Everything else was installed; the companion you already have keeps working.")
         return
-    typer.echo(f"(could not {what} autoskill-local automatically: {exc})")
+    say(f"(could not {what} autoskill-local automatically: {exc})")
 
 
 def _run(cmd: list[str], check: bool = True, **kw) -> subprocess.CompletedProcess:
@@ -455,7 +561,7 @@ def _install_binary(name: str, ref: dict[str, Any]) -> tuple[str, dict[str, Any]
 
 
 def _install_component_package(
-    name: str, install: dict[str, Any], download: dict[str, Any] | None
+    name: str, install: dict[str, Any], download: dict[str, Any] | None, say: Progress = typer.echo
 ) -> tuple[str | None, dict[str, Any] | None]:
     """Install an MCP/plugin package by its declared method; returns (command, removal record) or (None, None)."""
     method = install.get("method")
@@ -475,25 +581,31 @@ def _install_component_package(
         return _install_python_package(name, f"git+{spec}{ref}")
     if method == "npm" and spec:
         if not shutil.which("npm"):
-            typer.echo(
-                f"{name}: npm is not installed; run `{install.get('command', 'npm install -g ' + spec)}` yourself"
-            )
+            say(f"{name}: npm is not installed; run `{install.get('command', 'npm install -g ' + spec)}` yourself")
             return None, None
         _run(["npm", "install", "-g", spec])
         return shutil.which(name) or name, {"method": "npm", "package": spec}
     if method == "binary" and download:
         return _install_binary(name, download)
     if install.get("command") and method not in ("copy", "none"):
-        typer.echo(f"{name}: install it first with `{install['command']}` (not automated)")
+        say(f"{name}: install it first with `{install['command']}` (not automated)")
     return None, None
 
 
 def _install_from_manifest(
-    cfg: LocalConfig, manifest: dict[str, Any], target: str, trial_token: str | None
+    cfg: LocalConfig,
+    manifest: dict[str, Any],
+    target: str,
+    trial_token: str | None,
+    *,
+    env_provider: EnvProvider | None = None,
+    progress: Progress | None = None,
 ) -> tuple[str, dict[str, Any], dict[str, Any]]:
     """Install everything an install.json bundle lists, in order: components, MCP servers, skill.
 
     Returns (skill folder name, skill metadata, install manifest for a clean removal)."""
+    ask = env_provider or _ask_env
+    say = progress or typer.echo
     t = get_target(target)
     skill = manifest["skill"]
     record: dict[str, Any] = {
@@ -524,9 +636,9 @@ def _install_from_manifest(
                 shutil.move(info["skill_dir"], target_dir)
                 info["skill_dir"] = str(target_dir)
             record["components"].append({"slug": comp["slug"], **info})
-            typer.echo(f"component {comp['slug']} installed in {info['skill_dir']}")
+            say(f"component {comp['slug']} installed in {info['skill_dir']}")
         else:
-            cmd, rec = _install_component_package(comp["slug"], comp.get("install") or {}, download)
+            cmd, rec = _install_component_package(comp["slug"], comp.get("install") or {}, download, say)
             if rec:
                 record["python_packages"].append(rec)
                 record["components"].append({"slug": comp["slug"], "installed": rec})
@@ -550,22 +662,21 @@ def _install_from_manifest(
                     if have:
                         # The agent loaded the old code when it started and holds it until it restarts;
                         # on Windows it may even be holding the file we just replaced.
-                        typer.secho(
-                            f"autoskill-local updated to {wanted} — restart your agent so it picks it up.",
-                            fg=typer.colors.YELLOW,
-                        )
+                        say(f"autoskill-local updated to {wanted} — restart your agent so it picks it up.")
                 except (subprocess.CalledProcessError, OSError) as exc:  # pragma: no cover
-                    _companion_install_failed(exc, updating=bool(have), wanted=wanted, url=m["download"]["url"])
+                    _companion_install_failed(
+                        exc, updating=bool(have), wanted=wanted, url=m["download"]["url"], say=say
+                    )
             reg = _companion_registration(cfg, trial_token)
         else:
             command = reg_info.get("command") or m["name"]
             if not reg_info.get("url"):
-                installed_cmd, rec = _install_component_package(m["name"], m.get("install") or {}, m.get("download"))
+                installed_cmd, rec = _install_component_package(m["name"], m.get("install") or {}, m.get("download"), say)
                 if installed_cmd:
                     command = installed_cmd
                 if rec:
                     record["python_packages"].append(rec)
-            env = _ask_env([e["name"] for e in reg_info.get("env_requirements", []) if e.get("name")])
+            env = ask([e["name"] for e in reg_info.get("env_requirements", []) if e.get("name")])
             reg = McpRegistration(
                 name=m["name"],
                 command=None if reg_info.get("url") else command,
@@ -583,6 +694,12 @@ def _install_from_manifest(
 
 
 def _ask_env(prompt_names: list[str]) -> dict[str, str]:
+    """Ask the terminal for each missing value. The default provider, and only one of several.
+
+    Installing is otherwise a headless operation; this is the single point in it that needs a person
+    at a keyboard, which is exactly what a caller with no terminal cannot supply. Hence `EnvProvider`:
+    the CLI passes this, a browser extension passes values it collected in a form beforehand.
+    """
     values: dict[str, str] = {}
     for name in prompt_names:
         if os.environ.get(name):
@@ -594,6 +711,41 @@ def _ask_env(prompt_names: list[str]) -> dict[str, str]:
         if value:
             values[name] = value
     return values
+
+
+def env_from(values: Mapping[str, str]) -> EnvProvider:
+    """A provider that answers from values already collected, and never blocks on a terminal.
+
+    Names it was not given are simply absent, as with an unanswered prompt: an install must not stop
+    because one optional value is missing, and the agent's own configuration is where a person can
+    still fill it in.
+    """
+
+    def provide(names: list[str]) -> dict[str, str]:
+        return {n: values[n] for n in names if values.get(n)}
+
+    return provide
+
+
+def required_env(manifest: dict[str, Any]) -> list[str]:
+    """Every environment value this bundle will ask for, before anything is installed.
+
+    A terminal can be prompted halfway through; a web page cannot. It has to know what to ask for
+    while the person is still looking at it, which means reading the manifest rather than discovering
+    the answer by starting an installation that then stops.
+    """
+    names: list[str] = []
+    for m in manifest.get("mcp_servers", []):
+        if (m.get("kind") == "companion") or (m.get("registration") or {}).get("url"):
+            continue
+        for e in (m.get("registration") or {}).get("env_requirements", []):
+            if e.get("name") and e["name"] not in names:
+                names.append(e["name"])
+    for comp in manifest.get("components", []):
+        for e in comp.get("env_requirements", []) or []:
+            if e.get("name") and e["name"] not in names:
+                names.append(e["name"])
+    return names
 
 
 @trial_app.command("install")
@@ -709,7 +861,9 @@ def _strip_trial_markings(text: str) -> str:
     return "\n".join(out).rstrip() + "\n"
 
 
-def _promote_to_permanent(cfg: LocalConfig, skill_dir: Path, version_id: str | None, name: str) -> None:
+def _promote_to_permanent(
+    cfg: LocalConfig, skill_dir: Path, version_id: str | None, name: str, say: Progress = typer.echo
+) -> None:
     """Replace the trial copy with the version the server ships for an ordinary installation.
 
     A trial copy is not the same document. It opens with a banner telling the agent to walk every step
@@ -727,7 +881,7 @@ def _promote_to_permanent(cfg: LocalConfig, skill_dir: Path, version_id: str | N
             data = _client(cfg).get(f"/versions/{version_id}/package.zip")
             fetched = _single_root(_extract_zip(data))
         except (ServerError, OSError, RuntimeError, ValueError) as exc:
-            typer.secho(f"(could not fetch the final package: {exc})", fg=typer.colors.YELLOW)
+            say(f"(could not fetch the final package: {exc})")
     if fetched is not None:
         if skill_dir.exists():
             shutil.rmtree(skill_dir)
@@ -737,7 +891,7 @@ def _promote_to_permanent(cfg: LocalConfig, skill_dir: Path, version_id: str | N
     md = skill_dir / "SKILL.md"
     if md.exists():
         md.write_text(_strip_trial_markings(md.read_text()))
-        typer.secho(f"{name}: kept the trial copy with its trial instructions removed.", fg=typer.colors.YELLOW)
+        say(f"{name}: kept the trial copy with its trial instructions removed.")
 
 
 def _report_outcome(cfg: LocalConfig, sid: str, token: str, outcome: str, keep: bool) -> bool:
@@ -769,15 +923,15 @@ def _report_outcome(cfg: LocalConfig, sid: str, token: str, outcome: str, keep: 
         return keep if kept is None else bool(kept)
 
 
-def _finish_trial(cfg: LocalConfig, sid: str, keep: bool) -> None:
+def _finish_trial(cfg: LocalConfig, sid: str, keep: bool, say: Progress | None = None) -> None:
+    tell = say or typer.echo
     info = cfg.trials.pop(sid, None)
     if not info or not info.get("target"):
         # Settled with a token on a machine that never installed it: there is nothing here to promote
         # or delete, and pretending otherwise would either fail or remove somebody else's folder.
-        typer.secho(
+        tell(
             "The trial is settled in AutoSkill. Nothing was installed from this machine, so no local "
-            "copy was touched; remove it on the machine that has it.",
-            fg=typer.colors.YELLOW,
+            "copy was touched; remove it on the machine that has it."
         )
         cfg.save()
         return
@@ -785,21 +939,21 @@ def _finish_trial(cfg: LocalConfig, sid: str, keep: bool) -> None:
     manifest = info.get("manifest", {})
     if keep:
         skill_dir = Path(manifest.get("skill_dir", t.skill_dir / info["skill"]))
-        _promote_to_permanent(cfg, skill_dir, manifest.get("version_id"), info["skill"])
+        _promote_to_permanent(cfg, skill_dir, manifest.get("version_id"), info["skill"], tell)
         t.register_mcp(_companion_registration(cfg))  # re-registered without the trial token
         key = f"{info['target']}:{info['skill']}"
         cfg.installs[key] = {**manifest, "version": info.get("version")}
-        typer.secho(f"{info['skill']} kept as a permanent installation on {t.display_name}.", fg=typer.colors.GREEN)
+        tell(f"{info['skill']} kept as a permanent installation on {t.display_name}.")
         if manifest.get("version_id"):
             # Kept beside the rest of the record so `remove` has something to address later.
             cfg.installs[key]["installation_id"] = _register_installation(
-                cfg, manifest["version_id"], info["target"], "cli"
+                cfg, manifest["version_id"], info["target"], "cli", tell
             )
     else:
         t.remove_skill(info["skill"], manifest)
         _remove_bundle_parts(t, manifest)
         t.register_mcp(_companion_registration(cfg))  # keep the companion registered for other skills
-        typer.secho(f"{info['skill']} removed from {t.display_name}.", fg=typer.colors.GREEN)
+        tell(f"{info['skill']} removed from {t.display_name}.")
     cfg.save()
 
 
@@ -900,7 +1054,7 @@ def install(
         if vid is None:
             _fail("give a version id (see the Install tab in AutoSkill) with --version-id, or use --from")
         root, meta, folder = _download_package(client, f"/versions/{vid}/package.zip?targets={target}")
-        record = _install(cfg, target, root, meta, folder, None, _ask_env([]))
+        record = _install(cfg, target, root, meta, folder, None, {})
         vid = meta.get("version_id", vid)
         version = meta.get("version")
     t = get_target(target)

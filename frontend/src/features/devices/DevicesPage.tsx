@@ -4,7 +4,9 @@ import { MonitorSmartphone, Trash2 } from "lucide-react";
 import { useCompanion, useDevices, useRemoveDevice } from "@/api/hooks/me";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
-import { Badge, EmptyState, PageHeader, Skeleton } from "@/components/ui/misc";
+import { CopyRow } from "@/components/ui/copy-row";
+import { Badge, EmptyState, ErrorState, PageHeader, Skeleton } from "@/components/ui/misc";
+import { useLocalAgent, useMachineState } from "@/api/hooks/localAgent";
 import { timeAgo } from "@/lib/format";
 
 export default function DevicesPage() {
@@ -20,6 +22,7 @@ export default function DevicesPage() {
     <>
       <PageHeader title={t("me:devices.title")} subtitle={t("me:devices.subtitle")} actions={<Link to="/device" className="inline-flex h-10 items-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-fg">{t("me:devices.connect")}</Link>} />
       <div className="space-y-6">
+        <ThisMachine />
         <Card>
           <CardHeader title={t("me:devices.connect")} description={t("me:devices.howto")} />
           <CardBody className="space-y-3">
@@ -27,7 +30,7 @@ export default function DevicesPage() {
             {companion.isSuccess && !install && <p className="text-sm text-muted">{t("me:devices.noWheel")}</p>}
             {install && (
               <>
-                <pre className="overflow-x-auto rounded-lg bg-accent p-3 font-mono text-xs">{`${install}\nautoskill login ${serverUrl}\nautoskill skill assistant`}</pre>
+                <CopyRow label={t("me:devices.setupCommands")} value={`${install}\nautoskill login ${serverUrl}\nautoskill skill assistant`} />
                 <p className="text-xs text-muted">{t("me:devices.assistantSkill")}</p>
                 <p className="text-xs text-muted">
                   {t("me:devices.notOnPypi")}
@@ -58,5 +61,43 @@ export default function DevicesPage() {
         )}
       </div>
     </>
+  );
+}
+
+
+/** What the local helper sees on this machine — shown only when there is a helper to ask.
+ *
+ * The server knows what a device *reported* the last time the CLI ran; this is what is on the disk
+ * right now. The two differing is not a detail: a trial installed for an agent the server believes is
+ * absent looked, for a whole afternoon, like a trial that had never been installed at all.
+ */
+function ThisMachine() {
+  const { t } = useTranslation(["me", "common"]);
+  const { available, version } = useLocalAgent();
+  const state = useMachineState();
+  if (!available) return null;
+  return (
+    <Card>
+      <CardHeader title={t("me:devices.thisMachine")} description={t("me:devices.thisMachineHelp", { version })} />
+      <CardBody>
+        {state.isLoading && <Skeleton className="h-20" />}
+        {state.isError && <ErrorState message={(state.error as Error).message} />}
+        {state.data && (
+          <ul className="divide-y divide-border text-sm">
+            {state.data.agents.map((a) => (
+              <li key={a.id} className="flex flex-wrap items-center gap-2 py-2">
+                <Badge tone={a.detected ? "success" : "neutral"}>{a.detected ? "✓" : "·"}</Badge>
+                <span className="font-medium">{a.display_name}</span>
+                <code className="rounded bg-accent px-1.5 py-0.5 text-xs" title={a.base}>{a.base_source}</code>
+                {a.companion && (
+                  <Badge tone={a.companion === "registered" ? "success" : "warning"}>{a.companion}</Badge>
+                )}
+                <span className="ml-auto truncate text-xs text-muted" title={a.skill_dir}>{a.skill_dir}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </CardBody>
+    </Card>
   );
 }

@@ -16,7 +16,10 @@
     "lastSeen": "Utoljára látva",
     "agents": "Ügynökök",
     "remove": "Leválasztás",
-    "assistantSkill": "A harmadik sor telepíti azt a skillt, amely megtanítja az ügynökének az AutoSkill használatát; enélkül nem tudja, mit tegyen."
+    "assistantSkill": "A harmadik sor telepíti azt a skillt, amely megtanítja az ügynökének az AutoSkill használatát; enélkül nem tudja, mit tegyen.",
+    "setupCommands": "Futtasd ezt a három parancsot",
+    "thisMachine": "Ezen a gépen",
+    "thisMachineHelp": "Az AutoSkill böngészősegéd olvasta ({{version}}) — ami most a lemezen van, nem az, amit utoljára jelentettek."
   },
   "notifications": {
     "title": "Értesítések",

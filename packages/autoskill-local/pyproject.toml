@@ -17,6 +17,7 @@ dev = ["pytest>=8.2", "pytest-asyncio>=0.23", "ruff>=0.5"]
 [project.scripts]
 autoskill = "autoskill_local.cli:main"
 autoskill-companion = "autoskill_local.companion:main"
+autoskill-native-host = "autoskill_local.nativehost:main"
 
 [build-system]
 requires = ["hatchling"]

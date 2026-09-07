@@ -16,7 +16,10 @@
     "lastSeen": "Visto por última vez",
     "agents": "Agentes",
     "remove": "Desconectar",
-    "assistantSkill": "La tercera línea instala la skill que enseña a tu agente a trabajar con AutoSkill; sin ella no sabrá qué hacer."
+    "assistantSkill": "La tercera línea instala la skill que enseña a tu agente a trabajar con AutoSkill; sin ella no sabrá qué hacer.",
+    "setupCommands": "Ejecuta estos tres comandos",
+    "thisMachine": "En esta máquina",
+    "thisMachineHelp": "Leído por el asistente del navegador ({{version}}): lo que hay en el disco ahora, no lo que se informó por última vez."
   },
   "notifications": {
     "title": "Notificaciones",

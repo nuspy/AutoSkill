@@ -16,7 +16,10 @@
     "lastSeen": "Zuletzt gesehen",
     "agents": "Agenten",
     "remove": "Trennen",
-    "assistantSkill": "Die dritte Zeile installiert die Skill, die Ihrem Agenten den Umgang mit AutoSkill beibringt — ohne sie weiß er nicht, was zu tun ist."
+    "assistantSkill": "Die dritte Zeile installiert die Skill, die Ihrem Agenten den Umgang mit AutoSkill beibringt — ohne sie weiß er nicht, was zu tun ist.",
+    "setupCommands": "Führe diese drei Befehle aus",
+    "thisMachine": "Auf diesem Rechner",
+    "thisMachineHelp": "Vom AutoSkill-Browser-Helfer gelesen ({{version}}) — was jetzt auf der Platte liegt, nicht was zuletzt gemeldet wurde."
   },
   "notifications": {
     "title": "Benachrichtigungen",

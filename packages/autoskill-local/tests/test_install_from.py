@@ -161,8 +161,10 @@ def test_install_from_manifest_and_clean_removal(home):
 
 def test_checksum_mismatch_refuses_to_install(home):
     cfg = LocalConfig(server_url="http://server")
-    with pytest.raises(RuntimeError, match="checksum mismatch"):
+    with pytest.raises(RuntimeError, match="checksum mismatch") as caught:
         cli._install_from_manifest(cfg, manifest(bad_sha=True), "hermes", None)
+    # named, so a caller that is not a terminal can tell this from any other failure
+    assert isinstance(caught.value, cli.LocalError) and caught.value.code == "checksum_mismatch"
     assert not (get_target("hermes").skill_dir / "invoice-check").exists()
 
 
@@ -612,3 +614,111 @@ def test_an_unreachable_server_never_stops_a_removal(home, monkeypatch, capsys):
     assert not skill_dir.exists(), "a bookkeeping failure must not leave the skill installed"
     assert "hermes:invoice-check" not in cfg.installs
     assert "could not tell AutoSkill" in capsys.readouterr().out
+
+
+# --- installing without a terminal ----------------------------------------------------------------
+
+
+def test_the_values_an_install_will_ask_for_are_knowable_before_it_starts():
+    """A terminal can be prompted halfway through; a web page has to ask while it still has the person.
+
+    Reading them off the manifest is the difference between a form filled once and an installation
+    that stops in the middle with nowhere to put the question.
+    """
+    names = cli.required_env(manifest())
+    assert names == ["SMTP_HOST"], "declared by the generated server, and nothing else"
+    # the companion asks for nothing of the person, and a server reached by URL has nothing to launch
+    assert "AUTOSKILL_API_KEY" not in names
+
+
+def test_an_install_can_be_given_its_env_instead_of_prompting(home, monkeypatch):
+    _home_dir, _calls = home
+
+    def explode(_names):
+        raise AssertionError("a caller with no terminal must never reach the prompt")
+
+    monkeypatch.setattr(cli, "_ask_env", explode)
+    monkeypatch.delenv("SMTP_HOST", raising=False)
+    said: list[str] = []
+
+    cfg = LocalConfig(server_url="http://server", api_key="ask_x")
+    cli._install_from_manifest(
+        cfg,
+        manifest(),
+        "hermes",
+        None,
+        env_provider=cli.env_from({"SMTP_HOST": "smtp.given"}),
+        progress=said.append,
+    )
+
+    servers = get_target("hermes").registered_mcps()
+    assert servers["invoice-check-tools"]["env"] == {"SMTP_HOST": "smtp.given"}
+    # progress went to the caller rather than to stdout, which is where a host has to relay it from
+    assert any("ldap-notes" in line for line in said)
+
+
+def test_a_value_that_was_not_supplied_is_simply_absent(home, monkeypatch):
+    """An optional value left blank must not stop an install, exactly as an unanswered prompt does not."""
+    _home_dir, _calls = home
+    monkeypatch.delenv("SMTP_HOST", raising=False)
+    cfg = LocalConfig(server_url="http://server", api_key="ask_x")
+
+    cli._install_from_manifest(cfg, manifest(), "hermes", None, env_provider=cli.env_from({}))
+
+    assert "env" not in get_target("hermes").registered_mcps()["invoice-check-tools"]
+
+
+def test_the_machine_state_is_a_value_and_doctor_only_prints_it(home, monkeypatch, capsys):
+    """`doctor` had the answer and could only print it; the extension needs the same answer as data."""
+    _home_dir, _calls = home
+    cfg = LocalConfig(server_url="http://server", api_key="ask_x", device_id="dev-1")
+    cfg.trials["t1"] = {"token": "tok", "target": "hermes", "skill": "invoice-check", "version": "0.1.0"}
+    monkeypatch.setattr(cli, "_cfg", lambda: cfg)
+
+    state = cli.machine_state()
+
+    assert state["server_url"] == "http://server" and state["logged_in"] is True
+    assert state["device_id"] == "dev-1" and state["cli_version"]
+    # every known agent, not only the ones detection found — that is the whole point
+    assert {a["id"] for a in state["agents"]} == set(cli.TARGETS)
+    hermes = next(a for a in state["agents"] if a["id"] == "hermes")
+    assert set(hermes) == {"id", "display_name", "detected", "base", "base_source", "skill_dir", "mcp_config", "companion"}
+    assert hermes["base_source"] in ("configured", "found", "assumed") or hermes["base_source"].startswith("$")
+    assert state["trials"] == [{"id": "t1", "skill": "invoice-check", "version": "0.1.0", "target": "hermes"}]
+
+    cli.doctor()
+    printed = capsys.readouterr().out
+    assert "agents detected:" in printed and hermes["display_name"] in printed
+    assert "invoice-check@0.1.0" in printed
+
+
+def test_nothing_in_a_settlement_escapes_to_stdout_when_a_channel_is_given(home, monkeypatch, capsys):
+    """A host relays what it is told. A line printed instead of returned is a line it never sees.
+
+    The pieces that report — the component that cannot be installed automatically, the companion that
+    could not be replaced, the bookkeeping call that failed — were each printing directly, so the
+    useful half of an install went to a terminal that, for this caller, does not exist.
+    """
+    _home_dir, _calls = home
+    t = get_target("hermes")
+    skill_dir = t.skill_dir / "invoice-check"
+    skill_dir.mkdir(parents=True)
+    (skill_dir / "SKILL.md").write_text("---\nname: invoice-check\n---\nbody\n")
+
+    def offline(cfg=None, **kw):
+        raise OSError("no route to host")
+
+    monkeypatch.setattr(cli, "_client", offline)
+    cfg = LocalConfig(server_url="http://server", api_key="ask_x")
+    cfg.trials["t1"] = {
+        "token": "tok", "target": "hermes", "skill": "invoice-check", "version": "0.1.0",
+        "manifest": {"skill_dir": str(skill_dir), "version_id": "v1"},
+    }
+    said: list[str] = []
+
+    cli._finish_trial(cfg, "t1", keep=True, say=said.append)
+
+    assert capsys.readouterr().out == "", "with a channel given, nothing may reach stdout"
+    # and the caller was told both what failed and what happened anyway
+    assert any("could not fetch the final package" in line for line in said)
+    assert any("kept as a permanent installation" in line for line in said)

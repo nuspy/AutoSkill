@@ -16,7 +16,10 @@
     "lastSeen": "Last seen",
     "agents": "Agents",
     "remove": "Disconnect",
-    "assistantSkill": "The third line installs the skill that teaches your agent to work with AutoSkill — without it, it will not know what to do when you ask it to automate something."
+    "assistantSkill": "The third line installs the skill that teaches your agent to work with AutoSkill — without it, it will not know what to do when you ask it to automate something.",
+    "setupCommands": "Run these three commands",
+    "thisMachine": "On this machine",
+    "thisMachineHelp": "Read by the AutoSkill browser helper ({{version}}) — what is on disk right now, not what was last reported."
   },
   "notifications": {
     "title": "Notifications",

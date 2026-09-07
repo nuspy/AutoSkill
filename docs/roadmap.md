@@ -3,7 +3,12 @@
 Things decided but not built. Each entry says what exists today, so that whoever picks it up starts
 from the code rather than from the idea.
 
-## A browser extension that does the installing — **urgent**
+## A browser extension that does the installing — **in progress**
+
+> **Built so far**: the native messaging host (`autoskill_local/nativehost.py`) with its read-only
+> operations, host registration (`autoskill_local/browserhost.py`, `autoskill browser install`), the
+> extension skeleton in `extension/`, and the page side (`frontend/src/lib/localAgent.ts`). The
+> operations that write, the installer package and driving the agent are still ahead.
 
 Today every act that touches the person's machine is a command they type. `autoskill login`,
 `autoskill skill assistant`, `autoskill trial install --from <url> --target hermes --token <token>`,

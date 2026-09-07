@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation } from "@tanstack/react-query";
-import { Check, Copy, Laptop, Search } from "lucide-react";
+import { Laptop, Search } from "lucide-react";
 import { api } from "@/api/client";
 import type { InterviewDetail } from "@/api/types";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Badge, ErrorState } from "@/components/ui/misc";
 import { Button } from "@/components/ui/button";
+import { CopyRow } from "@/components/ui/copy-row";
 import { errorMessage } from "@/lib/errors";
 
 interface Handoff {
@@ -19,7 +20,6 @@ interface Handoff {
 export function AgentPanel({ sessionId, detail }: { sessionId: string; detail: InterviewDetail }) {
   const { t } = useTranslation(["skills", "common"]);
   const [handoff, setHandoff] = useState<Handoff | null>(null);
-  const [copied, setCopied] = useState(false);
   const attach = useMutation({
     mutationFn: () => api<Handoff>(`/interviews/${sessionId}/handoff`, { method: "POST" }),
     onSuccess: setHandoff,
@@ -28,13 +28,6 @@ export function AgentPanel({ sessionId, detail }: { sessionId: string; detail: I
   const live = detail.session.agent_live;
   const question = detail.session.pending_question;
   const waitingOnAgent = question?.audience === "agent" && detail.waiting_for === "answer";
-
-  const copy = async () => {
-    if (!handoff) return;
-    await navigator.clipboard.writeText(handoff.instruction);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
 
   return (
     <Card>
@@ -66,13 +59,7 @@ export function AgentPanel({ sessionId, detail }: { sessionId: string; detail: I
         {handoff && (
           <div className="space-y-2">
             <p className="text-muted">{t("skills:agent.paste")}</p>
-            <pre className="overflow-x-auto whitespace-pre-wrap rounded-lg bg-accent p-2 text-xs">
-              {handoff.instruction}
-            </pre>
-            <Button size="sm" variant="outline" onClick={copy}>
-              {copied ? <Check className="h-4 w-4 text-success" aria-hidden /> : <Copy className="h-4 w-4" aria-hidden />}
-              {t(copied ? "common:actions.copied" : "common:actions.copy")}
-            </Button>
+            <CopyRow value={handoff.instruction} />
             {/* the person is entrusting parts of their machine to the application: say so plainly */}
             <p className="text-xs text-muted">{t("skills:agent.privacy")}</p>
           </div>

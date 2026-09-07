@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { api } from "@/api/client";
 import type { McpVersion, StepDefinition } from "@/api/types";
 import { Button } from "@/components/ui/button";
+import { CopyRow } from "@/components/ui/copy-row";
 import { Badge, EmptyState, ErrorState, Skeleton } from "@/components/ui/misc";
 import { errorMessage } from "@/lib/errors";
 import { cn } from "@/lib/cn";
@@ -50,7 +51,7 @@ export function McpTab({ versionId, steps, skillName }: { versionId: string; ste
           <div className="rounded-lg border border-border p-3 text-sm">
             <p className="font-medium">{t("skills:mcp.check")}</p>
             <p className="text-muted">{t("skills:mcp.checkHelp")}</p>
-            <pre className="mt-2 overflow-x-auto rounded bg-accent p-2 font-mono text-xs">{`autoskill mcp check ./${skillName} --report ${mv.id}`}</pre>
+            <div className="mt-2"><CopyRow value={`autoskill mcp check ./${skillName} --report ${mv.id}`} /></div>
             {mv.trial_report && (mv.trial_report.ok && !(mv.trial_report.missing_tools?.length) ? <p className="mt-2 text-success">{t("skills:mcp.checkOk", { count: mv.trial_report.tools.length })}</p> : <ErrorState message={mv.trial_report.error ?? t("skills:mcp.checkMissing", { tools: (mv.trial_report.missing_tools ?? []).join(", ") })} />)}
           </div>
           <details className="text-sm"><summary className="cursor-pointer text-muted">{t("skills:mcp.buildLog")}</summary><pre className="mt-2 rounded bg-accent p-2 text-xs">{mv.build_log}</pre>{mv.static_report.issues.length > 0 && <ul className="mt-2 text-xs">{mv.static_report.issues.map((i, k) => <li key={k} className={cn(i.level === "error" ? "text-danger" : "text-warning")}>{i.message}</li>)}</ul>}</details>

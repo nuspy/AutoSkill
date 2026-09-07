@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Copy, Download, GitFork, Star } from "lucide-react";
+import { Download, GitFork, Star } from "lucide-react";
 import { toast } from "sonner";
 import { useFork, useHubSkill, useInstallationMutations, useRate, useToggleFavorite } from "@/api/hooks/hub";
 import { useProjects } from "@/api/hooks/projects";
 import { downloadZip } from "@/api/hooks/versions";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
+import { CopyRow } from "@/components/ui/copy-row";
 import { Dialog } from "@/components/ui/dialog";
 import { Field, Input, Select } from "@/components/ui/input";
 import { Markdown } from "@/components/ui/markdown";
@@ -76,7 +77,7 @@ export default function HubSkillPage() {
             <CardHeader title={t("skills:hub.installTitle")} description={t("skills:hub.installHelp")} />
             <CardBody className="space-y-3 text-sm">
               <Field label={t("skills:trials.target")}><Select value={target} onChange={(e) => setTarget(e.target.value)}>{d.install_targets.map((tg) => <option key={tg.id} value={tg.id}>{tg.display_name}</option>)}</Select></Field>
-              <div className="flex items-start gap-2"><pre className="flex-1 overflow-x-auto rounded-lg bg-accent p-2 font-mono text-xs">{cli}</pre><Button size="icon" variant="outline" aria-label={t("common:actions.copy")} onClick={() => { navigator.clipboard.writeText(cli); toast.success(t("common:actions.copied")); }}><Copy className="h-4 w-4" /></Button></div>
+              <CopyRow value={cli} />
               <Button className="w-full" variant="outline" onClick={() => downloadZip(vid, `${s.name}-${s.published_version}.zip`, [target]).then(() => register.mutate({ skill_version_id: vid, target_agent: target, channel: "zip", state: "downloaded" })).catch(() => toast.error(t("common:errors.generic")))}><Download className="h-4 w-4" />{t("skills:versions.download")}</Button>
               {d.git_url && <p className="break-all text-xs text-muted">git: <code>{d.git_url}</code></p>}
               {d.dependencies.length > 0 && <p className="text-xs text-muted">{t("skills:versions.dependsOn")}: {d.dependencies.map((x) => x.component_slug).join(", ")}</p>}
