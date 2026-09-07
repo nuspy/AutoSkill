@@ -39,3 +39,22 @@ export function useMachineState(enabled = true) {
     retry: false,
   });
 }
+
+
+/** Which agents this machine can actually start, and how.
+ *
+ * An interview names no agent — the person simply has one — so the page cannot assume which. Asking
+ * the helper is the only honest answer, and when exactly one can be started it is the obvious one.
+ */
+export function useStartableAgents() {
+  const { available } = useLocalAgent();
+  const query = useQuery({
+    queryKey: ["localAgent", "agents"],
+    queryFn: () => runLocal<{ agents: { id: string; display_name: string; modes: string[] }[] }>("agents"),
+    enabled: available,
+    staleTime: 60_000,
+    retry: false,
+  });
+  const startable = (query.data?.agents ?? []).filter((a) => a.modes.length > 0);
+  return { startable, only: startable.length === 1 ? startable[0].id : null };
+}

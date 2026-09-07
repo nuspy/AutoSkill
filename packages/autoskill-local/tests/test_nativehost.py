@@ -318,10 +318,49 @@ def test_no_operation_takes_a_command_a_path_or_a_foreign_address():
     """
     import inspect
 
-    from autoskill_local import nativehost
+    from autoskill_local import agentrun, nativehost
 
+    # `agent_run` does start a program, so "no subprocess anywhere" is no longer the guarantee. The
+    # guarantee is narrower and more useful: what gets started is chosen by agent id from the
+    # adapters, never named by the request. A parameter carrying a program or a path would make
+    # every other guard here decorative.
+    for module in (nativehost, agentrun):
+        source = inspect.getsource(module)
+        for forbidden in ('params.get("command")', 'params.get("path")', 'params.get("cmd")', 'params.get("argv")'):
+            assert forbidden not in source, f"{module.__name__}: {forbidden}"
+    assert "_argv(target" in inspect.getsource(agentrun), "the command line is built from the adapter"
     source = inspect.getsource(nativehost)
-    for forbidden in ("params.get(\"command\")", "params.get(\"path\")", "params.get(\"cmd\")", "subprocess"):
-        assert forbidden not in source, forbidden
     # every address goes through the guard, never straight from the request
     assert source.count('params.get("manifest_url")') == 0, "urls must be read through _url()"
+
+
+# --- asking an agent to do something ----------------------------------------------------------------
+
+
+def test_asking_an_agent_needs_both_an_instruction_and_an_agent(connected):
+    assert call("agent_run", {"target": "hermes"})["code"] == "prompt_required"
+    assert call("agent_run", {"target": "hermes", "prompt": "   "})["code"] == "prompt_required"
+    assert call("agent_run", {"prompt": "do the thing"})["code"] == "target_required"
+
+
+def test_an_agent_that_cannot_be_started_here_is_an_answer_not_a_failure(connected, monkeypatch):
+    """Handing the person the instruction to paste is how every agent worked before any of this.
+
+    Reporting `manual` keeps that path alive; raising would leave the page with an error where it
+    should be showing a sentence to copy.
+    """
+    from autoskill_local.targets.base import LocalTarget
+
+    monkeypatch.setattr(LocalTarget, "run_modes", lambda _self: [])
+    reply = call("agent_run", {"target": "openclaw", "prompt": "do the thing"})
+    assert reply["kind"] == "result"
+    assert reply["result"] == {"mode": "manual", "status": "unsupported", "prompt": "do the thing"}
+
+
+def test_the_page_is_told_which_agents_can_actually_be_started(connected):
+    reply = call("agents", {})
+    assert reply["kind"] == "result"
+    by_id = {a["id"]: a for a in reply["result"]["agents"]}
+    assert set(by_id) == set(__import__("autoskill_local.targets", fromlist=["TARGETS"]).TARGETS)
+    for agent in by_id.values():
+        assert set(agent["modes"]) <= {"acp", "oneshot"}, "only the two ways that exist"

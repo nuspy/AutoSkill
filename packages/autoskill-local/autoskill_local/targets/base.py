@@ -48,6 +48,19 @@ class LocalTarget:
     skill_dir_rel = "skills"
     mcp_config_rel = "mcp.json"
 
+    # --- how this agent can be asked to do something -------------------------------------------
+    #
+    # Declared rather than guessed, and verified per agent. An adapter that says nothing here is not
+    # broken: it means the person is told what to paste, which is how every agent worked until now
+    # and has to keep working.
+    #
+    # `exe_names` are looked for on PATH first and inside `base` second, because an agent installed
+    # by its own installer is often not on PATH at all.
+    exe_names: tuple[str, ...] = ()
+    exe_rel: tuple[str, ...] = ()  # paths inside `base` worth trying, best first
+    acp_args: tuple[str, ...] = ()  # a JSON-RPC session over stdio: the turns can be watched
+    oneshot_args: tuple[str, ...] = ()  # "{prompt}" is replaced; one answer, no session to watch
+
     def __init__(self, home: Path | None = None, home_dir: str | Path | None = None) -> None:
         self.home = Path(home) if home else Path.home()
         self._home_dir = Path(home_dir) if home_dir else None
@@ -95,6 +108,28 @@ class LocalTarget:
 
     def detect(self) -> bool:
         return self.base.exists()
+
+    def executable(self) -> str | None:
+        """Where this agent's program is, or None if it cannot be found.
+
+        PATH first, then the places an agent's own installer puts it. Returning None is an ordinary
+        answer: it means this machine can show the person what to paste, not that anything is wrong.
+        """
+        for name in self.exe_names:
+            found = shutil.which(name)
+            if found:
+                return found
+        for rel in self.exe_rel:
+            candidate = self.base / rel
+            if candidate.is_file():
+                return str(candidate)
+        return None
+
+    def run_modes(self) -> list[str]:
+        """Which ways this agent can be started, best first — "acp", "oneshot", or neither."""
+        if not self.executable():
+            return []
+        return [m for m, args in (("acp", self.acp_args), ("oneshot", self.oneshot_args)) if args]
 
     def resolve_install_path(self, dest: str | Path) -> Path:
         """Re-root a catalog path written against a *presumed* agent directory onto the real one.

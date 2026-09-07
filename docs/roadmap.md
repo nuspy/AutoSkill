@@ -9,7 +9,12 @@ from the code rather than from the idea.
 > operations — `hello`, `state`, `needs`, `install`, `trial_install`, `trial_settle`, `remove`,
 > `assistant` — host registration (`autoskill browser install`), the extension in `extension/`, the
 > page side (`frontend/src/lib/localAgent.ts`), the **Do it for me** button on `CopyRow`, and the
-> setup package the application hands over. Still ahead: driving the agent (§B of the plan).
+> setup package the application hands over, and `agent_run` — ACP where an agent has it (verified on
+> Hermes 0.21.0: the turns arrive while the work happens), a one-shot start where it does not
+> (`hermes -z`, `claude -p`, `codex exec`, each verified), and the instruction to paste where neither
+> is declared. **The plan is built.** What remains is what a real run teaches: OpenClaw and
+> Antigravity declare no way to be started because nothing was verified for them, and the extension
+> has not yet been loaded into a browser on a clean machine.
 >
 > One manual step survives and cannot be removed: Chrome has not allowed an extension to be installed
 > from a local file since version 33, so the person loads the unpacked folder themselves. The setup

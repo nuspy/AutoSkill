@@ -190,8 +190,9 @@ function InstallInstructions({
  * `runs` is what separates them: it is empty until the agent calls `start_run`. So when it is empty
  * the page stops implying the agent is busy and says the one thing that actually unblocks the
  * person — name the skill instead of describing the task. */
-function WaitingCard({ detail }: { detail: { runs: Run[]; steps: StepDefinition[]; checkpoints: Checkpoint[]; skill_name: string; trial: { updated_at: string } } }) {
+function WaitingCard({ detail }: { detail: { runs: Run[]; steps: StepDefinition[]; checkpoints: Checkpoint[]; skill_name: string; trial: { updated_at: string; target_agent: string } } }) {
   const { t, i18n } = useTranslation(["skills", "common"]);
+  const instruction = t("skills:trials.tellAgentSkillText", { skill: detail.skill_name });
   const started = detail.runs.length > 0;
   // A run that has ended is an agent that is not coming back. Waiting on it is waiting on nobody —
   // which is what this page did for a whole trial: the agent hit a refused checkpoint, finished the
@@ -240,7 +241,14 @@ function WaitingCard({ detail }: { detail: { runs: Run[]; steps: StepDefinition[
       <CardBody className="space-y-3 text-sm">
         <p className="font-medium">{t("skills:trials.notStartedTitle")}</p>
         <p className="text-muted">{t("skills:trials.notStartedBody")}</p>
-        <CopyRow label={t("skills:trials.tellAgentSkill")} value={t("skills:trials.tellAgentSkillText", { skill: detail.skill_name })} />
+        {/* The one command in the whole flow that is not a command: it is a sentence for the agent.
+            With a helper that can start the agent, the button hands it over directly — and the
+            sentence stays visible, because an agent that cannot be started still has to be told. */}
+        <CopyRow
+          label={t("skills:trials.tellAgentSkill")}
+          value={instruction}
+          action={{ op: "agent_run", params: { target: detail.trial.target_agent, prompt: instruction } }}
+        />
         <p className="text-xs text-muted">
           {t("skills:trials.notStartedSince", { since: timeAgo(detail.trial.updated_at, i18n.language) })}
         </p>

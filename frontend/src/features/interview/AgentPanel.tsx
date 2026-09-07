@@ -6,6 +6,7 @@ import { api } from "@/api/client";
 import type { InterviewDetail } from "@/api/types";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Badge, ErrorState } from "@/components/ui/misc";
+import { useStartableAgents } from "@/api/hooks/localAgent";
 import { Button } from "@/components/ui/button";
 import { CopyRow } from "@/components/ui/copy-row";
 import { errorMessage } from "@/lib/errors";
@@ -28,6 +29,9 @@ export function AgentPanel({ sessionId, detail }: { sessionId: string; detail: I
   const live = detail.session.agent_live;
   const question = detail.session.pending_question;
   const waitingOnAgent = question?.audience === "agent" && detail.waiting_for === "answer";
+  // Offered only when there is no ambiguity about which agent is meant: with several startable, the
+  // person chooses by pasting into the one they have open, which is what they were doing anyway.
+  const { only: agent } = useStartableAgents();
 
   return (
     <Card>
@@ -59,7 +63,14 @@ export function AgentPanel({ sessionId, detail }: { sessionId: string; detail: I
         {handoff && (
           <div className="space-y-2">
             <p className="text-muted">{t("skills:agent.paste")}</p>
-            <CopyRow value={handoff.instruction} />
+            {/* The interview's executor, handed over directly when this machine can start the
+                agent. The sentence stays: an agent that cannot be started is still told by hand. */}
+            <CopyRow
+              value={handoff.instruction}
+              action={
+                agent ? { op: "agent_run", params: { target: agent, prompt: handoff.instruction } } : undefined
+              }
+            />
             {/* the person is entrusting parts of their machine to the application: say so plainly */}
             <p className="text-xs text-muted">{t("skills:agent.privacy")}</p>
           </div>

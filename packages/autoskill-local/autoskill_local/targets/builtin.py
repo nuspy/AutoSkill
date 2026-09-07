@@ -24,6 +24,13 @@ class Hermes(LocalTarget):
     skill_dir_rel = "skills"
     mcp_config_rel = "config.yaml"
     root_key = "mcp_servers"
+    # Verified on a real installation: `hermes acp --check` answers "Hermes ACP check OK", and the
+    # ACP handshake returns agentInfo hermes-agent 0.21.0 with session capabilities. `-z` runs one
+    # prompt and exits.
+    exe_names = ("hermes",)
+    exe_rel = ("hermes-agent/venv/Scripts/hermes.exe", "hermes-agent/venv/bin/hermes")
+    acp_args = ("acp",)
+    oneshot_args = ("-z", "{prompt}")
 
     def _parse(self, text: str) -> dict[str, Any]:
         return yaml.safe_load(text) or {}
@@ -54,6 +61,9 @@ class ClaudeCode(LocalTarget):
     bases = (".claude",)
     home_env = "CLAUDE_CONFIG_DIR"
     skill_dir_rel = "skills"
+    # `claude -p "..."` answers and exits; verified. No ACP mode as of this writing.
+    exe_names = ("claude",)
+    oneshot_args = ("-p", "{prompt}")
 
     @property
     def mcp_config(self) -> Path:
@@ -75,6 +85,10 @@ class Codex(LocalTarget):
     bases = (".codex",)
     home_env = "CODEX_HOME"
     skill_dir_rel = "skills"
+    # `codex exec` is its documented non-interactive form. Nothing is declared for OpenClaw or
+    # Antigravity: neither was verified here, and a wrong guess would launch the wrong program.
+    exe_names = ("codex",)
+    oneshot_args = ("exec", "{prompt}")
     mcp_config_rel = "config.toml"
     root_key = "mcp_servers"
 

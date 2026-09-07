@@ -241,6 +241,37 @@ def op_assistant(params: dict[str, Any], say: Callable[[str], None]) -> dict[str
     return {"installed": installed}
 
 
+def op_agent_run(params: dict[str, Any], say: Callable[[str], None]) -> dict[str, Any]:
+    """Ask an agent on this machine to carry out an instruction the page composed.
+
+    The instruction is text, and text is all it is: this starts the agent the person already trusts
+    with their files and hands it a sentence, exactly as they would by pasting it. What it does not
+    do is take a program to run — the agent is chosen by id from the adapters, never named by the
+    page — which is the difference between this and a remote shell.
+    """
+    from autoskill_local import agentrun
+
+    prompt = params.get("prompt")
+    target = params.get("target")
+    if not isinstance(prompt, str) or not prompt.strip():
+        raise LocalRefusal("prompt_required", "there is nothing to ask the agent")
+    if not target:
+        raise LocalRefusal("target_required", "say which agent should do it")
+    return agentrun.run(target, prompt, mode=params.get("mode"), timeout_s=int(params.get("timeout_s") or 900), say=say)
+
+
+def op_agents(_params: dict[str, Any], _say: Callable[[str], None]) -> dict[str, Any]:
+    """Which agents this machine can actually start, and how — so the page offers only what works."""
+    from autoskill_local.targets import TARGETS, get_target
+
+    return {
+        "agents": [
+            {"id": tid, "display_name": get_target(tid).display_name, "modes": get_target(tid).run_modes()}
+            for tid in TARGETS
+        ]
+    }
+
+
 # Each one writes to the person's machine, so each is named here and nowhere else: there is no
 # operation that takes a command to run, a path to write or an address to fetch from outside the
 # server this machine is connected to.
@@ -253,6 +284,8 @@ OPS: dict[str, Callable[[dict[str, Any], Callable[[str], None]], dict[str, Any]]
     "trial_settle": op_trial_settle,
     "remove": op_remove,
     "assistant": op_assistant,
+    "agents": op_agents,
+    "agent_run": op_agent_run,
 }
 
 
