@@ -20,8 +20,12 @@ from pathlib import Path
 EXTENSION_DIR = Path(__file__).resolve().parents[4] / "extension"
 
 # What is genuinely undoable from a browser, in order. Everything after this is the extension's job.
-_WINDOWS = r"""\
-# AutoSkill setup — installs the command line tool and lets your browser talk to it.
+#
+# A raw string, because it is full of Windows backslash paths — but that means the `\` line-
+# continuation that once opened it (`r"""\`) is now a literal backslash, and the served script began
+# with a stray `\` that PowerShell tried to run as a command. So the first line opens the content
+# directly, with nothing before it.
+_WINDOWS = r"""# AutoSkill setup — installs the command line tool and lets your browser talk to it.
 # Nothing here needs administrator rights: it all writes under your own user.
 $ErrorActionPreference = "Stop"
 

@@ -164,3 +164,19 @@ async def test_the_bat_route_is_served_and_wins_over_the_platform_route(app_clie
     assert res.status_code == 200
     assert res.headers["content-disposition"].endswith('autoskill-setup.bat"')
     assert b"| iex" in res.content, "not the PowerShell script served as a platform"
+
+
+def test_the_script_starts_with_something_a_shell_can_run():
+    r"""A generation test asserted the strings inside; none checked the very first character.
+
+    A raw-string opening left a literal `\` at the top, and PowerShell tried to run it as a command:
+    `The term '\' is not recognized`. The first thing on the first line has to be a comment or code,
+    never a stray escape.
+    """
+    for platform in setup_package.PLATFORMS:
+        _name, body = setup_package.setup_script(
+            platform, server_url="http://x", wheel_url="http://x/w.whl", extension_id="abc"
+        )
+        first = body.splitlines()[0]
+        assert not body.startswith(("\\", "\n", "\r")), f"{platform} script starts with {body[0]!r}"
+        assert first.startswith("#"), f"{platform} first line is {first!r}, not a comment"
