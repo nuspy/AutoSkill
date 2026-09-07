@@ -60,6 +60,8 @@
     "registration_closed": "Registration is closed. Ask an administrator for an invitation.",
     "not_authenticated": "Please sign in.",
     "forbidden": "You do not have permission to do this.",
+    "self_review_not_allowed": "You submitted this version, so you cannot review it yourself. An administrator can turn on \"allow self review\" in Admin → Settings, or another reviewer can decide it.",
+    "review_not_open": "This review has already been decided or withdrawn.",
     "not_found": "Not found.",
     "validation_failed": "Please check the form.",
     "last_owner": "A project needs at least one owner.",
@@ -70,5 +72,9 @@
     "device_request_not_found": "This code was not found or already used.",
     "device_request_expired": "This code has expired. Run the login command again.",
     "generic": "Something went wrong. Please try again."
+  },
+  "sound": {
+    "mute": "Turn the sound off",
+    "unmute": "Turn the sound on"
   }
 }

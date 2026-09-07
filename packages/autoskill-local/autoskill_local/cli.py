@@ -6,11 +6,12 @@ import hashlib
 import io
 import json
 import os
-import subprocess
-import sys
 import platform
+import re
 import shutil
 import socket
+import subprocess
+import sys
 import tempfile
 import time
 import webbrowser
@@ -22,17 +23,33 @@ import typer
 
 from autoskill_local import __version__
 from autoskill_local.client import Client, ServerError, fetch_json, fetch_url
-from autoskill_local.config import HOME, LocalConfig
-from autoskill_local.targets import detect_targets, get_target
+from autoskill_local.config import HOME, LocalConfig, config_path
+from autoskill_local.targets import TARGETS, detect_targets, get_target, set_home_overrides
 from autoskill_local.targets.base import McpRegistration
 
-app = typer.Typer(help="AutoSkill on your machine: install and trial skills on your own agent.", no_args_is_help=True)
+# `pretty_exceptions_enable=False`: a refusal from the server is an answer, not a crash, and forty
+# lines of frames spanning httpx and typer buried the one line that said what happened. `main` turns
+# those into a sentence; a genuine bug still raises and still shows its traceback.
+app = typer.Typer(
+    help="AutoSkill on your machine: install and trial skills on your own agent.",
+    no_args_is_help=True,
+    pretty_exceptions_enable=False,
+)
 trial_app = typer.Typer(help="Temporary installations tested step by step with AutoSkill.")
 app.add_typer(trial_app, name="trial")
 
 
 def _cfg() -> LocalConfig:
-    return LocalConfig.load()
+    """Load the configuration and, in the same breath, tell the adapters where the agents live.
+
+    Every command goes through here, which is the point: the alternative was to thread the person's
+    `[targets.*] home` settings through a dozen call sites, where they would have been forgotten at
+    precisely the one that mattered — and a forgotten override is silent, since installing to the
+    wrong directory succeeds.
+    """
+    cfg = LocalConfig.load()
+    set_home_overrides({tid: rec.get("home") for tid, rec in cfg.targets.items()})
+    return cfg
 
 
 def _client(cfg: LocalConfig | None = None, trial_token: str | None = None) -> Client:
@@ -40,6 +57,30 @@ def _client(cfg: LocalConfig | None = None, trial_token: str | None = None) -> C
     if not cfg.server_url:
         raise typer.BadParameter("not logged in: run `autoskill login <server-url>` first")
     return Client(cfg.server_url, api_key=cfg.api_key, trial_token=trial_token)
+
+
+def _refresh_device(cfg: LocalConfig) -> None:
+    """Tell the server which agents this machine has, now rather than at login.
+
+    `agent_targets` used to be sent once, during `autoskill login`, and never again. Install an agent
+    the day after and the server still believed it was not there — which is not merely cosmetic: the
+    dashboard offers those targets when starting a trial, so the record being months out of date is
+    the difference between an accurate list and a guess. It cost a real diagnosis: a trial installed
+    correctly under Hermes looked, from the server's side, like a trial sent to an agent that did not
+    exist.
+
+    Detection is a few directory checks, so this is cheap; failing to report is never worth
+    interrupting the command the person actually asked for.
+    """
+    if not cfg.server_url or not cfg.api_key:
+        return
+    try:
+        _client(cfg).post(
+            "/devices/heartbeat",
+            {"cli_version": __version__, "agent_targets": detect_targets(), "os": platform.system()},
+        )
+    except Exception:  # noqa: BLE001, S110 - bookkeeping must not break an install
+        pass
 
 
 def _fail(msg: str) -> None:
@@ -88,6 +129,81 @@ def login(server_url: str, no_browser: bool = False) -> None:
     _fail("login timed out")
 
 
+skill_app = typer.Typer(help="Create a skill from here; the interview itself happens in the browser.")
+app.add_typer(skill_app, name="skill")
+
+
+@skill_app.command("new")
+def skill_new(
+    description: str = typer.Argument(..., help="What the recurring task is, in your own words"),
+    project: str | None = typer.Option(None, "--project", help="Project slug (needed when you have several)"),
+    title: str | None = typer.Option(None, "--title"),
+    language: str = typer.Option("en", "--language"),
+    no_browser: bool = False,
+) -> None:
+    """Open an AutoSkill interview and hand it to the browser.
+
+    AutoSkill leads the interview and you answer there; this machine stays attached as the executor,
+    so the interview can look at your folders and files instead of asking you to recall them.
+    """
+    cfg = _cfg()
+    if not cfg.server_url or not cfg.api_key:
+        _fail("run `autoskill login <server-url>` first")
+    try:
+        res = _client(cfg).post(
+            "/interviews/agent",
+            {"description": description, "project": project, "title": title, "language": language},
+        )
+    except ServerError as exc:
+        if exc.code == "choose_project":
+            details = (exc.body or {}).get("error", {}).get("details", {}) if isinstance(exc.body, dict) else {}
+            options = ", ".join(p["slug"] for p in details.get("projects", []))
+            _fail(f"several projects: repeat with --project <slug> ({options})")
+        raise
+    cfg.interviews[res["session_id"]] = {
+        "token": res["session_token"], "url": res["url"], "project": res["project"]
+    }
+    cfg.save()
+    typer.secho("Interview opened. Continue in the browser:", fg=typer.colors.GREEN)
+    typer.echo(f"  {res['url']}")
+    typer.echo("")
+    typer.echo("Then tell your agent to assist it, pasting this line:")
+    typer.echo(
+        f"  Assist AutoSkill interview {res['session_id']}: call `assist_interview` with "
+        f"session_key='{res['session_token']}', then loop `await_task` / `report_task` until done."
+    )
+    if not no_browser:
+        webbrowser.open(res["url"])
+
+
+@skill_app.command("assistant")
+def skill_assistant(
+    target: str | None = typer.Option(None, "--target", help="Agent id; all detected ones by default"),
+) -> None:
+    """Install the `autoskill` skill, which teaches your agent how to work with AutoSkill.
+
+    Without it an agent has no idea what to do when you ask it to automate something, or when you
+    paste a line asking it to assist an interview.
+    """
+    cfg = _cfg()
+    if not cfg.server_url:
+        _fail("run `autoskill login <server-url>` first")
+    data = fetch_url(f"{cfg.server_url.rstrip('/')}/dl/skill/autoskill.zip")
+    root = _single_root(_extract_zip(data))
+    targets = [target] if target else detect_targets()
+    if not targets:
+        _fail("no agent detected on this machine; pass --target explicitly")
+    for tid in targets:
+        t = get_target(tid)
+        dest = t.skill_dir / root.name
+        if dest.exists():
+            shutil.rmtree(dest)
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copytree(root, dest)
+        typer.secho(f"{tid}: installed {dest}", fg=typer.colors.GREEN)
+    typer.echo("Restart your agent session so it picks the skill up.")
+
+
 @app.command()
 def doctor() -> None:
     """Show detected agents, configuration and companion registration."""
@@ -95,14 +211,31 @@ def doctor() -> None:
     typer.echo(
         f"server: {cfg.server_url or '-'}   logged in: {'yes' if cfg.api_key else 'no'}   device: {cfg.device_id or '-'}"
     )
+    # Every known agent is listed, found or not, with the directory that was resolved and how. The
+    # earlier version printed only what detection found, which is exactly the information that is
+    # useless when detection is the thing that went wrong: an agent installed somewhere unusual was
+    # simply absent from the list, indistinguishable from one that is not installed at all.
     found = detect_targets()
     typer.echo("agents detected: " + (", ".join(found) or "none"))
-    for tid in found:
+    typer.echo("where each agent is looked for:")
+    for tid in TARGETS:
         t = get_target(tid)
-        regs = t.registered_mcps()
-        typer.echo(
-            f"  {t.display_name}: skills in {t.skill_dir}  companion: {'registered' if 'autoskill-companion' in regs else 'missing'}"
-        )
+        here = t.detect()
+        mark = "✓" if here else " "
+        # `registered_mcps` reads the agent's config file; there is nothing to read if it is absent.
+        companion = "-"
+        if here:
+            try:
+                companion = "registered" if "autoskill-companion" in t.registered_mcps() else "missing"
+            except Exception as exc:  # noqa: BLE001 - a config we cannot parse is a finding, not a crash
+                companion = f"unreadable ({exc.__class__.__name__})"
+        typer.echo(f"  {mark} {t.display_name} [{tid}]")
+        typer.echo(f"      dir: {t.base}  ({t.base_source})")
+        typer.echo(f"      skills: {t.skill_dir}   config: {t.mcp_config}   companion: {companion}")
+    typer.echo(
+        f"an agent living elsewhere: add it to {config_path()} as\n"
+        '  [targets.<agent>]\n  home = "<full path to the agent directory>"'
+    )
     if cfg.trials:
         typer.echo(
             "open trials: " + ", ".join(f"{v['skill']}@{v['version']} ({v['target']})" for v in cfg.trials.values())
@@ -210,8 +343,52 @@ def _single_root(tmp: Path) -> Path:
     return tmp
 
 
-def _run(cmd: list[str], **kw) -> subprocess.CompletedProcess:
-    return subprocess.run(cmd, check=True, capture_output=True, text=True, **kw)
+def _version_parts(v: str) -> tuple:
+    return tuple(int(p) if p.isdigit() else p for p in re.split(r"[.+-]", v or "0"))
+
+
+def _is_newer(advertised: str | None, installed: str) -> bool:
+    """Whether the server's companion is newer than this one, comparing numerically where possible.
+
+    A string comparison would call 0.2.10 older than 0.2.9. Anything unparseable — a dev build, a
+    local suffix — is treated as not newer: refusing to upgrade is recoverable, upgrading in a loop
+    because two versions never compare equal is not.
+    """
+    if not advertised or advertised == installed:
+        return False
+    try:
+        return _version_parts(advertised) > _version_parts(installed)
+    except TypeError:
+        return False
+
+
+def _companion_install_failed(exc: Exception, *, updating: bool, wanted: str | None, url: str) -> None:
+    """Explain a failed companion install, and name the cause when it is the usual one.
+
+    On Windows an upgrade fails whenever the agent is running, which is nearly always: the companion
+    it started holds `python.exe` inside the very virtualenv pipx has to replace, and the install dies
+    with `os error 32`. The bare exception text mentions two paths and a process id and leaves the
+    person to work out that their agent is the process — so the cure is spelled out instead. The
+    install is left untouched when this happens: the previous companion keeps working.
+    """
+    text = f"{exc}\n{getattr(exc, 'stderr', '') or ''}{getattr(exc, 'stdout', '') or ''}"
+    locked = "os error 32" in text or "used by another process" in text or "being used by another" in text
+    what = "update" if updating else "install"
+    if locked:
+        typer.secho(
+            f"Could not {what} autoskill-local to {wanted}: your agent is running the current companion "
+            "and is holding its files open.",
+            fg=typer.colors.YELLOW,
+        )
+        typer.echo("  Close the agent, run this, then start it again:")
+        typer.echo(f"    pipx install --force {url}")
+        typer.echo("  Everything else was installed; the companion you already have keeps working.")
+        return
+    typer.echo(f"(could not {what} autoskill-local automatically: {exc})")
+
+
+def _run(cmd: list[str], check: bool = True, **kw) -> subprocess.CompletedProcess:
+    return subprocess.run(cmd, check=check, capture_output=True, text=True, **kw)
 
 
 def _install_python_package(name: str, spec: str) -> tuple[str, dict[str, Any]]:
@@ -301,9 +478,9 @@ def _install_from_manifest(
             root = _single_root(_extract_zip(_fetch_artifact(download)))
             dest = comp.get("install_paths", {}).get(target)
             info = t.install_skill(root, comp["slug"])
-            if dest and Path(dest).expanduser() != Path(info["skill_dir"]):
+            target_dir = t.resolve_install_path(dest) if dest else None
+            if target_dir and target_dir != Path(info["skill_dir"]):
                 # the catalog asked for a specific folder on this agent
-                target_dir = Path(dest).expanduser()
                 if target_dir.exists():
                     shutil.rmtree(target_dir)
                 target_dir.parent.mkdir(parents=True, exist_ok=True)
@@ -322,12 +499,26 @@ def _install_from_manifest(
     for m in manifest.get("mcp_servers", []):
         reg_info = m.get("registration") or {}
         if m.get("kind") == "companion":
-            if not shutil.which("autoskill-companion") and m.get("download"):
+            # Installed when absent, and upgraded when the server advertises a newer one. It used to
+            # be installed only when missing, so a machine that had it once kept it for ever: the
+            # server could ship a companion that knew about new tools, or carried corrected
+            # instructions, and every install here went on registering the old one. The manifest has
+            # carried `version` all along — nothing was comparing it.
+            have = shutil.which("autoskill-companion")
+            wanted = m.get("version")
+            if m.get("download") and (not have or _is_newer(wanted, __version__)):
                 try:
-                    cmd, rec = _install_python_package("autoskill-companion", m["download"]["url"])
+                    _cmd, rec = _install_python_package("autoskill-companion", m["download"]["url"])
                     record["python_packages"].append(rec)
+                    if have:
+                        # The agent loaded the old code when it started and holds it until it restarts;
+                        # on Windows it may even be holding the file we just replaced.
+                        typer.secho(
+                            f"autoskill-local updated to {wanted} — restart your agent so it picks it up.",
+                            fg=typer.colors.YELLOW,
+                        )
                 except (subprocess.CalledProcessError, OSError) as exc:  # pragma: no cover
-                    typer.echo(f"(could not install autoskill-local automatically: {exc})")
+                    _companion_install_failed(exc, updating=bool(have), wanted=wanted, url=m["download"]["url"])
             reg = _companion_registration(cfg, trial_token)
         else:
             command = reg_info.get("command") or m["name"]
@@ -399,6 +590,7 @@ def trial_install(
         record = _install(cfg, target, root, meta, folder, token, {})
         version = meta.get("version", version)
         build = meta.get("build", 1)
+    _refresh_device(cfg)
     client.post(f"/trials/{session}/installed", {"install_manifest": record, "build": build})
     cfg.trials[session] = {"token": token, "target": target, "skill": folder, "version": version, "manifest": record}
     cfg.save()
@@ -458,22 +650,106 @@ def trial_sync(session: str | None = typer.Argument(None), watch: bool = False) 
         time.sleep(5)
 
 
+TRIAL_BANNER_START = "> ## "
+
+
+def _strip_trial_markings(text: str) -> str:
+    """Remove what only belonged to the trial: the frontmatter marker and the banner under the title.
+
+    The fallback for when the definitive package cannot be fetched. It is deliberately narrow — the
+    banner is a run of quoted lines that code wrote, immediately after the H1 — because guessing at
+    somebody's document is how a promotion quietly corrupts a skill.
+    """
+    lines = [ln for ln in text.splitlines() if not ln.strip().startswith("autoskill_trial:")]
+    out, i = [], 0
+    while i < len(lines):
+        if lines[i].startswith(TRIAL_BANNER_START) and "trial" in lines[i].lower():
+            while i < len(lines) and (lines[i].startswith(">") or not lines[i].strip()):
+                i += 1
+            continue
+        out.append(lines[i])
+        i += 1
+    return "\n".join(out).rstrip() + "\n"
+
+
+def _promote_to_permanent(cfg: LocalConfig, skill_dir: Path, version_id: str | None, name: str) -> None:
+    """Replace the trial copy with the version the server ships for an ordinary installation.
+
+    A trial copy is not the same document. It opens with a banner telling the agent to walk every step
+    through checkpoints and — the part that matters here — to stop and refuse the work if the companion
+    is not available. That is right for a trial and wrong for a skill somebody now expects to just run:
+    keeping it made an accepted skill dependent on the trial machinery it was supposed to graduate from.
+
+    Fetching the real package rather than editing the trial one also picks up whatever else the server
+    now generates, and leaves nothing behind that a text edit might have missed. The backup of what was
+    there before the trial is not touched: this replaces the trial copy only.
+    """
+    fetched = None
+    if version_id:
+        try:
+            data = _client(cfg).get(f"/versions/{version_id}/package.zip")
+            fetched = _single_root(_extract_zip(data))
+        except (ServerError, OSError, RuntimeError, ValueError) as exc:
+            typer.secho(f"(could not fetch the final package: {exc})", fg=typer.colors.YELLOW)
+    if fetched is not None:
+        if skill_dir.exists():
+            shutil.rmtree(skill_dir)
+        skill_dir.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copytree(fetched, skill_dir)
+        return
+    md = skill_dir / "SKILL.md"
+    if md.exists():
+        md.write_text(_strip_trial_markings(md.read_text()))
+        typer.secho(f"{name}: kept the trial copy with its trial instructions removed.", fg=typer.colors.YELLOW)
+
+
+def _report_outcome(cfg: LocalConfig, sid: str, token: str, outcome: str, keep: bool) -> bool:
+    """Tell the server the outcome, and cope with it already knowing. Returns the keep to act on.
+
+    The outcome is normally decided in the browser, and the page then asks the person to run this
+    command — which posted the outcome a second time and died on `409 trial_not_open`, with a
+    traceback, having done none of the local work it exists for. The server refusing to decide a
+    closed trial twice is right; treating that as failure was not, because deciding was never this
+    command's real job. Copying files and rewriting the agent's configuration is, and that is exactly
+    the part the browser cannot do.
+
+    So a closed trial is read back instead: whatever was decided there is what happens here, and a
+    `--keep` typed at a trial the person already removed in the page does not quietly resurrect it.
+    """
+    try:
+        _client(cfg, trial_token=token).post(f"/trials/{sid}/outcome", {"outcome": outcome, "keep_installed": keep})
+        return keep
+    except ServerError as exc:
+        if exc.code not in ("trial_not_open", "trial_closed"):
+            raise
+        try:
+            trial = _client(cfg).get(f"/trials/{sid}")["trial"]
+        except (ServerError, OSError):
+            typer.secho("This trial is already closed on the server; settling the local copy.", fg=typer.colors.YELLOW)
+            return keep
+        decided, kept = trial.get("outcome"), trial.get("keep_installed")
+        typer.secho(f"Already decided in AutoSkill as {decided!r}; settling the local copy to match.", fg=typer.colors.YELLOW)
+        return keep if kept is None else bool(kept)
+
+
 def _finish_trial(cfg: LocalConfig, sid: str, keep: bool) -> None:
     info = cfg.trials.pop(sid, None)
-    if not info:
-        _fail(f"unknown trial {sid}")
+    if not info or not info.get("target"):
+        # Settled with a token on a machine that never installed it: there is nothing here to promote
+        # or delete, and pretending otherwise would either fail or remove somebody else's folder.
+        typer.secho(
+            "The trial is settled in AutoSkill. Nothing was installed from this machine, so no local "
+            "copy was touched; remove it on the machine that has it.",
+            fg=typer.colors.YELLOW,
+        )
+        cfg.save()
+        return
     t = get_target(info["target"])
     manifest = info.get("manifest", {})
     if keep:
-        # promote: drop the trial marker and the trial token from the companion env
         skill_dir = Path(manifest.get("skill_dir", t.skill_dir / info["skill"]))
-        md = skill_dir / "SKILL.md"
-        if md.exists():
-            text = md.read_text()
-            md.write_text(
-                "\n".join(line for line in text.splitlines() if not line.strip().startswith("autoskill_trial:")) + "\n"
-            )
-        t.register_mcp(_companion_registration(cfg))
+        _promote_to_permanent(cfg, skill_dir, manifest.get("version_id"), info["skill"])
+        t.register_mcp(_companion_registration(cfg))  # re-registered without the trial token
         cfg.installs[f"{info['target']}:{info['skill']}"] = {**manifest, "version": info.get("version")}
         typer.secho(f"{info['skill']} kept as a permanent installation on {t.display_name}.", fg=typer.colors.GREEN)
         if manifest.get("version_id"):
@@ -497,40 +773,61 @@ def _remove_bundle_parts(t, manifest: dict[str, Any]) -> None:
     for pkg in manifest.get("python_packages", []):
         if pkg.get("method") == "venv" and pkg.get("path"):
             shutil.rmtree(pkg["path"], ignore_errors=True)
+        # Uninstalling goes through `_run`, like installing: one place that spawns processes, so what
+        # removal does can be seen and stubbed exactly where installation already could. `check=False`
+        # is the difference that matters here — a package already gone must not stop the cleanup of
+        # everything after it.
         elif pkg.get("method") == "pipx" and pkg.get("package") and shutil.which("pipx"):
-            subprocess.run(["pipx", "uninstall", pkg["package"]], check=False, capture_output=True)
+            _run(["pipx", "uninstall", pkg["package"]], check=False)
         elif pkg.get("method") == "npm" and pkg.get("package") and shutil.which("npm"):
-            subprocess.run(["npm", "uninstall", "-g", pkg["package"]], check=False, capture_output=True)
+            _run(["npm", "uninstall", "-g", pkg["package"]], check=False)
         elif pkg.get("method") == "binary" and pkg.get("path"):
             Path(pkg["path"]).unlink(missing_ok=True)
 
 
+def _trial_record(cfg: LocalConfig, session: str, token: str | None) -> dict:
+    """The local record of a trial, or one rebuilt from a token given on the command line.
+
+    Settling a trial used to require the machine to still hold its record, which is the normal case
+    and not the only one: a config restored from elsewhere, a second machine, a person following the
+    printed command on a laptop that never ran the install. The token in that command is what proves
+    the right to settle the trial, so accepting it here is what makes the printed line runnable
+    wherever it is pasted. What is missing without a local record is only the manifest — the paths on
+    disk — so the fall-back settles the server side and says the local copy has to go by hand.
+    """
+    info = cfg.trials.get(session)
+    if info:
+        return info
+    if not token:
+        _fail(f"unknown trial {session} on this machine; pass --token <trial-token> to settle it anyway")
+    typer.secho("No local record of this trial; using the token given.", fg=typer.colors.YELLOW)
+    return {"token": token, "target": "", "skill": "", "version": None, "manifest": {}}
+
+
 @trial_app.command("accept")
-def trial_accept(session: str, keep: bool = typer.Option(True, "--keep/--remove")) -> None:
+def trial_accept(
+    session: str,
+    keep: bool = typer.Option(True, "--keep/--remove"),
+    token: str | None = typer.Option(None, "--token", help="trial token, when this machine has no record of it"),
+) -> None:
     """Tell AutoSkill the trial is accepted; keep the copy as permanent or remove it."""
     cfg = _cfg()
-    info = cfg.trials.get(session)
-    if not info:
-        _fail(f"unknown trial {session}")
-    _client(cfg, trial_token=info["token"]).post(
-        f"/trials/{session}/outcome", {"outcome": "accepted", "keep_installed": keep}
-    )
+    info = _trial_record(cfg, session, token)
+    keep = _report_outcome(cfg, session, info["token"], "accepted", keep)
     _finish_trial(cfg, session, keep)
 
 
 @trial_app.command("remove")
 def trial_remove(
-    session: str, outcome: str = typer.Option("removed", help="removed | major_rework | changes_requested")
+    session: str,
+    outcome: str = typer.Option("removed", help="removed | major_rework | changes_requested"),
+    token: str | None = typer.Option(None, "--token", help="trial token, when this machine has no record of it"),
 ) -> None:
     """Remove the trial copy and report the outcome."""
     cfg = _cfg()
-    info = cfg.trials.get(session)
-    if not info:
-        _fail(f"unknown trial {session}")
+    info = _trial_record(cfg, session, token)
     try:
-        _client(cfg, trial_token=info["token"]).post(
-            f"/trials/{session}/outcome", {"outcome": outcome, "keep_installed": False}
-        )
+        _report_outcome(cfg, session, info["token"], outcome, keep=False)
     except ServerError as exc:
         typer.echo(f"server: {exc} (removing locally anyway)")
     _finish_trial(cfg, session, keep=False)
@@ -545,6 +842,7 @@ def install(
 ) -> None:
     """Permanently install a published/tested version, with its MCP servers and shared components."""
     cfg = _cfg()
+    _refresh_device(cfg)
     if from_url:
         manifest = fetch_json(from_url)
         target = target or manifest.get("default_target") or "hermes"
@@ -670,3 +968,17 @@ def list_installs() -> None:
 
 if __name__ == "__main__":
     app()
+
+
+def main() -> None:
+    """Entry point: report what the server said, rather than how the call stack got there."""
+    try:
+        app()
+    except ServerError as exc:
+        detail = ""
+        if isinstance(exc.body, dict):
+            detail = (exc.body.get("error") or {}).get("message") or ""
+        typer.secho(f"{exc.code or 'error'}: {detail or exc}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1) from None
+    except KeyboardInterrupt:
+        raise typer.Exit(code=130) from None

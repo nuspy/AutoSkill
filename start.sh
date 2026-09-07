@@ -98,7 +98,13 @@ launch() {
     printf '\033[1m==> %s\033[0m (pid %s)\n' "$name" "$!"
 }
 
-run_api() { cd "$ROOT/backend" && exec "$PY" -m uvicorn autoskill.main:app --port "$API_PORT" "$@"; }
+# --timeout-keep-alive: the default of 5s is shorter than the gap between two polls of a page
+# waiting for a person, so anything in front that pools sockets (the Vite dev proxy, nginx) reuses
+# one the server has just closed and the caller gets ECONNRESET. The server must be the patient one.
+# 1800s covers a trial where the person steps away between two checkpoints. Note what it does *not*
+# bound: it is the idle life of a TCP connection, not of a trial. A trial can last hours — its state
+# lives in the database, and a client whose socket was closed simply opens another one.
+run_api() { cd "$ROOT/backend" && exec "$PY" -m uvicorn autoskill.main:app --port "$API_PORT" --timeout-keep-alive 1800 "$@"; }
 run_worker() { cd "$ROOT/backend" && exec "$PY" -m autoskill.worker; }
 run_web() { cd "$ROOT/frontend" && exec npm run dev -- --port "$WEB_PORT"; }
 

@@ -49,7 +49,13 @@ class TrialSession(IdMixin, TimestampMixin, Base):
     # skip checkpoints of deterministic steps already confirmed N times (setting auto_confirm_after_confirmations)
     auto_confirm: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     state: Mapped[str] = mapped_column(String(16), default="requested", index=True, nullable=False)
+    # Hashed for lookup, encrypted so the owner can be shown the install command again — the same
+    # pair, for the same reason, as DownloadGrant. Hashing alone was right for a bearer secret and
+    # wrong for this one: the command is the only thing that starts a trial, it was displayed once in
+    # a dialog, and afterwards the only way back to it was to mint a new token and invalidate the one
+    # already handed to an agent. Nullable because trials created before this have no stored copy.
     token_hash: Mapped[str] = mapped_column(String(128), unique=True, nullable=False)
+    token_encrypted: Mapped[str | None] = mapped_column(Text)
     build: Mapped[int] = mapped_column(Integer, default=1, nullable=False)  # bumps when the package changes
     install_manifest: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
     current_step_key: Mapped[str | None] = mapped_column(String(64))

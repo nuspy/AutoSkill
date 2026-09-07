@@ -129,6 +129,11 @@ async def test_generate_mcp_end_to_end(app_client):
     try:
         skill_id, version = await make_draft(app_client, headers, project, fake)
         assert (await app_client.get(f"/api/v1/versions/{version['id']}/mcp", headers=headers)).json() is None
+        # this test walks the MCP path; scripts are the default, so ask for a server explicitly
+        chosen = await app_client.put(
+            f"/api/v1/versions/{version['id']}/delivery", json={"delivery": "mcp"}, headers=headers
+        )
+        assert chosen.status_code == 200, chosen.text
         # first attempt has forbidden code -> repaired on the second attempt
         fake.script(Scripted(purpose="author", json=spec_dict(bad=True)), Scripted(purpose="author", json=spec_dict()))
         gen = await app_client.post(f"/api/v1/versions/{version['id']}/mcp/generate", headers=headers)

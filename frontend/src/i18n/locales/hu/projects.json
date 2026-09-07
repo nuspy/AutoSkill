@@ -8,6 +8,34 @@
   "settings": "Beállítások",
   "empty": "Hozd létre az első projektedet, hogy elkezdhess leírni egy feladatot.",
   "created": "Projekt létrehozva",
+  "gettingStarted": {
+    "title": "Első lépések",
+    "subtitle": "Üres fióktól az ügynökig, amely a skilljeiddel dolgozik.",
+    "done": "kész",
+    "dismiss": "Ne jelenjen meg többé",
+    "provider": {
+      "title": "Válassz LLM-szolgáltatót",
+      "body": "Nélküle semmi generatív nem működik: az interjú, a piszkozatok és a coach is no_llm_provider választ ad.",
+      "action": "MI-szolgáltatók megnyitása"
+    },
+    "project": {
+      "title": "Hozz létre egy projektet",
+      "body": "A skillek egy projekten belül élnek, azokkal együtt, akik dolgoznak rajtuk."
+    },
+    "cli": {
+      "title": "Telepítsd a parancssori eszközt",
+      "body": "Nincs fenn a PyPI-n: ez a kiszolgáló osztja szét. A pipx saját virtualenvben tartja, rendszergazdai jog nélkül."
+    },
+    "device": {
+      "title": "Regisztráld az eszközt",
+      "body": "A parancs kiír egy kódot. Írd be itt és hagyd jóvá: a gép saját kulcsot kap, amelyet az Eszközeim oldalon vonhatsz vissza.",
+      "action": "Kód megadása"
+    },
+    "skill": {
+      "title": "Hozd létre az első skillt",
+      "body": "Nyiss meg egy projektet és válaszolj az interjúra: az AutoSkill a válaszaidból megírja a skillt, majd címet ad az ügynöködnek, ahonnan telepítheti."
+    }
+  },
   "dashboard": {
     "skills": "Skillek",
     "runs": "Legutóbbi futások",

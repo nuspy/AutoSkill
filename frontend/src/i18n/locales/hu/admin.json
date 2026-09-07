@@ -29,7 +29,9 @@
     "checkpoint_timeout_minutes": "Ellenőrzőpont időkorlátja (perc)",
     "auto_confirm_after_confirmations": "Determinisztikus lépések automatikus megerősítése N megerősítés után",
     "download_rate_per_minute": "Letöltések percenként linkenként / IP-nként",
-    "max_active_download_links_per_user": "Max. aktív letöltési link felhasználónként"
+    "max_active_download_links_per_user": "Max. aktív letöltési link felhasználónként",
+    "llm_output_limit_enabled": "Automatikus feladatok kimenetének korlátozása",
+    "llm_output_limit_tokens": "Kimeneti korlát (token)"
   },
   "library": "Könyvtár",
   "hub": "Hub",

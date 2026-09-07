@@ -227,6 +227,7 @@ def build_adapter(target: Target) -> LlmProvider:
             api_key=target.api_key,
             base_url=base or "https://api.anthropic.com",
             capabilities=caps,
+            timeout=get_settings().llm_request_timeout_seconds,
         )
     if target.api not in ("openai", "lmstudio", "vllm", "gemini"):
         # Google Cloud Code speaks its own protocol and refuses individual plans anyway.
@@ -240,6 +241,7 @@ def build_adapter(target: Target) -> LlmProvider:
         api_key=target.api_key or None,
         capabilities=caps,
         extra_headers=target.extra_headers or None,
+        timeout=get_settings().llm_request_timeout_seconds,
     )
 
 

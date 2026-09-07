@@ -46,6 +46,11 @@ class SkillVersion(IdMixin, TimestampMixin, Base):
     build_log: Mapped[str | None] = mapped_column(Text)
     draft_spec: Mapped[dict | None] = mapped_column(JSON)
     build: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    # How the deterministic steps are delivered: "script" (modules with a CLI, the default: no
+    # process to keep alive and no tool descriptions eating the agent's context) or "mcp" (a
+    # server exposing them as tools, for agents without a shell or steps needing per-action
+    # authorisation). See services/delivery.py for what forces the choice.
+    delivery: Mapped[str] = mapped_column(String(16), default="script", nullable=False)
     created_by: Mapped[str | None] = mapped_column(String(36))  # user id or "system"
     state_changed_at: Mapped[datetime | None] = mapped_column(TZDateTime)
     is_current_draft: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)

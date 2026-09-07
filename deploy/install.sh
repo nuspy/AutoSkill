@@ -84,7 +84,7 @@ echo "==> Database migrations"
 (cd "${TARGET}/app" && set -a && . "${TARGET}/autoskill.env" && set +a && "${TARGET}/venv/bin/alembic" upgrade head)
 
 if [ "${SKIP_SYSTEMD}" = "1" ]; then
-  echo "==> Done (systemd skipped). Start with: ${TARGET}/venv/bin/uvicorn autoskill.main:app --app-dir ${TARGET}/app"
+  echo "==> Done (systemd skipped). Start with: ${TARGET}/venv/bin/uvicorn autoskill.main:app --app-dir ${TARGET}/app --timeout-keep-alive 1800"
   exit 0
 fi
 chown -R "${SERVICE_USER}:${SERVICE_USER}" "${TARGET}"

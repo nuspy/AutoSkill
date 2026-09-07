@@ -42,8 +42,9 @@ from autoskill.schemas.bundle import (
     SkillEntry,
     TrialEntry,
 )
+from autoskill.services.drafting.assemble import with_current_protocol, with_trial_preamble
 from autoskill.services.library.catalog import components_for_version
-from autoskill.services.packaging.skill_package import SkillPackage
+from autoskill.services.packaging.skill_package import SkillPackage, render_frontmatter
 from autoskill.services.packaging.store import load_package
 from autoskill.services.targets import get_adapter, list_targets
 from autoskill.services.targets.base import InstallContext, McpServerSpec
@@ -109,7 +110,11 @@ def companion_entry() -> CompanionEntry:
         version=_WHEEL_RE.match(wheel.name).group("ver"),  # type: ignore[union-attr]
         wheel=ArtifactRef(url=url, filename=wheel.name, sha256=hashlib.sha256(data).hexdigest(), size=len(data)),
         pip_spec=url,
-        install_command=f"pipx install {url}",
+        # `--force` so the same line installs and upgrades: without it pipx refuses when the venv is
+        # already there, which is exactly the case whenever this server publishes a newer wheel. The
+        # URL names the current version because pip requires a `.whl` ending — a "latest" redirect
+        # cannot be installed from — and the server always advertises its newest build.
+        install_command=f"pipx install --force {url}",
         env_requirements=COMPANION_ENV,
     )
 
@@ -300,24 +305,26 @@ async def build_bundle(
 
     mv = await generated_mcp(session, version)
     if mv is not None:
+        as_cli = version.delivery == "script"
         data = mcp_zip(mv)
         url = f"{base_url}/mcp/{server_name}.zip"
         reg = McpRegistration(command=server_name, args=[], env_requirements=_env(mv.env_requirements))
-        spec = _spec_for(
-            server_name, reg, f"deterministic tools for {skill.title} ({len(mv.tools)} tools)", f"pipx install {url}"
-        )
+        what = "commands" if as_cli else "tools"
+        description = f"deterministic {what} for {skill.title} ({len(mv.tools)} steps)"
+        spec = _spec_for(server_name, reg, description, f"pipx install {url}")
         mcp_servers.append(
             McpServerEntry(
                 name=server_name,
-                kind="generated",
-                description=f"deterministic tools for {skill.title} ({len(mv.tools)} tools)",
+                kind="generated_cli" if as_cli else "generated",
+                description=description,
                 version=f"{mv.version}+build{mv.build}",
                 download=ArtifactRef(
                     url=url, filename=f"{server_name}.zip", sha256=hashlib.sha256(data).hexdigest(), size=len(data)
                 ),
                 install=InstallMethod(method="pipx_archive", command=f"pipx install {url}", spec=url),
                 registration=reg,
-                snippets=_snippets(spec),
+                # a command line has nothing to register in the agent's MCP configuration
+                snippets={} if as_cli else _snippets(spec),
                 tools=list(mv.tools),
             )
         )
@@ -420,7 +427,9 @@ async def build_bundle(
     )
 
 
-def install_context(bundle: InstallBundle, target: str, project_slug: str = "") -> InstallContext:
+def install_context(
+    bundle: InstallBundle, target: str, project_slug: str = "", trial_token: str | None = None
+) -> InstallContext:
     """Render-ready context for TargetAdapter.render_install_md, derived from the bundle."""
     specs: list[McpServerSpec] = []
     for m in bundle.mcp_servers:
@@ -475,14 +484,18 @@ def install_context(bundle: InstallBundle, target: str, project_slug: str = "") 
         companion_install_command=bundle.companion.install_command,
         artifacts=bundle.artifacts(),
         agent_instructions=list(bundle.agent_instructions),
+        version_id=bundle.skill.version_id,
         trial_session_id=bundle.trial.session_id if bundle.trial else None,
+        trial_token=trial_token,
         installed_callback_url=bundle.trial.installed_callback_url if bundle.trial else None,
         expires_at=bundle.expires_at.isoformat(timespec="minutes") if bundle.expires_at else None,
     )
 
 
-def render_install_md(bundle: InstallBundle, target: str, project_slug: str = "") -> str:
-    return get_adapter(target).render_install_md(install_context(bundle, target, project_slug))
+def render_install_md(
+    bundle: InstallBundle, target: str, project_slug: str = "", trial_token: str | None = None
+) -> str:
+    return get_adapter(target).render_install_md(install_context(bundle, target, project_slug, trial_token))
 
 
 def bundle_json(bundle: InstallBundle) -> bytes:
@@ -500,11 +513,21 @@ async def skill_zip(
 ) -> bytes:
     """The skill package plus INSTALL docs, autoskill.json (= install.json) and the generated MCP files."""
     pkg = load_package(skill.name, version)
+    # The companion protocol is rewritten on every delivery, trial or not: it describes the rules this
+    # server enforces, so a copy frozen at drafting time is a description of rules that may no longer
+    # exist. Correcting the wording in code had no effect on a single skill already drafted until this
+    # line existed — the packages went on shipping the old text, and agents went on following it.
+    body = with_current_protocol(pkg.body(), name=skill.name, version=version.version)
+    fm = pkg.frontmatter()
     if trial is not None:
-        fm = pkg.frontmatter()
         fm.setdefault("metadata", {})["autoskill_trial"] = trial.id
         fm["metadata"]["build"] = str(version.build)
-        pkg.set_frontmatter(fm)
+        # The marker used to live only in the frontmatter, where it named the trial without ever
+        # telling the agent what being in one requires of it. The body said the protocol was optional
+        # and said it last; so a trial copy and a permanent copy read identically, and the first real
+        # trial was carried out with no checkpoint at all.
+        body = with_trial_preamble(body, trial_id=trial.id, name=skill.name, version=version.version)
+    pkg.write("SKILL.md", render_frontmatter(fm) + body)
     project = await session.get(Project, skill.project_id)
     slug = project.slug if project else ""
     extra: dict[str, bytes] = {}

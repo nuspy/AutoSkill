@@ -6,10 +6,24 @@ from autoskill.core.errors import NotFound
 from autoskill.db.base import utcnow
 from autoskill.models.api_key import ApiKey
 from autoskill.models.device import Device
+from autoskill.schemas.bundle import CompanionEntry
 from autoskill.schemas.common import OkResponse
 from autoskill.schemas.device import DeviceHeartbeat, DeviceOut
+from autoskill.services.distribution import bundle as bundles
 
 router = APIRouter(tags=["devices"])
+
+
+@router.get("/devices/companion", response_model=CompanionEntry)
+async def companion() -> CompanionEntry:
+    """What to install to connect a machine, resolved to the wheel this server publishes.
+
+    `autoskill-local` is not on PyPI - that name is taken by an unrelated package - so the
+    command has to name a versioned URL under /dl, which only the server can build. Public,
+    like the wheel it points at: the page that shows the command is what a person reads
+    before having anything to authenticate with.
+    """
+    return bundles.companion_entry()
 
 
 @router.get("/me/devices", response_model=list[DeviceOut])

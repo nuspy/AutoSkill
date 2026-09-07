@@ -8,6 +8,7 @@ import json
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from autoskill.llm.budget import output_budget
 from autoskill.core.errors import Conflict, NotFound
 from autoskill.core.events import emit, project_channel
 from autoskill.llm.provider import ChatMessage, ChatRequest, LlmError
@@ -20,6 +21,7 @@ from autoskill.models.skill import Skill
 from autoskill.models.skill_version import SkillVersion, StepDefinition
 from autoskill.prompts import render
 from autoskill.services.mcpgen.assemble import assemble_mcp, input_schema, package_name
+from autoskill.services.scriptgen.assemble import assemble_scripts
 from autoskill.services.mcpgen.spec import ALLOWED_TOP_LEVEL_IMPORTS, McpSpec, StaticIssue, check_python_source
 from autoskill.services.memory.context import memory_context
 from autoskill.services.storage.content_store import get_content_store
@@ -132,7 +134,7 @@ async def generate_mcp(
             ChatRequest(
                 messages=[ChatMessage(role="system", content=system), ChatMessage(role="user", content=prompt)],
                 temperature=0.1,
-                max_tokens=8000,
+                max_tokens=await output_budget(session),
                 seed=5,
                 purpose="author",
             ),
@@ -150,7 +152,11 @@ async def generate_mcp(
         spec.tools = [t for t in spec.tools if t.step_key in step_map]
         if not spec.tools:
             raise LlmError("mcp author produced no tool for the deterministic steps")
-        files = assemble_mcp(server_name, version.version, spec)
+        files = (
+            assemble_scripts(server_name, version.version, spec, skill.name)
+            if version.delivery == "script"
+            else assemble_mcp(server_name, version.version, spec)
+        )
         issues = static_check(files, spec)
         errors = [i for i in issues if i.level == "error"]
         log.append(
@@ -172,6 +178,9 @@ async def generate_mcp(
         server = McpServer(project_id=skill.project_id, skill_id=skill.id, name=server_name)
         session.add(server)
         await session.flush()
+    # the row records what was actually written, so installation knows whether to register
+    # an MCP server or just install a command
+    server.runtime = "python-cli" if version.delivery == "script" else "python-mcp"
     mv = (
         await session.execute(select(McpServerVersion).where(McpServerVersion.skill_version_id == version.id))
     ).scalar_one_or_none()

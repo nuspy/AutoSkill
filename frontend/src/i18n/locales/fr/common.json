@@ -60,6 +60,8 @@
     "registration_closed": "Les inscriptions sont fermées. Demandez une invitation à un administrateur.",
     "not_authenticated": "Veuillez vous connecter.",
     "forbidden": "Vous n'avez pas la permission de faire cela.",
+    "self_review_not_allowed": "Vous avez soumis cette version, vous ne pouvez donc pas la relire vous-même. Un administrateur peut activer « allow self review » dans Administration → Réglages, ou une autre personne peut décider.",
+    "review_not_open": "Cette relecture a déjà été décidée ou retirée.",
     "not_found": "Introuvable.",
     "validation_failed": "Veuillez vérifier le formulaire.",
     "last_owner": "Un projet a besoin d'au moins un propriétaire.",
@@ -70,5 +72,9 @@
     "device_request_not_found": "Ce code est introuvable ou a déjà été utilisé.",
     "device_request_expired": "Ce code a expiré. Relancez la commande de connexion.",
     "generic": "Une erreur est survenue. Veuillez réessayer."
+  },
+  "sound": {
+    "mute": "Couper le son",
+    "unmute": "Activer le son"
   }
 }

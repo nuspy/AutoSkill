@@ -35,3 +35,7 @@ autoskill-companion MCP ──REST──▶ inline runner (single process) or ar
 | Improvement analysis and proposals | `services/improvement/` |
 | LLM adapters, provider resolution, llmswitch bridge | `llm/`, see [llm-providers.md](llm-providers.md) |
 | User-side CLI and companion MCP | `packages/autoskill-local/` |
+
+## Planned work
+
+Decided but not built, with what already exists to build on: [roadmap.md](roadmap.md).

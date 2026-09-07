@@ -20,24 +20,43 @@ export function TrialLauncher({ versionId, projectId, skillId, purpose = "develo
   const devices = useDevices();
   const create = useCreateTrial();
   const [open, setOpen] = useState(false);
-  const [target, setTarget] = useState("hermes");
+  const [chosen, setChosen] = useState<string | null>(null);
   const [mode, setMode] = useState<"interactive" | "async">("interactive");
   const [device, setDevice] = useState<string>("");
   const [autoConfirm, setAutoConfirm] = useState(true);
   const [created, setCreated] = useState<TrialCreated | null>(null);
   const detected = devices.data?.flatMap((d) => d.agent_targets) ?? [];
+  // Default to an agent this machine actually reports. A fixed default installed the trial into
+  // the folder of an agent that was not there: the copy landed where nothing would ever look for
+  // it, the trial stayed `installed` for ever, and the page could only say it was waiting.
+  const target = chosen ?? detected[0] ?? targets.data?.[0]?.id ?? "";
+  const targetMissing = !!target && detected.length > 0 && !detected.includes(target);
   return (
     <>
-      <Button variant={purpose === "develop" ? "primary" : "outline"} onClick={() => setOpen(true)}><FlaskConical className="h-4 w-4" />{label ?? t("skills:trials.launch")}</Button>
+      {/* The label is a sentence, not a word, and it sits in a flex row beside other buttons: without
+          `shrink-0` the row squeezes it and without `whitespace-nowrap` it breaks mid-phrase, which is
+          how the text ended up outside its own button. `px-6` gives it half again the usual breathing
+          room, so the longest translation still sits comfortably inside. */}
+      <Button
+        variant={purpose === "develop" ? "primary" : "outline"}
+        onClick={() => setOpen(true)}
+        className="shrink-0 whitespace-nowrap px-6"
+      >
+        <FlaskConical className="h-4 w-4" />
+        {label ?? t("skills:trials.launch")}
+      </Button>
       <Dialog open={open} onClose={() => { setOpen(false); setCreated(null); }} title={t("skills:trials.launch")} footer={created ? <Button onClick={() => navigate(`/p/${projectId}/skills/${skillId}/trials/${created.id}`)}>{t("skills:trials.openPage")}</Button> : <><Button variant="outline" onClick={() => setOpen(false)}>{t("common:actions.cancel")}</Button><Button loading={create.isPending} onClick={() => create.mutate({ skill_version_id: versionId, target_agent: target, purpose, mode, device_id: device || null, auto_confirm: autoConfirm }, { onSuccess: setCreated })}>{t("skills:trials.create")}</Button></>}>
         {!created ? (
           <div className="space-y-3">
             <p className="text-sm text-muted">{t("skills:trials.intro")}</p>
             <Field label={t("skills:trials.target")}>
-              <Select value={target} onChange={(e) => setTarget(e.target.value)}>
+              <Select value={target} onChange={(e) => setChosen(e.target.value)}>
                 {targets.data?.map((tg) => <option key={tg.id} value={tg.id}>{tg.display_name}{detected.includes(tg.id) ? " ✓" : ""}</option>)}
               </Select>
             </Field>
+            {targetMissing && (
+              <p className="rounded-lg bg-warning/10 px-3 py-2 text-sm text-warning">{t("skills:trials.targetNotDetected")}</p>
+            )}
             <Field label={t("skills:trials.device")}>
               <Select value={device} onChange={(e) => setDevice(e.target.value)}>
                 <option value="">{t("skills:trials.anyDevice")}</option>
@@ -60,7 +79,10 @@ export function TrialLauncher({ versionId, projectId, skillId, purpose = "develo
             {created.bundle_url && (
               <>
                 <CopyRow label={t("skills:trials.bundleUrl")} value={created.bundle_url} hint={t("skills:trials.bundleUrlHint")} />
-                <CopyRow label={t("skills:trials.tellAgent")} value={t("skills:trials.tellAgentText", { url: created.bundle_url, manifest: created.manifest_url ?? "" })} />
+                {/* The instruction carries the trial token, like the CLI command above it: an agent
+                    told to install this trial needs it, and telling it to "ask me" for a value the
+                    person will not have once this dialog closes only moves the dead end. */}
+                <CopyRow label={t("skills:trials.tellAgent")} value={t("skills:trials.tellAgentText", { url: created.bundle_url, manifest: created.manifest_url ?? "", token: created.session_token })} hint={t("skills:trials.tokenWarning")} />
               </>
             )}
           </div>

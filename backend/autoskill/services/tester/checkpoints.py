@@ -143,14 +143,30 @@ async def create_checkpoint(
     mode = _execution_mode(step, trial, requested_mode)
 
     # ---- ordering rules -------------------------------------------------------------
+    # Every refusal below carries `expected_phase` / `expected_step_key`: the call that would be
+    # accepted right now. A bare "no" is a dead end for an agent — the first real trial ended with one.
+    # After a step's `explain` was approved the agent named the next step, was refused, and read the
+    # refusal as "the protocol is not working here": it did the whole task unwatched and called
+    # `end_run`, while the person's page waited for a step that no longer existed. Being told what to
+    # send instead turns the same refusal into a correction.
     if phase == "preview":
         prev = await _last_checkpoint(session, run.id, step_key, it, "explain")
         if prev is None or prev.decision not in ("continue",):
-            raise Conflict("explain_required", message="Send an accepted 'explain' checkpoint before 'preview'.")
+            raise Conflict(
+                "explain_required",
+                message="Send an accepted 'explain' checkpoint before 'preview'.",
+                expected_phase="explain",
+                expected_step_key=step_key,
+            )
     elif phase == "execute":
         prev = await _last_checkpoint(session, run.id, step_key, it, "preview")
         if prev is None or prev.decision not in ("continue", "authorize_execute"):
-            raise Conflict("preview_required", message="An accepted 'preview' is required before 'execute'.")
+            raise Conflict(
+                "preview_required",
+                message="An accepted 'preview' is required before 'execute'.",
+                expected_phase="preview",
+                expected_step_key=step_key,
+            )
         if mode == "simulated":
             raise Conflict(
                 "simulated_step",
@@ -176,7 +192,12 @@ async def create_checkpoint(
         if prev is None or prev.decision != "continue":
             prev = await _last_checkpoint(session, run.id, step_key, it, "preview")
             if prev is None or prev.decision not in ("continue", "authorize_execute"):
-                raise Conflict("preview_required", message="'verify' needs an accepted 'preview' or 'execute'.")
+                raise Conflict(
+                    "preview_required",
+                    message="'verify' needs an accepted 'preview' or 'execute'.",
+                    expected_phase="preview",
+                    expected_step_key=step_key,
+                )
     elif phase == "restore":
         ordered = None
         for prev_phase in ("verify", "execute"):
@@ -198,9 +219,30 @@ async def create_checkpoint(
             )
             if last_verify is None or last_verify.decision not in ("approve_and_authorize_next",):
                 if not await _skipped(session, run.id, trial.current_step_key, trial.current_iteration):
+                    # Name the phase that is actually missing, not just the step: after an approved
+                    # `explain` the agent owes a `preview`, after an approved `preview` a `verify`.
+                    done = {
+                        p
+                        for p in ("explain", "preview", "execute")
+                        if (
+                            cp := await _last_checkpoint(
+                                session, run.id, trial.current_step_key, trial.current_iteration, p
+                            )
+                        )
+                        is not None
+                        and cp.decision in ("continue", "authorize_execute")
+                    }
+                    missing = "verify" if "preview" in done or "execute" in done else "preview"
                     raise Conflict(
                         "previous_step_not_authorized",
-                        message=f"Step {trial.current_step_key!r} was not approved; finish it or ask to skip it.",
+                        message=(
+                            f"Step {trial.current_step_key!r} is not finished: it ends with a 'verify' "
+                            f"decided 'approve_and_authorize_next'. Send phase {missing!r} for "
+                            f"{trial.current_step_key!r} and close it, or ask the person to skip it. "
+                            "Do not carry on without checkpoints."
+                        ),
+                        expected_phase=missing,
+                        expected_step_key=trial.current_step_key,
                     )
         if trial.current_step_key != step_key:
             trial.current_step_key = step_key
@@ -371,3 +413,95 @@ def decision_payload(cp: Checkpoint) -> dict[str, Any]:
     if cp.proposal.get("auto_confirmed"):
         out["auto_confirmed"] = True
     return out
+
+
+async def next_action(session: AsyncSession, cp: Checkpoint) -> dict[str, Any]:
+    """The call the agent is expected to make now, named in the reply that just answered it.
+
+    Three consecutive trials ended the same way: the agent sent `explain` for the first step, was
+    told `continue`, and then logged the step and ended the run. The document it had loaded described
+    the cycle correctly and in plain terms; the reply it was actually reading said only
+    `{"status": "decided", "decision": "continue"}` and left the meaning of that word to memory.
+
+    Instructions at a distance lose to instructions in the reply. So the answer to a checkpoint now
+    carries the next phase and step, and a sentence saying it — the same medicine already given to the
+    409 on the refusal path, applied to the path an agent is actually on when things go right.
+    """
+    if cp.state == "pending":
+        return {
+            "next_call": "await_decision",
+            "next_hint": f"Nobody has decided yet. Call `await_decision` with checkpoint id {cp.id}.",
+        }
+    decision = cp.decision
+    step = cp.step_key
+
+    def at(phase: str, why: str) -> dict[str, Any]:
+        return {
+            "next_phase": phase,
+            "next_step_key": step,
+            "next_hint": f"{why} Send `checkpoint` with phase={phase!r} for step {step!r}.",
+        }
+
+    if decision == "stop":
+        return {"next_call": "end_run", "next_hint": "The person stopped the run. Call `end_run` now."}
+    if decision == "restore":
+        return {
+            "next_call": "restore_snapshot",
+            "next_hint": (
+                f"Restore what you backed up for step {step!r} (`restore_snapshot`), then send "
+                "`checkpoint` with phase='restore' describing what was put back."
+            ),
+        }
+    if decision in ("change", "redo"):
+        return at("explain", "The person asked for a change: read `updated_instructions` and redo this step.")
+    if cp.phase == "explain" and decision == "continue":
+        return at("preview", "Do the read-only part of this step, then show what you found and what you plan.")
+    if cp.phase == "preview" and decision in ("continue", "authorize_execute"):
+        if cp.execution_mode == "simulated":
+            return at(
+                "verify",
+                "This step is simulated in a trial: do not perform the effect, report what would happen.",
+            )
+        return at("execute", "You may carry the step out for real now.")
+    if cp.phase in ("execute", "restore") and decision == "continue":
+        return at("verify", "Report the actual result against this step's success criteria.")
+
+    # The step is closed: `approve_and_authorize_next` on a verify, or a skip. What opens next is the
+    # following step in the skill's own order — the one thing the agent cannot work out from the reply.
+    if decision in ("approve_and_authorize_next", "skip"):
+        run = await session.get(Run, cp.run_id)
+        if run is None or not run.skill_version_id:
+            return {"next_call": "end_run", "next_hint": "Call `end_run` when there is nothing left to do."}
+        keys = list(
+            (
+                await session.execute(
+                    select(StepDefinition.key)
+                    .where(StepDefinition.skill_version_id == run.skill_version_id)
+                    .order_by(StepDefinition.ordinal)
+                )
+            )
+            .scalars()
+            .all()
+        )
+        following = keys[keys.index(step) + 1 :] if step in keys else []
+        if not following:
+            return {
+                "next_call": "end_run",
+                "next_hint": "That was the last step. Call `log_step` for it, then `end_run`.",
+            }
+        nxt = following[0]
+        return {
+            "next_phase": "explain",
+            "next_step_key": nxt,
+            "steps_left": len(following),
+            "next_hint": (
+                f"Step {step!r} is closed — call `log_step` for it. {len(following)} step(s) remain: "
+                f"send `checkpoint` with phase='explain' for step {nxt!r}. Do not call `end_run` yet."
+            ),
+        }
+    return {}
+
+
+async def decision_reply(session: AsyncSession, cp: Checkpoint) -> dict[str, Any]:
+    """`decision_payload` plus what to do next — the shape every checkpoint answer returns."""
+    return {**decision_payload(cp), **await next_action(session, cp)}

@@ -5,8 +5,10 @@ type Theme = "light" | "dark" | "system";
 interface UiState {
   theme: Theme;
   sidebarOpen: boolean;
+  soundOn: boolean;
   setTheme: (theme: Theme) => void;
   toggleSidebar: () => void;
+  toggleSound: () => void;
 }
 
 function readTheme(): Theme {
@@ -14,6 +16,15 @@ function readTheme(): Theme {
     return (localStorage.getItem("autoskill.theme") as Theme) || "system";
   } catch {
     return "system";
+  }
+}
+
+/** On by default: the bell exists for people who walked away, and they cannot ask for it from there. */
+function readSound(): boolean {
+  try {
+    return localStorage.getItem("autoskill.sound") !== "off";
+  } catch {
+    return true;
   }
 }
 
@@ -25,6 +36,7 @@ export function applyTheme(theme: Theme) {
 export const useUi = create<UiState>((set) => ({
   theme: readTheme(),
   sidebarOpen: true,
+  soundOn: readSound(),
   setTheme: (theme) => {
     try {
       localStorage.setItem("autoskill.theme", theme);
@@ -35,4 +47,14 @@ export const useUi = create<UiState>((set) => ({
     set({ theme });
   },
   toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
+  toggleSound: () =>
+    set((s) => {
+      const soundOn = !s.soundOn;
+      try {
+        localStorage.setItem("autoskill.sound", soundOn ? "on" : "off");
+      } catch {
+        /* ignore */
+      }
+      return { soundOn };
+    }),
 }));

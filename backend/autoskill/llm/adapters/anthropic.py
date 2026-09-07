@@ -20,6 +20,10 @@ from autoskill.llm.provider import (
 )
 
 
+# Claude models cap output well below this; the API just needs a number when we do not impose one.
+NO_LIMIT_MAX_TOKENS = 32000
+
+
 class AnthropicProvider:
     name = "anthropic"
 
@@ -29,7 +33,7 @@ class AnthropicProvider:
         api_key: str,
         base_url: str = "https://api.anthropic.com",
         capabilities: Capabilities | None = None,
-        timeout: float = 180.0,
+        timeout: float = 900.0,
         transport: httpx.AsyncBaseTransport | None = None,
     ) -> None:
         self.model = model
@@ -47,7 +51,10 @@ class AnthropicProvider:
 
     def _client(self) -> httpx.AsyncClient:
         return httpx.AsyncClient(
-            base_url=self.base_url, headers=self._headers, timeout=self._timeout, transport=self._transport
+            base_url=self.base_url,
+            headers=self._headers,
+            timeout=httpx.Timeout(self._timeout, connect=15.0),
+            transport=self._transport,
         )
 
     @staticmethod
@@ -79,7 +86,8 @@ class AnthropicProvider:
         body: dict[str, Any] = {
             "model": self.model,
             "messages": messages,
-            "max_tokens": req.max_tokens,
+            # the Messages API requires this field, so "no ceiling" becomes a generous one
+            "max_tokens": req.max_tokens if req.max_tokens is not None else NO_LIMIT_MAX_TOKENS,
             "temperature": req.temperature,
         }
         if system:

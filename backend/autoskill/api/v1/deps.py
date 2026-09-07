@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import Depends, Request
+from fastapi import Depends, Header, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -13,6 +13,7 @@ from autoskill.core.security import decode_access_token, hash_token
 from autoskill.db.base import utcnow
 from autoskill.db.session import get_session
 from autoskill.models.api_key import ApiKey
+from autoskill.models.interview import InterviewSession
 from autoskill.models.user import User, UserRole
 
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
@@ -100,6 +101,29 @@ async def get_user_from_api_key(key: ApiKeyDep, session: SessionDep) -> User:
     return user
 
 
+async def get_interview_caller(
+    request: Request,
+    session: SessionDep,
+    x_autoskill_interview: Annotated[str | None, Header()] = None,
+):
+    """The executor of one interview: an API key **plus** that session's token.
+
+    The same two scopes the telemetry endpoints accept, because this is the same kind of caller: a
+    machine, not a person. The session token is the narrow part — it opens exactly one interview and
+    nothing else — and it never makes the caller a logged-in person: the agent carries out work and
+    reports, while every decision stays with whoever is in the browser.
+    """
+    from autoskill.models.api_key import SCOPE_TELEMETRY_WRITE, SCOPE_TRIAL_CLIENT
+    from autoskill.services.interview import service as interview_service
+
+    if not x_autoskill_interview:
+        raise Unauthorized("interview_token_required")
+    key = await get_api_key(request, session)
+    if SCOPE_TELEMETRY_WRITE not in (key.scopes or []) and SCOPE_TRIAL_CLIENT not in (key.scopes or []):
+        require_scope(key, SCOPE_TELEMETRY_WRITE)
+    return await interview_service.interview_from_agent_token(session, x_autoskill_interview)
+
+
 async def get_user_any_auth(
     request: Request,
     session: SessionDep,
@@ -113,3 +137,5 @@ async def get_user_any_auth(
 
 
 AnyAuthUser = Annotated[User, Depends(get_user_any_auth)]
+# the interview an attached agent is allowed to work on
+InterviewCallerDep = Annotated[InterviewSession, Depends(get_interview_caller)]

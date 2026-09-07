@@ -8,7 +8,9 @@ User=@USER@
 Group=@USER@
 WorkingDirectory=@TARGET@/app
 EnvironmentFile=@TARGET@/autoskill.env
-ExecStart=@TARGET@/venv/bin/uvicorn autoskill.main:app --host 127.0.0.1 --port 8000 --workers 1 --proxy-headers --forwarded-allow-ips=127.0.0.1
+# --timeout-keep-alive outlives the reverse proxy in front: with the 5s default the proxy reuses a
+# connection uvicorn has just closed, and the caller gets ECONNRESET rather than a reply.
+ExecStart=@TARGET@/venv/bin/uvicorn autoskill.main:app --host 127.0.0.1 --port 8000 --workers 1 --proxy-headers --forwarded-allow-ips=127.0.0.1 --timeout-keep-alive 1800
 Restart=on-failure
 RestartSec=3
 NoNewPrivileges=true

@@ -2,12 +2,13 @@ import { useCallback } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
-import { Bell, ClipboardCheck, Download, FlaskConical, FolderKanban, LogOut, Menu, Moon, MonitorSmartphone, Settings2, ShieldCheck, Store, Sun, User as UserIcon } from "lucide-react";
+import { Bell, ClipboardCheck, Download, FlaskConical, FolderKanban, LogOut, Menu, Moon, MonitorSmartphone, Settings2, ShieldCheck, Store, Sun, User as UserIcon, Volume2, VolumeX } from "lucide-react";
 import { toast } from "sonner";
 import { useSession } from "@/stores/session";
 import { useUi } from "@/stores/ui";
 import { useLogout } from "@/api/hooks/auth";
 import { useNotifications } from "@/api/hooks/me";
+import { alertChime } from "@/lib/chime";
 import { useServerEvents, type ServerEvent } from "@/lib/sse";
 import { cn } from "@/lib/cn";
 
@@ -29,7 +30,7 @@ function NavItem({ to, icon: Icon, label, end }: { to: string; icon: typeof Bell
 export function AppShell() {
   const { t } = useTranslation();
   const user = useSession((s) => s.user);
-  const { theme, setTheme, sidebarOpen, toggleSidebar } = useUi();
+  const { theme, setTheme, sidebarOpen, toggleSidebar, soundOn, toggleSound } = useUi();
   const logout = useLogout();
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -40,9 +41,15 @@ export function AppShell() {
       if (event.type === "notification.created") {
         qc.invalidateQueries({ queryKey: ["me", "notifications"] });
         toast(String(event.data.title ?? t("nav.notifications")));
+        alertChime(); // every notification rings, by request: the speaker button is the way to stop it
       }
-      if (event.type === "job.updated") { qc.invalidateQueries({ queryKey: ["admin", "jobs"] }); qc.invalidateQueries({ queryKey: ["skills"] }); }
-      if (event.type === "checkpoint.waiting" || event.type === "trial.updated") { qc.invalidateQueries({ queryKey: ["trials"] }); if (event.type === "checkpoint.waiting") toast(t("skills:trials.waitingDecision", { defaultValue: "A step is waiting for your decision" })); }
+      // `["interviews", …]` is not under `["skills"]`, so it used to be missed here — and an
+      // interview page was then driven by its 2.5s timer alone. Browsers suspend timers in a
+      // background tab, so looking away while a model thought for four minutes left the page frozen
+      // on a spinner with the answer already waiting on the server. This event arrives over a live
+      // connection, which is what a timer cannot promise.
+      if (event.type === "job.updated") { qc.invalidateQueries({ queryKey: ["admin", "jobs"] }); qc.invalidateQueries({ queryKey: ["skills"] }); qc.invalidateQueries({ queryKey: ["interviews"] }); }
+      if (event.type === "checkpoint.waiting" || event.type === "trial.updated") { qc.invalidateQueries({ queryKey: ["trials"] }); if (event.type === "checkpoint.waiting") { toast(t("skills:trials.waitingDecision", { defaultValue: "A step is waiting for your decision" })); alertChime(); } }
     },
     [qc, t],
   );
@@ -81,6 +88,15 @@ export function AppShell() {
             <button className="relative rounded-md p-2 text-muted hover:bg-accent" onClick={() => navigate("/me/notifications")} aria-label={t("nav.notifications")}>
               <Bell className="h-5 w-5" />
               {unread > 0 && <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[10px] font-bold text-white">{unread}</span>}
+            </button>
+            <button
+              className="rounded-md p-2 text-muted hover:bg-accent"
+              onClick={toggleSound}
+              aria-label={t(soundOn ? "sound.mute" : "sound.unmute")}
+              aria-pressed={soundOn}
+              title={t(soundOn ? "sound.mute" : "sound.unmute")}
+            >
+              {soundOn ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}
             </button>
             <button className="rounded-md p-2 text-muted hover:bg-accent" onClick={() => setTheme(nextTheme)} aria-label={t(`theme.${nextTheme}`)}>
               {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}

@@ -29,7 +29,9 @@
     "checkpoint_timeout_minutes": "Checkpoint timeout (minutes)",
     "auto_confirm_after_confirmations": "Auto-confirm deterministic steps after N confirmations",
     "download_rate_per_minute": "Downloads per minute per link / IP",
-    "max_active_download_links_per_user": "Max active download links per user"
+    "max_active_download_links_per_user": "Max active download links per user",
+    "llm_output_limit_enabled": "Limit the output of automatic tasks",
+    "llm_output_limit_tokens": "Output limit (tokens)"
   },
   "library": "Library",
   "hub": "Hub",

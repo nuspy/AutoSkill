@@ -58,7 +58,10 @@ async def test_interview_completion_triggers_draft_and_versions_api(app_client):
         assert confirmed.status_code == 200
         await get_job_runner().wait_all()
         detail = (await app_client.get(f"/api/v1/interviews/{sid}", headers=headers)).json()
-        assert detail["session"]["state"] == "drafting_requested"
+        # `wait_all` has waited for the draft job too, so the interview must have been let out of
+        # `drafting_requested` again: that state means "a first draft is being written", and a page
+        # reading it as still-working is what used to leave a finished interview under a spinner.
+        assert detail["session"]["state"] == "complete", detail["session"]
         skill_id = detail["session"]["skill_id"]
         versions_res = await app_client.get(f"/api/v1/skills/{skill_id}/versions", headers=headers)
         assert versions_res.status_code == 200, versions_res.text
@@ -208,3 +211,80 @@ async def test_library_admin_only(app_client):
     assert updated.status_code == 200 and updated.json()["tags"] == ["directory"]
     assert len((await app_client.get("/api/v1/library", headers=b)).json()) == 1
     assert (await app_client.delete(f"/api/v1/library/{created.json()['id']}", headers=a)).status_code == 200
+
+
+# --- a trial copy must announce that it is one -------------------------------------------------
+
+
+def test_a_trial_copy_says_so_before_the_procedure_starts():
+    """The trial instructions must reach the agent before it starts acting, not after.
+
+    Learnt from the first real trial. The companion protocol sat at the end of a long SKILL.md and
+    began "otherwise skip it silently"; the trial marker existed only in the frontmatter, where it
+    named the trial without saying what being in one required. So a trial copy read exactly like a
+    permanent one: the agent worked through the task by hand, raised no checkpoint, got half of it
+    wrong, reported success — and the person's page waited for a step that could never arrive.
+    """
+    from autoskill.services.drafting.assemble import with_trial_preamble
+
+    body = "# Fill the latest list\n\n## Purpose\nUpdate the workbook.\n\n## Steps\n"
+    out = with_trial_preamble(body, trial_id="t-1", name="excel-lists", version="0.1.0")
+
+    head, _, rest = out.partition("## Purpose")
+    assert head.startswith("# Fill the latest list"), "the title still opens the file"
+    # everything the agent must know is above the first section of the procedure
+    assert "trial `t-1`" in head
+    assert "start_run" in head and 'skill_name="excel-lists"' in head and 'skill_version="0.1.0"' in head
+    assert "stop and say so" in head, "a missing companion must halt the run, not be worked around"
+    assert rest.strip().startswith("Update the workbook."), "the body itself is untouched"
+
+
+def test_a_body_without_a_title_still_gets_the_preamble():
+    from autoskill.services.drafting.assemble import with_trial_preamble
+
+    out = with_trial_preamble("Just prose.\n", trial_id="t-2", name="s", version="1")
+    assert out.startswith("> ##") and out.rstrip().endswith("Just prose.")
+
+
+def test_outside_a_trial_the_protocol_stays_optional():
+    """A permanent installation has no page waiting on it, so absent tools must not stop the work."""
+    from autoskill.services.drafting.assemble import COMPANION_SECTION
+
+    text = COMPANION_SECTION.format(name="s", version="1")
+    assert "Outside a trial they are optional" in text
+    assert "In a trial they are\nmandatory" in text or "mandatory" in text
+    assert "skip it silently" not in text
+
+
+def test_the_protocol_shipped_is_the_one_the_server_enforces():
+    """The companion section describes the server's rules, so it is written at delivery, not at drafting.
+
+    It used to be baked into SKILL.md when the skill was drafted and never touched again. Correcting
+    the wording — after a trial where an agent read "`continue` proceeds" as "move to the next step"
+    and abandoned the walkthrough — therefore changed nothing for any skill that already existed: the
+    packages went on shipping the old text, and agents went on following it. A rule and its
+    description must not be able to drift.
+    """
+    from autoskill.services.drafting.assemble import with_current_protocol
+
+    stale = (
+        "# Fill the list\n\n## Steps\n\ndo the thing\n\n"
+        "## AutoSkill companion (checkpoints and telemetry)\n\n"
+        "If the `autoskill-companion` MCP tools are available, follow this protocol; "
+        "otherwise skip it silently.\n\n1. Call `start_run` the old way.\n"
+    )
+    out = with_current_protocol(stale, name="excel-lists", version="0.1.0")
+
+    assert "skip it silently" not in out, "the superseded wording must not survive delivery"
+    assert "never means" in out, "the current wording must be the one shipped"
+    assert 'skill_name="excel-lists"' in out and 'skill_version="0.1.0"' in out
+    # only the protocol is replaced; the skill's own content is not touched
+    assert "# Fill the list" in out and "do the thing" in out
+    assert out.count("## AutoSkill companion") == 1
+
+
+def test_a_package_without_the_section_gains_it():
+    from autoskill.services.drafting.assemble import with_current_protocol
+
+    out = with_current_protocol("# Title\n\nJust steps.\n", name="s", version="1")
+    assert "## AutoSkill companion" in out and out.startswith("# Title")

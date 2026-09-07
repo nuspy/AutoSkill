@@ -29,7 +29,14 @@ export function useTrialActions(trialId: string) {
   const discuss = useMutation({ mutationFn: ({ checkpointId, message }: { checkpointId: string; message: string }) => api<Discussion>(`/checkpoints/${checkpointId}/discussion`, { method: "POST", body: { message } }) });
   const applyDiscussion = useMutation({ mutationFn: (discussionId: string) => api<Discussion>(`/discussions/${discussionId}/apply`, { method: "POST" }), onSuccess: invalidate });
   const patch = useMutation({ mutationFn: (body: { auto_confirm?: boolean }) => api<Trial>(`/trials/${trialId}`, { method: "PATCH", body }), onSuccess: invalidate });
-  return { suspend, resume, summary, outcome, decide, discuss, applyDiscussion, patch };
+  // Replaces the trial's token and returns the install command again. The command is shown once,
+  // at creation, and only its hash is kept — so closing that dialog used to leave the trial page
+  // telling people to run something nobody could show them.
+  const reissue = useMutation({ mutationFn: () => api<TrialCreated>(`/trials/${trialId}/command`, { method: "POST" }), onSuccess: invalidate });
+  // Erases the trial and its records. `DELETE /trials/{id}` is a different act — it abandons an open
+  // trial and keeps what it recorded — so this has its own route rather than a flag on that one.
+  const destroy = useMutation({ mutationFn: () => api<{ ok: boolean }>(`/trials/${trialId}/permanently`, { method: "DELETE" }), onSuccess: invalidate });
+  return { suspend, resume, summary, outcome, decide, discuss, applyDiscussion, patch, reissue, destroy };
 }
 
 export function useRuns(projectId: string, skillId?: string) {

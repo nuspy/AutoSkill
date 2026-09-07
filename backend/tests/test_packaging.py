@@ -182,6 +182,54 @@ def test_target_adapters_render_install_docs():
     anti = get_adapter("antigravity").render_install_md(ctx)
     assert ".agents/skills/invoice-check/" in anti
     trial = get_adapter("hermes").render_install_md(
-        InstallContext(skill_name="x", skill_title="X", version="0.1.0", server_url="s", project_slug="p", trial=True)
+        InstallContext(
+            skill_name="x", skill_title="X", version="0.1.0", server_url="s", project_slug="p",
+            trial=True, version_id="v1",
+        )
     )
-    assert "Trial installation" in trial and "autoskill trial install x@0.1.0 --target hermes" in trial
+    # Without a bundle URL the command installs by version id, authenticating as whoever runs it.
+    # It used to print `x@0.1.0`, a form the CLI rejects with "give a version id".
+    assert "Trial installation" in trial
+    assert "autoskill trial install --version-id v1 --target hermes --token <trial-token>" in trial
+
+
+def test_the_in_app_guide_is_short_and_the_public_one_is_complete():
+    """One template, two readers, and what helps one buries the other.
+
+    The public INSTALL.md is followed by an agent holding nothing but the URL: the download table, the
+    manual steps and the block addressed to it are how it installs anything. The copy shown inside the
+    application is read by someone already logged in, already holding the CLI, on a page that offers
+    the same download links as buttons — there those four sections are noise around the one command
+    that matters, and they were reported as such.
+    """
+    from autoskill.services.targets import get_adapter
+    from autoskill.services.targets.base import InstallContext
+
+    def ctx(concise: bool) -> InstallContext:
+        c = InstallContext(
+            skill_name="excel-lists",
+            skill_title="Fill the lists",
+            version="0.1.0",
+            server_url="http://server",
+            project_slug="ops",
+            manifest_url="http://server/dl/tok/install.json",
+            bundle_url="http://server/dl/tok/INSTALL.md",
+            zip_url="http://server/dl/tok/skill.zip",
+            artifacts=[{"name": "skill.zip", "kind": "skill", "url": "http://server/x", "sha256": "ab"}],
+            agent_instructions=["download every file listed"],
+        )
+        c.concise = concise
+        return c
+
+    noisy = ("This document is online", "## Download links", "## Manual installation", "## For AI agents")
+    short = get_adapter("hermes").render_install_md(ctx(True))
+    full = get_adapter("hermes").render_install_md(ctx(False))
+
+    for section in noisy:
+        assert section not in short, f"{section} does not belong in the guide shown inside the app"
+        assert section in full, f"{section} is how an agent installs from the public document"
+    # what the short one keeps is the part a person acts on
+    assert "autoskill install --from http://server/dl/tok/install.json --target hermes" in short
+    assert "## Verify" in short and "My devices" in short
+    # and it does not promise a list it no longer prints
+    assert "listed below" not in short and "listed below" in full

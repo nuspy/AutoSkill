@@ -8,6 +8,34 @@
   "settings": "Paramètres",
   "empty": "Créez votre premier projet pour commencer à décrire une tâche.",
   "created": "Projet créé",
+  "gettingStarted": {
+    "title": "Pour commencer",
+    "subtitle": "D'un compte vide à un agent qui travaille avec vos skills.",
+    "done": "fait",
+    "dismiss": "Ne plus afficher",
+    "provider": {
+      "title": "Choisir un fournisseur LLM",
+      "body": "Sans lui, rien de génératif ne fonctionne : l'entretien, les brouillons et le coach répondent tous no_llm_provider.",
+      "action": "Ouvrir les fournisseurs IA"
+    },
+    "project": {
+      "title": "Créer un projet",
+      "body": "Les skills vivent dans un projet, avec les personnes qui y travaillent."
+    },
+    "cli": {
+      "title": "Installer l'outil en ligne de commande",
+      "body": "Il n'est pas sur PyPI : c'est ce serveur qui le distribue. pipx le garde dans son propre virtualenv, sans droits d'administrateur."
+    },
+    "device": {
+      "title": "Enregistrer l'appareil",
+      "body": "La commande affiche un code. Saisissez-le ici et approuvez : la machine reçoit sa propre clé, révocable depuis Mes appareils.",
+      "action": "Saisir le code"
+    },
+    "skill": {
+      "title": "Créer la première skill",
+      "body": "Ouvrez un projet et répondez à l'entretien : AutoSkill rédige la skill à partir de vos réponses, puis donne à votre agent une adresse pour l'installer."
+    }
+  },
   "dashboard": {
     "skills": "Skills",
     "runs": "Exécutions récentes",

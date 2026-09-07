@@ -90,7 +90,9 @@ async def test_openai_compat_adapter_request_and_response():
     res = await provider.chat(req)
     assert captured["url"] == "http://llm.local/v1/chat/completions"
     assert captured["auth"] == "Bearer k"
-    assert captured["body"]["tool_choice"] == {"type": "function", "function": {"name": "respond"}}
+    # a single tool is asked for as "required": naming it in an object is rejected by several
+    # OpenAI-compatible servers (LM Studio among them) and says nothing more
+    assert captured["body"]["tool_choice"] == "required"
     assert captured["body"]["response_format"]["type"] == "json_schema"
     assert captured["body"]["seed"] == 3
     assert res.message.tool_calls[0].arguments == {"color": "green", "count": 2}

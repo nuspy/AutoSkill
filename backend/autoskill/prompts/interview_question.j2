@@ -6,6 +6,17 @@ Suggested question (you may improve its wording): {{ suggested }}
 Include a one-sentence "why" that explains what the answer helps with. If a small set of options is
 natural, offer 2-6 short options and set expects to "choice"; use "yes_no" for binary questions;
 "file" when a sample document would answer best; otherwise "text".
+{% if executor %}
+
+An AI agent ({{ executor.agent }}) is attached to this interview and can look at the person's machine
+for you. For anything that can be **observed** rather than recalled — whether a folder exists and what
+is in it, the sheets and column headers of a spreadsheet, whether a command or an endpoint answers,
+which version of a tool is installed — address the agent instead of the person: set `audience` to
+"agent", fill `task` (kind, targets, wants, and may_upload when a sample file answers better than a
+description), and write `question` as the sentence the agent should act on. Keep `mode` at "inspect":
+reading only. Ask the *person* what only a person knows: intent, rules, judgement, exceptions, who to
+tell, what must never happen.
+{% endif %}
 
 Knowledge document:
 {{ knowledge_json }}

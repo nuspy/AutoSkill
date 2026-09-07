@@ -46,7 +46,9 @@ class McpRegistration(BaseModel):
 
 class McpServerEntry(BaseModel):
     name: str
-    kind: Literal["companion", "generated", "library"]
+    # generated_cli: the skill's steps as commands. Installed like the others, but nothing to
+    # register with the agent: the skill calls them from the shell.
+    kind: Literal["companion", "generated", "generated_cli", "library"]
     description: str = ""
     version: str | None = None
     download: ArtifactRef | None = None

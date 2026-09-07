@@ -53,6 +53,7 @@ class Client:
         headers: dict | None = None,
         retries: int = 3,
         timeout: float | None = None,
+        files: dict | None = None,
     ) -> Any:
         last: Exception | None = None
         for attempt in range(retries):
@@ -62,6 +63,7 @@ class Client:
                     self.base + path,
                     json=json_body,
                     params=params,
+                    files=files,
                     headers={**self.headers, **(headers or {})},
                     timeout=timeout,
                 )
@@ -86,6 +88,12 @@ class Client:
 
     def post(self, path: str, json_body: Any = None, **kw) -> Any:
         return self.request("POST", path, json_body=json_body, **kw)
+
+    def post_file(self, path: str, *, filename: str, content: bytes, headers: dict | None = None) -> Any:
+        """Upload one file as multipart; httpx sets the boundary, so no content type of our own."""
+        return self.request(
+            "POST", path, files={"file": (filename, content)}, headers=headers, retries=1, timeout=120.0
+        )
 
     # --- offline queue for telemetry ------------------------------------------------
 

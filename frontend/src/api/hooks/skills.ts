@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/api/client";
-import type { DataSource, InterviewDetail, InterviewSession, KnowledgeDoc, MemoryEntry, Skill } from "@/api/types";
+import type { Attachment, DataSource, InterviewDetail, InterviewSession, InterviewStep, KnowledgeDoc, MemoryEntry, Skill } from "@/api/types";
 
 export const skillKeys = {
   list: (projectId: string) => ["projects", projectId, "skills"] as const,
@@ -8,6 +8,7 @@ export const skillKeys = {
   memory: (id: string, status: string) => ["skills", id, "memory", status] as const,
   knowledge: (id: string) => ["skills", id, "knowledge"] as const,
   interview: (id: string) => ["interviews", id] as const,
+  interviewSteps: (id: string) => ["interviews", id, "steps"] as const,
   interviews: (projectId: string, skillId?: string) => ["projects", projectId, "interviews", skillId ?? ""] as const,
   dataSources: (projectId: string) => ["projects", projectId, "data-sources"] as const,
 };
@@ -75,12 +76,59 @@ export function useStartInterview(projectId: string) {
   });
 }
 
-export function useInterview(sessionId: string, live: boolean) {
+// An interview lasts as long as it takes a person to answer, so its page stays open across tab
+// switches, sleeping laptops and — in development — a backend that restarts under it. Three settings
+// earn their place, and each one is a bug that happened:
+//
+// * `refetchInterval` is never `false` for a session still in progress. It used to stop as soon as
+//   the page believed a question was on screen, which made the page's own belief the thing that kept
+//   it informed: one reset connection while it was waiting and it never asked again, showing a
+//   spinner over a snapshot from before the answer arrived. Asking every ten seconds while a human
+//   types costs nothing and makes drifting impossible.
+// * `refetchOnWindowFocus` overrides the app-wide `false`: coming back to the tab is exactly when
+//   "did it move on?" matters.
+// * `refetchIntervalInBackground` keeps a throttled tab asking, slowly, instead of not at all.
+const FINISHED_STATES = new Set(["complete", "failed", "abandoned"]);
+const WORKING_STATES = new Set(["created", "intake", "exploring", "gating", "drafting_requested"]);
+
+/** How often to ask, given what the server last said. Slow while a person types, never off before the end. */
+export function interviewPollMs(state: string | undefined): number | false {
+  if (state && FINISHED_STATES.has(state)) return false;
+  return state && WORKING_STATES.has(state) ? 2500 : 10_000;
+}
+
+export function useInterview(sessionId: string) {
   return useQuery({
     queryKey: skillKeys.interview(sessionId),
     queryFn: () => api<InterviewDetail>(`/interviews/${sessionId}`),
     enabled: !!sessionId,
-    refetchInterval: live ? 2500 : false,
+    // Derived from the data on every tick rather than held in component state: a page that remembers
+    // how often to ask can be talked out of asking by one failed request, and then nothing is left to
+    // tell it otherwise.
+    refetchInterval: (query) => interviewPollMs(query.state.data?.session.state),
+    refetchOnWindowFocus: true,
+    refetchIntervalInBackground: true,
+  });
+}
+
+export function useInterviewSteps(sessionId: string, enabled: boolean, refetchInterval: number | false) {
+  return useQuery({
+    queryKey: skillKeys.interviewSteps(sessionId),
+    queryFn: () => api<InterviewStep[]>(`/interviews/${sessionId}/steps`),
+    enabled: !!sessionId && enabled,
+    refetchInterval,
+    refetchOnWindowFocus: true,
+    refetchIntervalInBackground: true,
+  });
+}
+
+export function useUploadAttachment(projectId: string) {
+  return useMutation({
+    mutationFn: async (file: File) => {
+      const form = new FormData();
+      form.append("file", file);
+      return api<Attachment>(`/projects/${projectId}/attachments`, { method: "POST", body: form });
+    },
   });
 }
 
@@ -95,10 +143,18 @@ export function useInterviews(projectId: string, skillId?: string) {
 export function useInterviewActions(sessionId: string) {
   const qc = useQueryClient();
   const invalidate = () => qc.invalidateQueries({ queryKey: skillKeys.interview(sessionId) });
-  const answer = useMutation({ mutationFn: (text: string) => api(`/interviews/${sessionId}/answer`, { method: "POST", body: { text } }), onSuccess: invalidate });
+  const answer = useMutation({ mutationFn: (body: { text: string; attachments?: Attachment[] }) => api(`/interviews/${sessionId}/answer`, { method: "POST", body }), onSuccess: invalidate });
   const confirm = useMutation({ mutationFn: (body: { confirmed: boolean; text?: string }) => api(`/interviews/${sessionId}/confirm`, { method: "POST", body }), onSuccess: invalidate });
   const abandon = useMutation({ mutationFn: () => api(`/interviews/${sessionId}/abandon`, { method: "POST" }), onSuccess: invalidate });
-  return { answer, confirm, abandon };
+  const retry = useMutation({ mutationFn: () => api(`/interviews/${sessionId}/retry`, { method: "POST" }), onSuccess: invalidate });
+  const invalidateAll = () => {
+    invalidate();
+    qc.invalidateQueries({ queryKey: skillKeys.interviewSteps(sessionId) });
+  };
+  const replay = useMutation({ mutationFn: (ordinal: number) => api(`/interviews/${sessionId}/steps/${ordinal}/replay`, { method: "POST" }), onSuccess: invalidateAll });
+  const acceptReplay = useMutation({ mutationFn: () => api(`/interviews/${sessionId}/replay/accept`, { method: "POST" }), onSuccess: invalidateAll });
+  const discardReplay = useMutation({ mutationFn: () => api(`/interviews/${sessionId}/replay/discard`, { method: "POST" }), onSuccess: invalidateAll });
+  return { answer, confirm, abandon, retry, replay, acceptReplay, discardReplay };
 }
 
 export function useDataSources(projectId: string) {

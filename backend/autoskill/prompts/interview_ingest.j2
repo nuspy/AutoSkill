@@ -9,12 +9,24 @@ Attached files (name, type, preview):
 - {{ a.name }} ({{ a.media_type }}): {{ a.preview }}
 {% endfor %}
 {% endif %}
+{% if answered_by == "agent" %}
+
+This answer comes from the agent, which looked at the machine directly. Treat paths, file names,
+sheet names, column headers, versions and reachability as verified facts: record them in
+`data_sources[].access`, `data_sources[].fields_used`, `constraints.tools_available` and the relevant
+`edge_cases`, rather than leaving them as prose. Do not ask the person to confirm what was observed.
+{% endif %}
 
 Update the knowledge document accordingly. Return the COMPLETE updated document (all fields), keeping
 everything that is still valid, changing only what the answer clarifies, and removing resolved entries
 from open_questions. Never drop steps or sources unless the person said they are wrong. Add or refine
 edge cases, decision rules, acceptance criteria, integrations (systems, credentials names, authorizations)
 and side effects when the answer reveals them.
+
+When an edge case concerns one particular data source, set its `source_ref` to that source's `ref`,
+exactly as spelled in `data_sources`, and set `confirmed` to true once the person has answered what
+should happen. An edge case left with an empty `source_ref` counts for no source at all, so the same
+question gets asked again however clearly it was answered.
 
 Current knowledge document:
 {{ knowledge_json }}

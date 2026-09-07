@@ -11,7 +11,7 @@ AUTOSKILL_SKIP_SYSTEMD=1 AUTOSKILL_SKIP_FRONTEND="${AUTOSKILL_SKIP_FRONTEND:-1}"
 
 set -a; . "${PREFIX}/autoskill.env"; set +a
 export AUTOSKILL_PUBLIC_URL="http://127.0.0.1:${PORT}"
-"${PREFIX}/venv/bin/uvicorn" autoskill.main:app --app-dir "${PREFIX}/app" --host 127.0.0.1 --port "${PORT}" >"${PREFIX}/api.log" 2>&1 &
+"${PREFIX}/venv/bin/uvicorn" autoskill.main:app --app-dir "${PREFIX}/app" --host 127.0.0.1 --port "${PORT}" --timeout-keep-alive 1800 >"${PREFIX}/api.log" 2>&1 &
 API_PID=$!
 trap 'kill ${API_PID} 2>/dev/null || true' EXIT
 

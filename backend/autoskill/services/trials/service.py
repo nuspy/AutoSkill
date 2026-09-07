@@ -6,10 +6,12 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from autoskill.config import get_settings
+from autoskill.core.crypto import decrypt, encrypt
 from autoskill.core.errors import Conflict, NotFound, ValidationFailed
 from autoskill.core.events import emit, project_channel, user_channel
 from autoskill.core.security import generate_opaque_token, hash_token
 from autoskill.db.base import utcnow
+from autoskill.llm.budget import output_budget
 from autoskill.models.skill import Skill
 from autoskill.models.skill_version import SkillVersion, StepDefinition
 from autoskill.models.trial import Checkpoint, Run, RunAnnotation, TrialSession
@@ -88,6 +90,7 @@ async def create_trial(
         auto_confirm=auto_confirm,
         state="requested",
         token_hash=hash_token(token),
+        token_encrypted=encrypt(token),
         build=version.build,
     )
     session.add(trial)
@@ -190,7 +193,10 @@ async def summarize(session: AsyncSession, trial: TrialSession, language: str = 
     provider, provider_id = await get_provider("coach")
     res = await provider.chat(
         ChatRequest(
-            messages=[ChatMessage(role="user", content=prompt)], temperature=0.2, max_tokens=800, purpose="coach"
+            messages=[ChatMessage(role="user", content=prompt)],
+            temperature=0.2,
+            max_tokens=await output_budget(session),
+            purpose="coach",
         )
     )
     await record_usage(session, trial.project_id, provider_id, res.usage)
@@ -298,3 +304,117 @@ async def enqueue_memory_extraction(trial: TrialSession, *, user_id: str | None,
         project_id=trial.project_id,
         user_id=user_id,
     )
+
+
+def stored_token(trial: TrialSession) -> str | None:
+    """The trial's own token, when a recoverable copy was kept — never a new one.
+
+    Re-issuing was the only way back to the install command, and it costs the previous token. That is
+    the wrong price for merely looking: an agent may already be holding the old one, so recovering the
+    instruction could break the very installation it describes. Trials created before the encrypted
+    copy existed return None, and for those re-issuing remains the only route.
+    """
+    if not trial.token_encrypted:
+        return None
+    try:
+        return decrypt(trial.token_encrypted)
+    except Exception:
+        # A changed secret_key makes every stored copy unreadable. That is a reason to fall back to
+        # re-issuing, not to fail the page that was only trying to display a command.
+        return None
+
+
+async def reissue_token(session: AsyncSession, trial: TrialSession) -> str:
+    """Mint a fresh session token for an open trial, replacing the one issued at creation.
+
+    Only for trials whose token predates the encrypted copy, or whose copy can no longer be read:
+    everything else should go through `stored_token`, which shows the real one and changes nothing.
+
+    Replacing is not revealing. Re-issuing invalidates the previous token — which is right, and which
+    the page must say before it happens.
+    """
+    if trial.state not in OPEN_STATES:
+        raise Conflict("trial_closed", state=trial.state)
+    token = generate_opaque_token(24)
+    trial.token_hash = hash_token(token)
+    trial.token_encrypted = encrypt(token)
+    await session.commit()
+    return token
+
+
+CLOSED_STATES = ("decided", "removed", "abandoned")
+
+
+async def purge_trial(session: AsyncSession, trial: TrialSession) -> dict[str, int]:
+    """Delete a closed trial and everything hanging off it, for good.
+
+    Closing a trial ends it but keeps the row, which is right while there is anything to learn from
+    it. Once there is not, the list goes on showing attempts nobody will look at again, and the only
+    way to stop seeing one was to stop looking at the list.
+
+    Rows are removed explicitly rather than left to the database. The `ondelete="CASCADE"` on the
+    tables hanging off `runs` is real but inert here: SQLite only honours foreign keys when
+    `PRAGMA foreign_keys=ON`, which this application never sets, so relying on it would leave orphans
+    on the deployment we actually run and delete them on another. Explicit is also the only version
+    whose order can be read.
+
+    The download grant goes with it: it is the capability that lets anyone holding the URL fetch the
+    bundle without logging in, and outliving the trial it belonged to is exactly what it must not do.
+
+    The skill package itself is untouched — it belongs to the version, not to this attempt at it, and
+    other trials and installations share the same stored content.
+    """
+    if trial.state not in CLOSED_STATES:
+        raise Conflict(
+            "trial_not_closed",
+            state=trial.state,
+            message="Finish or remove the trial before deleting it.",
+        )
+    from sqlalchemy import delete
+
+    from autoskill.models.hub import DownloadGrant
+    from autoskill.models.trial import RunStep, StepDiscussion, TrialSnapshot
+
+    run_ids = list(
+        (await session.execute(select(Run.id).where(Run.trial_session_id == trial.id))).scalars().all()
+    )
+    removed: dict[str, int] = {}
+
+    async def _delete(model, condition, label: str) -> None:
+        res = await session.execute(delete(model).where(condition))
+        removed[label] = res.rowcount or 0
+
+    if run_ids:
+        await _delete(RunStep, RunStep.run_id.in_(run_ids), "run_steps")
+        await _delete(RunAnnotation, RunAnnotation.run_id.in_(run_ids), "run_annotations")
+    await _delete(TrialSnapshot, TrialSnapshot.trial_session_id == trial.id, "snapshots")
+    await _delete(StepDiscussion, StepDiscussion.trial_session_id == trial.id, "discussions")
+    await _delete(Checkpoint, Checkpoint.trial_session_id == trial.id, "checkpoints")
+    await _delete(DownloadGrant, DownloadGrant.trial_session_id == trial.id, "grants")
+    await _delete(Run, Run.trial_session_id == trial.id, "runs")
+
+    user_id, trial_id = trial.user_id, trial.id
+    await session.delete(trial)
+    await session.commit()
+    await emit(user_channel(user_id), "trial.updated", {"trial_id": trial_id, "state": "deleted"})
+    return removed
+
+
+async def open_trial_for(session: AsyncSession, *, user_id: str, version_id: str) -> TrialSession | None:
+    """This person's open trial of this version, if they have one.
+
+    A trial belongs to one user, so its token does too: on a skill several people are trying at once
+    each has their own, and the only correct answer to "show me the token" is the caller's.
+    """
+    res = await session.execute(
+        select(TrialSession).where(
+            TrialSession.user_id == user_id,
+            TrialSession.skill_version_id == version_id,
+            TrialSession.state.in_(OPEN_STATES),
+        )
+    )
+    return res.scalars().first()
+
+
+def stored_token_for(trial: TrialSession | None) -> str | None:
+    return stored_token(trial) if trial is not None else None

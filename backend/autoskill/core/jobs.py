@@ -154,6 +154,10 @@ class JobRunner:
     async def _dispatch(self, job_id: str) -> None:  # pragma: no cover - interface
         raise NotImplementedError
 
+    async def recover(self) -> int:
+        """Re-dispatch work the previous process was running when it stopped. Default: none."""
+        return 0
+
 
 class InlineJobRunner(JobRunner):
     def __init__(self) -> None:
@@ -163,6 +167,42 @@ class InlineJobRunner(JobRunner):
         task = asyncio.create_task(execute_job(job_id))
         self._tasks.add(task)
         task.add_done_callback(self._tasks.discard)
+
+    async def recover(self) -> int:
+        """Re-dispatch the jobs the previous process was running when it died.
+
+        This runner holds its tasks in memory, so a restart — an autoreload after an edit, a deploy,
+        a machine that goes to sleep — loses them without leaving a mark: the `jobs` row stays
+        `running` for ever and whatever it was driving stops there. An interview is the painful case,
+        because the person in the browser goes on watching a spinner for work nobody is doing.
+
+        Nothing has been dispatched yet at startup, so every row still marked `queued` or `running`
+        belongs to the process that is gone, and is ours to run again.
+
+        Running them again is safe by construction rather than by luck: a job body reads its position
+        from the database, so one that had in fact finished simply finds nothing to do the second
+        time (`run_interview` returns immediately unless its procedure is still `running`). A job
+        that keeps failing is not picked up at all — it is `failed`, not `running`.
+        """
+        from sqlalchemy import select
+
+        factory = get_session_factory()
+        async with factory() as session:
+            rows = (
+                (await session.execute(select(Job).where(Job.status.in_(("queued", "running"))).order_by(Job.created_at)))
+                .scalars()
+                .all()
+            )
+            job_ids = [row.id for row in rows]
+            for row in rows:
+                row.message = "resumed after a server restart"
+            if rows:
+                await session.commit()
+        for job_id in job_ids:
+            await self._dispatch(job_id)
+        if job_ids:
+            log.warning("resumed %d job(s) interrupted by a restart", len(job_ids))
+        return len(job_ids)
 
     async def wait_all(self) -> None:
         """Wait until no job is running, including jobs enqueued by running jobs."""
@@ -186,6 +226,16 @@ class ArqJobRunner(JobRunner):
     async def _dispatch(self, job_id: str) -> None:
         pool = await self._pool_or_connect()
         await pool.enqueue_job("run_job", job_id)
+
+    async def recover(self) -> int:
+        """Deliberately nothing: here the API process is not the one running the jobs.
+
+        A row marked `running` belongs to a worker that is very probably still alive — the API
+        restarting says nothing about the worker — so re-dispatching would run the same job twice.
+        Recovering arq's own lost work is the worker's business, on the worker's own startup, and
+        wants Redis in the decision; it is not something to guess at from this side.
+        """
+        return 0
 
 
 _runner: JobRunner | None = None

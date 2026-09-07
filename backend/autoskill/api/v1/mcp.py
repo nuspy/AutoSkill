@@ -16,6 +16,7 @@ from autoskill.models.project import ProjectRole
 from autoskill.models.skill_version import SkillVersion
 from autoskill.schemas.common import ORMModel
 from autoskill.schemas.draft import FileContent
+from autoskill.services import delivery as delivery_service
 from autoskill.services.mcpgen.generator import load_mcp_files
 
 router = APIRouter(tags=["mcp"])
@@ -65,6 +66,23 @@ def _out(mv: McpServerVersion, server: McpServer | None) -> McpVersionOut:
     out = McpVersionOut.model_validate(mv)
     out.server_name = server.name if server else ""
     return out
+
+
+class DeliveryIn(BaseModel):
+    delivery: str = Field(description="script | mcp")
+
+
+@router.get("/versions/{version_id}/delivery")
+async def delivery_analysis(version_id: str, session: SessionDep, user: CurrentUser) -> dict:
+    """Which steps could not be delivered as scripts, and what the version is set to."""
+    _, version, _ = await _mcp_for_version(session, user, version_id)
+    return (await delivery_service.analyse(session, version)).as_dict()
+
+
+@router.put("/versions/{version_id}/delivery")
+async def set_delivery(version_id: str, body: DeliveryIn, session: SessionDep, user: CurrentUser) -> dict:
+    _, version, _ = await _mcp_for_version(session, user, version_id, ProjectRole.editor)
+    return (await delivery_service.set_delivery(session, version, body.delivery)).as_dict()
 
 
 @router.post("/versions/{version_id}/mcp/generate", status_code=202)

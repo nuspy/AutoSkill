@@ -3,6 +3,7 @@
 from autoskill.core.jobs import get_job_runner
 from autoskill.llm.fake import FakeLlmProvider, Scripted
 from autoskill.llm.registry import set_fake_provider
+from tests.conftest import auth, register
 from tests.test_drafting import run_interview_to_completion
 from tests.test_interview import setup_project
 from tests.test_packaging import sample_spec
@@ -692,5 +693,343 @@ async def test_snapshot_restore_auto_confirm_and_memory_after_trial(app_client):
         assert patched.status_code == 200 and patched.json()["auto_confirm"] is False
         history = (await app_client.get(f"/api/v1/trials/{second['id']}", headers=headers)).json()["checkpoints"]
         assert sum(1 for c in history if c["proposal"].get("auto_confirmed")) == 3
+    finally:
+        set_fake_provider(None)
+
+
+async def test_a_refused_checkpoint_says_what_to_send_instead(app_client):
+    """A refusal must be a correction, not a dead end.
+
+    What happened on the first working trial: step 1's `explain` was approved with `continue`, the
+    agent read that as "move on", and named step 2. The server refused — correctly, a step ends with a
+    `verify` decided `approve_and_authorize_next` — but the refusal only said the previous step "was
+    not approved". The agent treated that as the protocol being unusable, carried out the whole task
+    with no further checkpoint and called `end_run`, while the person's page went on saying the next
+    step was about to arrive. Naming the phase that is actually owed is what turns the same 409 into
+    something an agent can act on.
+    """
+    user, headers, project = await setup_project(app_client)
+    fake = FakeLlmProvider()
+    set_fake_provider(fake)
+    try:
+        _skill_id, version = await make_draft(app_client, headers, project, fake)
+        trial = (
+            await app_client.post(
+                "/api/v1/trials",
+                json={"skill_version_id": version["id"], "target_agent": "hermes", "purpose": "develop"},
+                headers=headers,
+            )
+        ).json()
+        token = trial["session_token"]
+        await app_client.post(
+            f"/api/v1/trials/{trial['id']}/installed", json={"install_manifest": {}, "build": 1}, headers=headers
+        )
+        run_id = (
+            await app_client.post(
+                "/api/v1/telemetry/runs",
+                json={"skill_name": "invoice-check", "agent_target": "hermes"},
+                headers=trial_headers(token),
+            )
+        ).json()["run_id"]
+
+        cp = (
+            await app_client.post(
+                "/api/v1/checkpoints",
+                json={"run_id": run_id, "step_key": "open-sheet", "phase": "explain"},
+                headers=trial_headers(token),
+            )
+        ).json()
+        await app_client.post(
+            f"/api/v1/checkpoints/{cp['checkpoint_id']}/decision", json={"decision": "continue"}, headers=headers
+        )
+
+        # exactly what the agent did: jump to the next step with the current one still open
+        refused = await app_client.post(
+            "/api/v1/checkpoints",
+            json={"run_id": run_id, "step_key": "flag", "phase": "explain"},
+            headers=trial_headers(token),
+        )
+        assert refused.status_code == 409
+        err = refused.json()["error"]
+        assert err["code"] == "previous_step_not_authorized"
+        # the recovery recipe: which phase, for which step
+        assert err["details"]["expected_phase"] == "preview"
+        assert err["details"]["expected_step_key"] == "open-sheet"
+        assert "verify" in err["message"] and "open-sheet" in err["message"]
+
+        # following the recipe unblocks the run instead of ending it
+        accepted = await app_client.post(
+            "/api/v1/checkpoints",
+            json={"run_id": run_id, "step_key": "open-sheet", "phase": "preview"},
+            headers=trial_headers(token),
+        )
+        assert accepted.status_code == 200, accepted.text
+    finally:
+        set_fake_provider(None)
+
+
+async def test_the_missing_phase_named_is_the_one_actually_owed(app_client):
+    """After an approved `preview` the step owes a `verify`, not another `preview`."""
+    user, headers, project = await setup_project(app_client)
+    fake = FakeLlmProvider()
+    set_fake_provider(fake)
+    try:
+        _skill_id, version = await make_draft(app_client, headers, project, fake)
+        trial = (
+            await app_client.post(
+                "/api/v1/trials",
+                json={"skill_version_id": version["id"], "target_agent": "hermes", "purpose": "develop"},
+                headers=headers,
+            )
+        ).json()
+        token = trial["session_token"]
+        await app_client.post(
+            f"/api/v1/trials/{trial['id']}/installed", json={"install_manifest": {}, "build": 1}, headers=headers
+        )
+        run_id = (
+            await app_client.post(
+                "/api/v1/telemetry/runs",
+                json={"skill_name": "invoice-check", "agent_target": "hermes"},
+                headers=trial_headers(token),
+            )
+        ).json()["run_id"]
+        for phase in ("explain", "preview"):
+            cp = (
+                await app_client.post(
+                    "/api/v1/checkpoints",
+                    json={"run_id": run_id, "step_key": "open-sheet", "phase": phase},
+                    headers=trial_headers(token),
+                )
+            ).json()
+            await app_client.post(
+                f"/api/v1/checkpoints/{cp['checkpoint_id']}/decision", json={"decision": "continue"}, headers=headers
+            )
+
+        refused = await app_client.post(
+            "/api/v1/checkpoints",
+            json={"run_id": run_id, "step_key": "flag", "phase": "explain"},
+            headers=trial_headers(token),
+        )
+        assert refused.status_code == 409
+        assert refused.json()["error"]["details"]["expected_phase"] == "verify"
+    finally:
+        set_fake_provider(None)
+
+
+async def test_a_closed_trial_can_be_erased_with_everything_it_recorded(app_client):
+    """Closing a trial ends it; this removes the record, and the two must stay separate acts."""
+    user, headers, project = await setup_project(app_client)
+    fake = FakeLlmProvider()
+    set_fake_provider(fake)
+    try:
+        _skill_id, version = await make_draft(app_client, headers, project, fake)
+        trial = (
+            await app_client.post(
+                "/api/v1/trials",
+                json={"skill_version_id": version["id"], "target_agent": "hermes", "purpose": "develop"},
+                headers=headers,
+            )
+        ).json()
+        token = trial["session_token"]
+        await app_client.post(
+            f"/api/v1/trials/{trial['id']}/installed", json={"install_manifest": {}, "build": 1}, headers=headers
+        )
+        run_id = (
+            await app_client.post(
+                "/api/v1/telemetry/runs",
+                json={"skill_name": "invoice-check", "agent_target": "hermes"},
+                headers=trial_headers(token),
+            )
+        ).json()["run_id"]
+        cp = (
+            await app_client.post(
+                "/api/v1/checkpoints",
+                json={"run_id": run_id, "step_key": "open-sheet", "phase": "explain"},
+                headers=trial_headers(token),
+            )
+        ).json()
+        await app_client.post(
+            f"/api/v1/checkpoints/{cp['checkpoint_id']}/decision", json={"decision": "continue"}, headers=headers
+        )
+        await app_client.post(
+            f"/api/v1/telemetry/runs/{run_id}/steps",
+            json={"step_key": "open-sheet", "status": "succeeded"},
+            headers=trial_headers(token),
+        )
+
+        # an open trial has an agent talking to it: deleting the row underneath it is refused
+        too_early = await app_client.delete(f"/api/v1/trials/{trial['id']}/permanently", headers=headers)
+        assert too_early.status_code == 409
+        assert too_early.json()["error"]["code"] == "trial_not_closed"
+
+        await app_client.post(
+            f"/api/v1/trials/{trial['id']}/outcome",
+            json={"outcome": "removed", "keep_installed": False},
+            headers=headers,
+        )
+        gone = await app_client.delete(f"/api/v1/trials/{trial['id']}/permanently", headers=headers)
+        assert gone.status_code == 200, gone.text
+
+        # the row disappears from the list and from its own page
+        assert (await app_client.get(f"/api/v1/trials/{trial['id']}", headers=headers)).status_code == 404
+        listed = (await app_client.get(f"/api/v1/trials?skill_id={version['skill_id']}", headers=headers)).json()
+        assert all(x["id"] != trial["id"] for x in listed)
+
+        # and so does everything that hung off it, the download link included
+        from sqlalchemy import select as sa_select
+
+        from autoskill.db.session import get_session_factory
+        from autoskill.models.hub import DownloadGrant
+        from autoskill.models.trial import Checkpoint, Run, RunStep
+
+        async with get_session_factory()() as s:
+            for model, column in (
+                (Run, Run.trial_session_id),
+                (Checkpoint, Checkpoint.trial_session_id),
+                (DownloadGrant, DownloadGrant.trial_session_id),
+            ):
+                left = (await s.execute(sa_select(model).where(column == trial["id"]))).scalars().all()
+                assert left == [], f"{model.__name__} survived the delete"
+            steps = (await s.execute(sa_select(RunStep).where(RunStep.run_id == run_id))).scalars().all()
+            assert steps == [], "run steps survived the delete"
+    finally:
+        set_fake_provider(None)
+
+
+async def test_a_decision_says_what_to_do_next(app_client):
+    """The reply an agent reads must name the next call, not only the word that was decided.
+
+    Three consecutive trials ended after a single checkpoint: the agent sent `explain` for step one,
+    was told `continue`, and then logged the step and called `end_run`. The skill document described
+    the per-step cycle correctly; the reply said `{"status": "decided", "decision": "continue"}` and
+    left what that meant to memory. Instructions at a distance lose to instructions in the reply.
+    """
+    user, headers, project = await setup_project(app_client)
+    fake = FakeLlmProvider()
+    set_fake_provider(fake)
+    try:
+        _skill_id, version = await make_draft(app_client, headers, project, fake)
+        trial = (
+            await app_client.post(
+                "/api/v1/trials",
+                json={"skill_version_id": version["id"], "target_agent": "hermes", "purpose": "develop"},
+                headers=headers,
+            )
+        ).json()
+        token = trial["session_token"]
+        await app_client.post(
+            f"/api/v1/trials/{trial['id']}/installed", json={"install_manifest": {}, "build": 1}, headers=headers
+        )
+        run_id = (
+            await app_client.post(
+                "/api/v1/telemetry/runs",
+                json={"skill_name": "invoice-check", "agent_target": "hermes"},
+                headers=trial_headers(token),
+            )
+        ).json()["run_id"]
+
+        async def decide(step_key: str, phase: str, decision: str) -> dict:
+            cp = (
+                await app_client.post(
+                    "/api/v1/checkpoints",
+                    json={"run_id": run_id, "step_key": step_key, "phase": phase},
+                    headers=trial_headers(token),
+                )
+            ).json()
+            await app_client.post(
+                f"/api/v1/checkpoints/{cp['checkpoint_id']}/decision", json={"decision": decision}, headers=headers
+            )
+            return (
+                await app_client.get(f"/api/v1/checkpoints/{cp['checkpoint_id']}?wait=0", headers=trial_headers(token))
+            ).json()
+
+        # `continue` on an explain points at this step's preview, never at the next step
+        after_explain = await decide("open-sheet", "explain", "continue")
+        assert after_explain["decision"] == "continue"
+        assert after_explain["next_phase"] == "preview"
+        assert after_explain["next_step_key"] == "open-sheet"
+        assert "preview" in after_explain["next_hint"]
+
+        after_preview = await decide("open-sheet", "preview", "continue")
+        assert after_preview["next_step_key"] == "open-sheet"
+        assert after_preview["next_phase"] in ("execute", "verify")
+
+        # closing the step is what names the following one, and says not to end the run
+        after_verify = await decide("open-sheet", "verify", "approve_and_authorize_next")
+        assert after_verify["next_phase"] == "explain"
+        assert after_verify["next_step_key"] == "flag", "the next step in the skill's own order"
+        assert after_verify["steps_left"] == 2
+        assert "Do not call `end_run` yet" in after_verify["next_hint"]
+    finally:
+        set_fake_provider(None)
+
+
+async def test_the_install_command_shows_your_own_token_and_never_somebody_elses(app_client):
+    """The command is printed ready to run, and the token in it belongs to whoever is reading.
+
+    A trial token authenticates one person's trial of one version. On a skill several people are
+    trying at once each has their own, so the endpoint prints the caller's — and the public
+    INSTALL.md, which is served without a login and whose URL is meant to be passed around, prints a
+    placeholder instead, because there the server cannot tell who is asking.
+    """
+    user, headers, project = await setup_project(app_client)
+    fake = FakeLlmProvider()
+    set_fake_provider(fake)
+    try:
+        _skill_id, version = await make_draft(app_client, headers, project, fake)
+        trial = (
+            await app_client.post(
+                "/api/v1/trials",
+                json={"skill_version_id": version["id"], "target_agent": "hermes", "purpose": "develop"},
+                headers=headers,
+            )
+        ).json()
+        token = trial["session_token"]
+
+        doc = (
+            await app_client.get(
+                f"/api/v1/versions/{version['id']}/install/hermes?trial=true", headers=headers
+            )
+        ).json()["markdown"]
+        assert f"--token {token}" in doc, "the owner sees a command they can run as printed"
+        assert "<trial-token>" not in doc
+        # and the line that undoes it names the session and carries the same token
+        assert f"autoskill trial remove {trial['id']} --token {token}" in doc
+        assert "<trial-id>" not in doc
+
+        # the same document, fetched without a login through the grant URL, keeps the placeholder.
+        # The path is taken from the URL itself rather than by trimming a configured prefix: the
+        # public base differs between this environment and the settings default.
+        from urllib.parse import urlparse
+
+        public = await app_client.get(urlparse(trial["bundle_url"]).path)
+        assert public.status_code == 200
+        assert token not in public.text, "a token must not travel in a document anyone can open"
+        assert "<trial-token>" in public.text
+
+        # somebody else looking at the same version has no trial, so no token to show
+        other = await register(app_client, "bob@example.com")
+        other_headers = auth(other["access_token"])
+        await app_client.post(
+            f"/api/v1/projects/{project['id']}/members",
+            json={"email": "bob@example.com", "role": "editor"},
+            headers=headers,
+        )
+        theirs = (
+            await app_client.get(
+                f"/api/v1/versions/{version['id']}/install/hermes?trial=true", headers=other_headers
+            )
+        ).json()["markdown"]
+        assert token not in theirs, "one person's token must never appear in another's page"
+        assert "<trial-token>" in theirs
+
+        # and the ordinary install command must be one that runs: the hub address only resolves for a
+        # public skill on a server with the public hub on, so for a private one the page used to offer
+        # `--from http://…/dl/hub/…`, which answers `skill_not_found`.
+        plain = (
+            await app_client.get(f"/api/v1/versions/{version['id']}/install/hermes", headers=headers)
+        ).json()["markdown"]
+        assert "/dl/hub/" not in plain, "an address that cannot resolve is not an install instruction"
+        assert f"autoskill install --version-id {version['id']} --target hermes" in plain
     finally:
         set_fake_provider(None)

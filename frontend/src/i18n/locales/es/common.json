@@ -60,6 +60,8 @@
     "registration_closed": "El registro está cerrado. Pide una invitación a un administrador.",
     "not_authenticated": "Inicia sesión.",
     "forbidden": "No tienes permiso para hacer esto.",
+    "self_review_not_allowed": "Has enviado tú esta versión, así que no puedes revisarla tú mismo. Un administrador puede activar «allow self review» en Administración → Ajustes, o puede decidirla otro revisor.",
+    "review_not_open": "Esta revisión ya se decidió o se retiró.",
     "not_found": "No encontrado.",
     "validation_failed": "Revisa el formulario.",
     "last_owner": "Un proyecto necesita al menos un propietario.",
@@ -70,5 +72,9 @@
     "device_request_not_found": "Este código no se ha encontrado o ya se ha usado.",
     "device_request_expired": "Este código ha caducado. Ejecuta de nuevo el comando de inicio de sesión.",
     "generic": "Algo ha fallado. Inténtalo de nuevo."
+  },
+  "sound": {
+    "mute": "Desactivar el sonido",
+    "unmute": "Activar el sonido"
   }
 }

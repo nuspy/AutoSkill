@@ -75,6 +75,35 @@ async def create(body: TrialCreate, session: SessionDep, user: AnyAuthUser):
     )
 
 
+@router.post("/{trial_id}/command", response_model=TrialCreated)
+async def reissue_command(trial_id: str, session: SessionDep, user: AnyAuthUser):
+    """Issue a fresh install command for an open trial, invalidating the token issued before.
+
+    The command is the only thing that starts a trial, and it is shown once at creation because it
+    carries a bearer token: only the hash is stored. Whoever closed that dialog had no way back to it,
+    and the trial page went on telling them to "run the CLI command" — one nothing in the system could
+    produce any more, while the trial sat in `requested` waiting for a machine that was never told.
+
+    It is a POST, and it replaces rather than reveals: a secret already handed out cannot be shown
+    again, so the previous token stops working here. The page says so before asking for this.
+    """
+    trial = await _get(session, user, trial_id)
+    skill = await session.get(Skill, trial.skill_id)
+    version = await session.get(SkillVersion, trial.skill_version_id)
+    if skill is None or version is None:
+        raise NotFound("trial_not_found")
+    token = await service.reissue_token(session, trial)
+    bundle_url, manifest_url = await service.bundle_urls(session, trial)
+    return TrialCreated(
+        **TrialOut.model_validate(trial).model_dump(),
+        session_token=token,
+        cli_command=service.cli_command(trial, skill, version, token, manifest_url),
+        package_url=service.package_url(trial),
+        bundle_url=bundle_url,
+        manifest_url=manifest_url,
+    )
+
+
 @router.get("", response_model=list[TrialOut])
 async def list_mine(session: SessionDep, user: AnyAuthUser, skill_id: str | None = None, open_only: bool = False):
     stmt = select(TrialSession).where(TrialSession.user_id == user.id)
@@ -118,6 +147,12 @@ async def detail(trial_id: str, session: SessionDep, user: AnyAuthUser):
     )
     await session.commit()
     bundle_url, manifest_url = await service.bundle_urls(session, trial)
+    # The install command travels with the detail, exactly as `bundle_url` already does: both carry a
+    # capability token, both go only to the trial's owner over an authenticated request. It is the
+    # trial's real token, read back rather than replaced — looking at an instruction must not
+    # invalidate the credential an agent may already be holding.
+    token = service.stored_token(trial)
+    command = service.cli_command(trial, skill, version, token, manifest_url) if token and skill and version else None
     return TrialDetail(
         trial=TrialOut.model_validate(trial),
         skill_name=skill.name if skill else "",
@@ -131,6 +166,8 @@ async def detail(trial_id: str, session: SessionDep, user: AnyAuthUser):
         package_url=service.package_url(trial),
         bundle_url=bundle_url,
         manifest_url=manifest_url,
+        cli_command=command,
+        session_token=token,
     )
 
 
@@ -294,4 +331,18 @@ async def abandon(trial_id: str, session: SessionDep, user: AnyAuthUser):
     if trial.state in service.OPEN_STATES:
         await service.set_outcome(session, trial, outcome="abandoned", keep_installed=False, note=None, user_id=user.id)
         await session.commit()
+    return OkResponse()
+
+
+@router.delete("/{trial_id}/permanently", response_model=OkResponse)
+async def delete_permanently(trial_id: str, session: SessionDep, user: AnyAuthUser):
+    """Erase a closed trial and its records. Distinct from DELETE /{id}, which only abandons it.
+
+    Two different acts deserve two different routes: abandoning ends a trial and keeps what it
+    recorded, this removes the record itself. Refused while the trial is open — a running trial has an
+    agent talking to it, and deleting the row underneath it would turn every call it makes into a
+    puzzle.
+    """
+    trial = await _get(session, user, trial_id)
+    await service.purge_trial(session, trial)
     return OkResponse()

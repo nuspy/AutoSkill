@@ -54,6 +54,15 @@ export default function SkillPage() {
       {suspended && <div className="mb-4 rounded-lg border border-warning/40 bg-warning/10 px-4 py-2 text-sm">{t("skills:suspend.banner", { note: s.suspend_note ?? "" })}</div>}
       <div className="mb-4 flex items-center gap-2 text-xs text-muted">
         <code className="rounded bg-accent px-1.5 py-0.5">{s.name}</code>
+        {/* Two different facts, and one badge used to answer for both. `development_state` says
+            whether work on the skill is paused; it stays "active" for ever, including long after a
+            version has shipped. Labelled "In development" it then contradicted the versions tab,
+            which said published. The publication badge is the one people were looking for. */}
+        {s.current_published_version_id && (
+          <Badge tone={s.visibility === "private" ? "neutral" : "success"}>
+            {s.visibility === "private" ? t("skills:state.publishedPrivate") : t("skills:state.published")}
+          </Badge>
+        )}
         <Badge tone={suspended ? "warning" : "primary"}>{t(`skills:state.${s.development_state}`)}</Badge>
         <span>· {timeAgo(s.updated_at, i18n.language)}</span>
       </div>
@@ -116,6 +125,9 @@ function OverviewTab() {
   );
 }
 
+// Nothing further happens in these on its own, so the interview is there to be read, not carried on.
+const ENDED_STATES = new Set(["complete", "failed", "abandoned", "cancelled"]);
+
 function InterviewListTab() {
   const { projectId = "", skillId = "" } = useParams();
   const { t, i18n } = useTranslation(["skills", "common"]);
@@ -129,7 +141,11 @@ function InterviewListTab() {
           <li key={s.id} className="flex items-center gap-3 px-5 py-3 text-sm">
             <Badge tone={s.state === "complete" ? "success" : s.state === "failed" ? "danger" : "primary"}>{t(`skills:state.${s.state}`)}</Badge>
             <span className="flex-1 text-muted">{t("skills:interview.turns", { count: s.turn_count })} · {timeAgo(s.created_at, i18n.language)}</span>
-            <Link className="font-medium text-primary hover:underline" to={`/p/${projectId}/skills/${skillId}/interview/${s.id}`}>{t("common:actions.edit")}</Link>
+            {/* "Edit" was wrong twice over: an interview is answered, not edited, and a finished one
+                offers nothing to change. The link says which of the two this is. */}
+            <Link className="font-medium text-primary hover:underline" to={`/p/${projectId}/skills/${skillId}/interview/${s.id}`}>
+              {t(ENDED_STATES.has(s.state) ? "skills:interview.open" : "skills:interview.continue")}
+            </Link>
           </li>
         ))}
       </ul>

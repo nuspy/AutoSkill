@@ -66,6 +66,16 @@ export interface Device {
   created_at: string;
 }
 
+/** What to install on a machine to connect it. `wheel` is null when this server publishes none. */
+export interface Companion {
+  package: string;
+  version: string | null;
+  wheel: { url: string; filename: string; sha256: string | null; size: number | null } | null;
+  pip_spec: string;
+  install_command: string;
+  command: string;
+}
+
 export interface Notification {
   id: string;
   kind: string;
@@ -150,6 +160,15 @@ export interface PendingQuestion {
   expects: "text" | "choice" | "yes_no" | "file" | "confirmation";
   options: string[];
   target_gate: string;
+  /** who must produce the answer: the person, or the agent attached to the session */
+  audience?: "person" | "agent";
+  task?: {
+    mode: "inspect" | "act";
+    kind: string;
+    targets: string[];
+    wants: string[];
+    may_upload: boolean;
+  } | null;
 }
 
 export interface InterviewSession {
@@ -163,6 +182,10 @@ export interface InterviewSession {
   token_usage: { input_tokens?: number; output_tokens?: number };
   pending_question: PendingQuestion | null;
   error: string | null;
+  origin?: "browser" | "agent";
+  agent_target?: string | null;
+  agent_attached?: boolean;
+  agent_live?: boolean;
   completed_at: string | null;
   created_at: string;
   updated_at: string;
@@ -230,6 +253,43 @@ export interface InterviewDetail {
   waiting_for: string | null;
   current_step: string | null;
   supervisor: { decision: string; effective: string; reasons: string[]; missing: string[]; failing_gate: string | null } | null;
+  replay: { from_ordinal: number; new_from_ordinal: number } | null;
+}
+
+/** Whether the deterministic steps become scripts or MCP tools, and what forces the choice. */
+export interface DeliveryAnalysis {
+  delivery: "script" | "mcp";
+  forced: boolean;
+  agents_without_shell: string[];
+  steps: { key: string; title: string; kind: string; side_effects: string; needs_mcp: boolean; reasons: string[] }[];
+}
+
+/** A file shared with the interview. `preview` is the summary the model reads. */
+export interface Attachment {
+  name: string;
+  media_type: string;
+  size: number;
+  hash: string;
+  preview: string;
+}
+
+/** One execution of a procedure step. Steps replaced by a replay stay here, marked. */
+export interface InterviewStep {
+  id: string;
+  ordinal: number;
+  key: string;
+  kind: string;
+  status: "running" | "succeeded" | "failed" | "waiting" | "superseded" | "discarded";
+  attempt: number;
+  input: Record<string, unknown>;
+  output: Record<string, unknown>;
+  supervisor_decision: { decision: string; effective: string; reasons: string[]; failing_gate: string | null } | null;
+  next_key: string | null;
+  error: string | null;
+  llm_usage: { input_tokens?: number; output_tokens?: number } | null;
+  started_at: string;
+  ended_at: string | null;
+  replayable: boolean;
 }
 
 export interface MemoryEntry {
@@ -563,6 +623,10 @@ export interface TrialDetail {
   package_url: string;
   bundle_url: string | null;
   manifest_url: string | null;
+  // The trial's own install command, when the server kept a readable copy of the token. Null for
+  // trials created before that, which can still ask for a new one.
+  cli_command: string | null;
+  session_token: string | null;
 }
 
 export interface Discussion {

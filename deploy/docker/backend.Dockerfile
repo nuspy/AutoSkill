@@ -51,4 +51,7 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
     CMD curl -fsS http://127.0.0.1:8000/api/v1/health || exit 1
 
-CMD ["uvicorn", "autoskill.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips", "*"]
+# --timeout-keep-alive outlives the ingress idle timeout on purpose: whoever is in front should be
+# the one to close a connection. With uvicorn's 5s default, nginx reuses a socket the server has
+# just dropped and the browser gets ECONNRESET instead of an answer.
+CMD ["uvicorn", "autoskill.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips", "*", "--timeout-keep-alive", "1800"]

@@ -1,5 +1,6 @@
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AlertTriangle, CheckCircle2, Circle } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ChevronRight, Circle } from "lucide-react";
 import type { KnowledgeDoc } from "@/api/types";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/misc";
@@ -25,6 +26,61 @@ function Section({ title, children, empty }: { title: string; children?: React.R
       <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">{title}</h4>
       <div className="text-sm">{children}</div>
     </div>
+  );
+}
+
+type DocStep = KnowledgeDoc["doc"]["steps"][number];
+
+/** A step of the skill as the interview understood it. Click to see what was captured — and what
+ *  is still missing: an empty section is the fastest way to spot a gate that has not passed. */
+function StepItem({ step, index, startOpen }: { step: DocStep; index: number; startOpen: boolean }) {
+  const { t } = useTranslation(["skills"]);
+  const [open, setOpen] = useState(startOpen);
+  const tone = step.side_effects === "irreversible" ? "danger" : step.side_effects === "reversible" ? "warning" : step.side_effects === "unknown" ? "neutral" : "success";
+  return (
+    <li className="rounded-lg border border-border">
+      <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} className="flex w-full items-start gap-2 p-2 text-left min-h-11">
+        <ChevronRight className={cn("mt-0.5 h-4 w-4 shrink-0 text-muted transition-transform", open && "rotate-90")} aria-hidden />
+        <span className="flex-1">
+          <span className="flex flex-wrap items-center gap-1.5">
+            <span className="font-medium">{index + 1}. {step.title}</span>
+            <Badge tone="neutral">{t(`skills:knowledge.kind.${step.kind_hint}`)}</Badge>
+            <Badge tone={tone}>
+              {step.side_effects === "irreversible" && <AlertTriangle className="mr-1 h-3 w-3" />}
+              {t(`skills:knowledge.sideEffects.${step.side_effects}`)}
+            </Badge>
+          </span>
+          {step.description && <span className="mt-1 block text-muted">{step.description}</span>}
+        </span>
+      </button>
+      {open && (
+        <div className="space-y-2 border-t border-border px-3 py-2 text-xs">
+          {step.decision_rules.length > 0 && (
+            <div>
+              <h5 className="font-semibold uppercase tracking-wide text-muted">{t("skills:knowledge.rules")}</h5>
+              <ul className="mt-0.5 list-disc pl-4">{step.decision_rules.map((r, j) => <li key={j}>{r}</li>)}</ul>
+            </div>
+          )}
+          <div>
+            <h5 className="font-semibold uppercase tracking-wide text-muted">{t("skills:knowledge.example")}</h5>
+            {step.example ? <p className="mt-0.5 italic">{step.example}</p> : <p className="mt-0.5 text-muted">{t("skills:knowledge.missing")}</p>}
+          </div>
+          {step.uses.length > 0 && (
+            <div>
+              <h5 className="font-semibold uppercase tracking-wide text-muted">{t("skills:knowledge.usesSources")}</h5>
+              <p className="mt-0.5">{step.uses.join(", ")}</p>
+            </div>
+          )}
+          {step.restore_strategy && step.restore_strategy !== "unknown" && (
+            <div>
+              <h5 className="font-semibold uppercase tracking-wide text-muted">{t("skills:knowledge.restore")}</h5>
+              <p className="mt-0.5">{step.restore_strategy}</p>
+            </div>
+          )}
+          <p className="text-muted">{t("skills:knowledge.noRunYet")}</p>
+        </div>
+      )}
+    </li>
   );
 }
 
@@ -60,18 +116,7 @@ export function KnowledgePanel({ knowledge, expanded = false }: { knowledge: Kno
         <Section title={t("skills:knowledge.steps")} empty={!doc.steps.length}>
           <ol className="space-y-2">
             {doc.steps.map((step, i) => (
-              <li key={step.key} className="rounded-lg border border-border p-2">
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <span className="font-medium">{i + 1}. {step.title}</span>
-                  <Badge tone="neutral">{t(`skills:knowledge.kind.${step.kind_hint}`)}</Badge>
-                  <Badge tone={step.side_effects === "irreversible" ? "danger" : step.side_effects === "reversible" ? "warning" : step.side_effects === "unknown" ? "neutral" : "success"}>
-                    {step.side_effects === "irreversible" && <AlertTriangle className="mr-1 h-3 w-3" />}{t(`skills:knowledge.sideEffects.${step.side_effects}`)}
-                  </Badge>
-                </div>
-                {step.description && <p className="mt-1 text-muted">{step.description}</p>}
-                {expanded && step.decision_rules.length > 0 && <ul className="mt-1 list-disc pl-5 text-xs">{step.decision_rules.map((r, j) => <li key={j}>{r}</li>)}</ul>}
-                {expanded && step.example && <p className="mt-1 text-xs italic text-muted">{step.example}</p>}
-              </li>
+              <StepItem key={step.key} step={step} index={i} startOpen={expanded} />
             ))}
           </ol>
         </Section>

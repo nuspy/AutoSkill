@@ -3,7 +3,7 @@
   "new": "Neue Skill",
   "empty": "Noch keine Skill. Beschreibe eine Aufgabe, um zu beginnen.",
   "state": {
-    "active": "In Entwicklung",
+    "active": "Entwicklung offen",
     "suspended": "Pausiert",
     "archived": "Archiviert",
     "created": "Wird gestartet",
@@ -15,7 +15,9 @@
     "complete": "Verständnis abgeschlossen",
     "drafting_requested": "Entwurf wird erstellt",
     "abandoned": "Abgebrochen",
-    "failed": "Braucht Aufmerksamkeit"
+    "failed": "Braucht Aufmerksamkeit",
+    "published": "Veröffentlicht",
+    "publishedPrivate": "Veröffentlicht · nur im Projekt"
   },
   "start": {
     "title": "Beschreibe deine Aufgabe",
@@ -42,7 +44,7 @@
     "sendCorrection": "Korrektur senden",
     "summaryTitle": "Das habe ich verstanden",
     "completeTitle": "Verständnis abgeschlossen",
-    "completeBody": "Das Wissensdokument ist eingefroren und das Skill-Gedächtnis wurde geschrieben. Als Nächstes wird die Skill entworfen.",
+    "completeBody": "Das Wissensdokument ist eingefroren und der Skill-Speicher wurde geschrieben. Der erste Entwurf des Skills entsteht daraus automatisch.",
     "failedTitle": "Das Interview wurde abgebrochen",
     "abandon": "Interview abbrechen",
     "supervisor": "Supervisor",
@@ -50,7 +52,17 @@
     "turns": "{{count}} Runden",
     "gate": "Prüfpunkt {{id}}",
     "resume": "Interview fortsetzen",
-    "newSession": "Neues Interview beginnen"
+    "newSession": "Neues Interview beginnen",
+    "retry": "Erneut versuchen",
+    "retryHint": "Setzt bei dem fehlgeschlagenen Schritt fort: Es geht nichts vom Interview verloren.",
+    "attach": "Datei anhängen",
+    "disconnected": "Keine Verbindung zum Server — was Sie unten sehen, ist möglicherweise veraltet.",
+    "reconnect": "Erneut versuchen",
+    "lastChecked": "geprüft um {{time}}",
+    "continue": "Fortsetzen",
+    "open": "Öffnen",
+    "openDraft": "Entwurf öffnen",
+    "drafting": "Der erste Entwurf wird geschrieben…"
   },
   "knowledge": {
     "title": "Was ich bisher verstanden habe",
@@ -75,7 +87,12 @@
       "deterministic": "mechanisch",
       "generative": "braucht Urteilsvermögen",
       "human_gate": "braucht Freigabe"
-    }
+    },
+    "example": "Beispiel",
+    "usesSources": "Verwendete Datenquellen",
+    "restore": "Rückgängig machen",
+    "missing": "noch nicht erfasst",
+    "noRunYet": "So hat das Interview es verstanden. Was tatsächlich geschehen ist, wird bei der Ausführung der Skill unter Ausführungen festgehalten."
   },
   "gates": {
     "G1": "Ziel und Auslöser",
@@ -282,12 +299,21 @@
       "interactive": "Empfohlen: der Agent hält bei jedem Schritt an, bis du entscheidest.",
       "async": "Für Agenten mit zu kurzem Werkzeug-Timeout; Schritte werden aufgezeichnet und du prüfst sie danach."
     },
-    "createdHelp": "Führe den Befehl auf deinem Rechner aus (nach `pipx install autoskill-local` und `autoskill login`) oder gib deinem Agenten die Online-Adresse unten: er kann alles selbst herunterladen und installieren.",
+    "createdHelp": "Führe den Befehl auf deinem Rechner aus (den Installationsbefehl für die CLI findest du auf der Seite Meine Geräte, danach `autoskill login`) oder gib deinem Agenten die Online-Adresse unten: er kann alles selbst herunterladen und installieren.",
     "tokenWarning": "Der Befehl enthält ein einmaliges Test-Token: nicht weitergeben.",
     "openPage": "Test öffnen",
     "waitingInstall": "Warte auf die Installation",
     "waitingInstallHelp": "Führe den CLI-Befehl aus oder installiere manuell mit der Anleitung unten, dann starte die Aufgabe in deinem Agenten.",
     "waitingAgent": "Warte, bis der Agent den nächsten Schritt erreicht… starte die Aufgabe in deinem Agenten.",
+    "notStartedTitle": "Dein Agent hat diesen Test noch nicht begonnen",
+    "notStartedBody": "Bei AutoSkill ist nichts angekommen: Der Agent hat start_run nicht aufgerufen. Wenn du die Aufgabe in eigenen Worten beschrieben hast, hat er womöglich eine andere Skill gewählt oder die Arbeit von Hand erledigt, ohne die schrittweisen Prüfungen. Nenne stattdessen die Test-Skill ausdrücklich.",
+    "tellAgentSkill": "Sag das deinem Agenten",
+    "tellAgentSkillText": "Verwende die Skill {{skill}} und folge ihrem AutoSkill-Testprotokoll.",
+    "notStartedSince": "Wartet seit {{since}}.",
+    "runEndedTitle": "Der Agent hat den Lauf beendet, ohne den Durchgang abzuschließen",
+    "runEndedReported": "Der Agent hat die Aufgabe als abgeschlossen gemeldet",
+    "runEndedBody": "Von dieser Seite aus wurden nur {{done}} von {{total}} Schritten freigegeben. Was der Agent danach tat, wurde hier nie gezeigt, daher kann AutoSkill es nicht bestätigen.",
+    "runEndedHint": "Prüfe das Ergebnis selbst, bevor du es annimmst. Für einen vollständig beobachteten Lauf starte einen neuen Test und weise den Agenten an, bei jedem Schritt dem Testprotokoll zu folgen.",
     "suspend": "Pausieren",
     "resume": "Fortsetzen",
     "suspendedBanner": "Dieser Test ist pausiert. Die Testkopie bleibt installiert; setze fort, wann du willst.",
@@ -297,7 +323,10 @@
     "noSummary": "Noch keine Zusammenfassung.",
     "note": "Notiz fürs Protokoll (optional)",
     "outcomeSaved": "Ergebnis gespeichert",
-    "finishedHelp": "Dieser Test ist abgeschlossen: {{outcome}}. Behalte oder entferne die Kopie mit der CLI: autoskill trial accept/remove.",
+    "finishedHelp": "Dieser Test ist beendet: {{outcome}}. Die Kopie auf deinem Rechner ist noch die Testkopie — führe einen dieser Befehle aus, um das abzuschließen.",
+    "keepCommand": "Installiert lassen (ersetzt die Testkopie durch die endgültige Fassung)",
+    "keepCommandHint": "Lädt die Skill ohne die Testanweisungen, damit sie ohne Checkpoints allein läuft.",
+    "dropCommand": "Die Kopie vom Agenten entfernen",
     "history": "Entscheidungen",
     "steps": "Schritte",
     "iteration": "Iteration {{n}}",
@@ -368,12 +397,23 @@
       "removed": "Entfernen",
       "abandoned": "abgebrochen"
     },
+    "outcomeDone": {
+      "accepted": "Angenommen",
+      "changes_requested": "Änderungen angefordert",
+      "major_rework": "Grundlegende Überarbeitung angefordert",
+      "removed": "Entfernt",
+      "abandoned": "Abgebrochen"
+    },
+    "deleteForever": "Endgültig löschen",
+    "deleteForeverConfirm": "Endgültig löschen",
+    "deleteForeverHelp": "Löscht den Test und alles, was er aufgezeichnet hat: Checkpoints, Läufe, Snapshots, Diskussionen und seinen Download-Link. Die Skill und ihre Versionen bleiben unberührt. Nicht rückgängig zu machen.",
+    "installInstructions": "Installationsanweisungen (enthalten das Test-Token)",
     "cliCommand": "CLI-Befehl",
     "bundleUrl": "Installationsdatei (Online-Adresse)",
     "bundleUrlHint": "Jeder mit dieser Adresse kann die Installationsbeschreibung und jede darin genannte Komponente (Skill, MCP-Server, gemeinsame Komponenten) ohne Anmeldung herunterladen, bis der Test geschlossen wird. Sie enthält nicht das Test-Token.",
     "manifestUrl": "Maschinenlesbares Manifest (install.json)",
     "tellAgent": "Was du deinem Agenten sagst",
-    "tellAgentText": "Installiere die AutoSkill-Skill, die unter {{url}} beschrieben ist (maschinenlesbares Manifest: {{manifest}}). Lade jede Komponente von den dort angegebenen Adressen, prüfe die Prüfsummen, registriere die MCP-Server und frage mich nach den Umgebungswerten und dem Test-Token.",
+    "tellAgentText": "Installiere die AutoSkill-Skill, die unter {{url}} beschrieben ist (maschinenlesbares Manifest: {{manifest}}). Lade jede Komponente von den dort genannten Adressen, prüfe die Checksummen, registriere die MCP-Server mit dem Test-Token {{token}} und frage mich nach den Umgebungswerten. Folge dann bei jedem Schritt dem AutoSkill-Testprotokoll.",
     "autoConfirm": "Bereits mehrfach bestätigte Schritte überspringen",
     "autoConfirmHint": "Deterministische Schritte, die du in früheren Tests N-mal bestätigt hast, werden automatisch entschieden (nie Ausführungen, nie unumkehrbare Schritte). Du kannst es während des Tests abschalten.",
     "autoConfirmShort": "Bekannte Schritte automatisch bestätigen",
@@ -383,7 +423,11 @@
     "snapshot": {
       "title": "Sicherung erfasst ({{n}} Elemente)",
       "restored": "wiederhergestellt"
-    }
+    },
+    "commandLost": "Der Installationsbefehl wurde beim Anlegen des Tests nur einmal angezeigt. Solange Sie ihn nicht ausführen, geschieht auf dem Rechner nichts.",
+    "showCommand": "Befehl erneut anzeigen",
+    "showCommandHint": "Dies erzeugt ein neues Test-Token; das zuvor angezeigte wird ungültig.",
+    "targetNotDetected": "Noch keine Maschine hat diesen Agenten gemeldet. Die Liste wird beim Ausführen der CLI aktualisiert, ein später installierter Agent fehlt also womöglich nur — prüfen Sie, ob es der Agent ist, den Sie tatsächlich verwenden."
   },
   "runs": {
     "title": "Läufe",
@@ -404,7 +448,14 @@
       "ok": "OK",
       "corrected": "Korrigiert",
       "wrong": "Falsch"
-    }
+    },
+    "executedAction": "Ausgeführte Aktion",
+    "proposedAction": "Vorgeschlagene Aktion",
+    "tool": "Werkzeug",
+    "inputs": "Eingabe",
+    "outputs": "Ausgabe",
+    "error": "Fehler",
+    "noDetail": "Dieser Schritt hat keine Details aufgezeichnet."
   },
   "review": {
     "queue": "Prüfwarteschlange",
@@ -667,5 +718,80 @@
       "expiresAt": "läuft ab {{when}}",
       "revoke": "Widerrufen"
     }
+  },
+  "steps": {
+    "title": "Schrittverlauf",
+    "description": "Was das Interview Schritt für Schritt getan hat",
+    "show": "Verlauf anzeigen",
+    "hide": "Verlauf ausblenden",
+    "empty": "Noch kein Schritt aufgezeichnet.",
+    "attempt": "Versuch",
+    "question": "Gestellte Frage",
+    "decision": "Entscheidung der Aufsicht",
+    "error": "Fehler",
+    "tokens": "Tokens",
+    "replay": "Schritt wiederholen",
+    "replayActive": "Wiederholung ab Schritt {{n}}",
+    "replayHint": "Übernehmen behält diesen Durchlauf und legt die folgenden Schritte beiseite; Verwerfen bringt Sie genau dorthin zurück, wo Sie waren.",
+    "accept": "Übernehmen",
+    "discard": "Verwerfen",
+    "status": {
+      "running": "läuft",
+      "succeeded": "fertig",
+      "failed": "fehlgeschlagen",
+      "waiting": "wartet",
+      "superseded": "ersetzt",
+      "discarded": "verworfen"
+    },
+    "key": {
+      "intake": "Erstes Verständnis",
+      "compute_gates": "Vollständigkeitsprüfung",
+      "supervise": "Aufsicht",
+      "ask": "Frage",
+      "ingest": "Antwortverarbeitung",
+      "confirm_summary": "Bestätigung der Zusammenfassung",
+      "finalize": "Abschluss"
+    }
+  },
+  "delivery": {
+    "title": "Wie die Schritte ausgeliefert werden",
+    "description": "Einmal für die gesamte Skill gewählt, vor dem Schreiben.",
+    "script": "Skripte",
+    "scriptHelp": "Module mit Kommandozeile. Nichts läuft dauerhaft, und keine Tool-Beschreibungen belegen den Kontext des Agenten.",
+    "mcp": "MCP-Server",
+    "mcpHelp": "Die Schritte werden Tools eines Servers. Nötig für Agenten ohne Kommandozeile oder zur Wiederverwendung.",
+    "default": "Standard",
+    "forced": "{{count}} Schritt kann kein Skript sein",
+    "forced_other": "{{count}} Schritte können keine Skripte sein",
+    "noShell": "Agenten ohne Kommandozeile: {{agents}}",
+    "reason": {
+      "authorization": "irreversibel: Freigabe je Aktion nötig"
+    }
+  },
+  "ways": {
+    "title": "Drei Wege zu einer Skill",
+    "here": {
+      "title": "Hier im Browser",
+      "body": "Beschreiben Sie die Aufgabe und beantworten Sie die Fragen. Nichts zu installieren — AutoSkill sieht Ihren Rechner aber nicht."
+    },
+    "attach": {
+      "title": "Mit Hilfe Ihres Agenten",
+      "body": "Hier beginnen und den Agenten auf der Interviewseite verbinden: AutoSkill kann dann Ordner, Dateien und Verbindungen ansehen, statt Sie danach zu fragen."
+    },
+    "fromAgent": {
+      "title": "Aus Ihrem Agenten",
+      "body": "Bitten Sie Ihren Agenten, eine Skill zu erstellen; er öffnet die Sitzung und bringt Sie hierher zurück."
+    }
+  },
+  "agent": {
+    "title": "Ihr Agent",
+    "description": "AutoSkill führt das Interview; Ihr Agent beantwortet, was auf Ihrem Rechner sichtbar ist.",
+    "help": "Verbinden Sie Ihren Agenten, dann schaut AutoSkill selbst nach.",
+    "attach": "Agenten verbinden",
+    "paste": "Fügen Sie dies in Ihren Agenten ein:",
+    "live": "hört zu",
+    "looking": "Ihr Agent sieht nach",
+    "notListening": "Ihr Agent hat sich länger nicht gemeldet — antworten Sie bei Bedarf selbst.",
+    "privacy": "Was Ihr Agent meldet (Pfade, Dateinamen, Spaltenüberschriften), wird an AutoSkill gesendet und im Interview verwendet."
   }
 }

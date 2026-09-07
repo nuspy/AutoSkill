@@ -1,9 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/api/client";
-import type { Device, Notification, NotificationPreference } from "@/api/types";
+import type { Companion, Device, Notification, NotificationPreference } from "@/api/types";
 
 export function useDevices() {
   return useQuery({ queryKey: ["me", "devices"], queryFn: () => api<Device[]>("/me/devices") });
+}
+
+/** The install command, which only the server can spell: it names its own wheel by version. */
+export function useCompanion() {
+  return useQuery({ queryKey: ["devices", "companion"], queryFn: () => api<Companion>("/devices/companion"), staleTime: 5 * 60_000 });
 }
 
 export function useRemoveDevice() {

@@ -11,9 +11,12 @@
     "empty": "Nessun dispositivo collegato.",
     "connect": "Collega un dispositivo",
     "howto": "Installa la CLI ed esegui:",
+    "notOnPypi": "Il pacchetto non è su PyPI: lo distribuisce questo server.",
+    "noWheel": "Questo server non pubblica ancora una wheel di autoskill-local: da qui non c'è nulla da installare.",
     "lastSeen": "Ultimo accesso",
     "agents": "Agenti",
-    "remove": "Scollega"
+    "remove": "Scollega",
+    "assistantSkill": "La terza riga installa la skill che insegna al tuo agente a lavorare con AutoSkill: senza, non saprà cosa fare quando gli chiedi di automatizzare qualcosa."
   },
   "notifications": {
     "title": "Notifiche",

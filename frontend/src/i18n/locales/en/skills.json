@@ -3,7 +3,7 @@
   "new": "New skill",
   "empty": "No skill yet. Describe a task to start.",
   "state": {
-    "active": "In development",
+    "active": "Development open",
     "suspended": "Suspended",
     "archived": "Archived",
     "created": "Starting",
@@ -15,7 +15,9 @@
     "complete": "Understanding complete",
     "drafting_requested": "Drafting",
     "abandoned": "Abandoned",
-    "failed": "Needs attention"
+    "failed": "Needs attention",
+    "published": "Published",
+    "publishedPrivate": "Published · project only"
   },
   "start": {
     "title": "Describe your task",
@@ -42,7 +44,7 @@
     "sendCorrection": "Send correction",
     "summaryTitle": "Here is what I understood",
     "completeTitle": "Understanding complete",
-    "completeBody": "The knowledge document is frozen and the skill memory has been written. The next step is drafting the skill.",
+    "completeBody": "The knowledge document is frozen and the skill memory has been written. The first draft of the skill is written from it automatically.",
     "failedTitle": "The interview stopped",
     "abandon": "Abandon interview",
     "supervisor": "Supervisor",
@@ -50,7 +52,17 @@
     "turns": "{{count}} turns",
     "gate": "gate {{id}}",
     "resume": "Continue the interview",
-    "newSession": "Start a new interview"
+    "newSession": "Start a new interview",
+    "retry": "Retry",
+    "retryHint": "Resumes from the step that failed: nothing of the interview is lost.",
+    "attach": "Attach a file",
+    "disconnected": "Not in contact with the server — what you see below may be out of date.",
+    "reconnect": "Try again",
+    "lastChecked": "checked at {{time}}",
+    "continue": "Continue",
+    "open": "Open",
+    "openDraft": "Open the draft",
+    "drafting": "Writing the first draft…"
   },
   "knowledge": {
     "title": "What I understood so far",
@@ -75,7 +87,12 @@
       "deterministic": "mechanical",
       "generative": "needs judgement",
       "human_gate": "needs approval"
-    }
+    },
+    "example": "Example",
+    "usesSources": "Data sources used",
+    "restore": "How to undo",
+    "missing": "not captured yet",
+    "noRunYet": "This is what the interview understood. What actually happened is recorded when the skill runs, under Runs."
   },
   "gates": {
     "G1": "Goal and trigger",
@@ -282,12 +299,21 @@
       "interactive": "Recommended: the agent pauses at every step until you decide.",
       "async": "For agents whose tool timeout is too short; steps are recorded and you review them after."
     },
-    "createdHelp": "Run the command on your machine (after `pipx install autoskill-local` and `autoskill login`), or hand the online address below to your agent: it can download and install everything by itself.",
+    "createdHelp": "Run the command on your machine (the CLI install command is on the My devices page, then `autoskill login`), or hand the online address below to your agent: it can download and install everything by itself.",
     "tokenWarning": "The command contains a one-time trial token: do not share it.",
     "openPage": "Open trial",
     "waitingInstall": "Waiting for the installation",
     "waitingInstallHelp": "Run the CLI command or install manually with the guide below, then start the task in your agent.",
     "waitingAgent": "Waiting for the agent to reach the next step… start the task in your agent.",
+    "notStartedTitle": "Your agent has not started this trial yet",
+    "notStartedBody": "Nothing has reached AutoSkill: the agent has not called start_run. If you described the task in your own words, the agent may have picked a different skill, or done the work by hand without the step-by-step checks. Name the trial skill explicitly instead.",
+    "tellAgentSkill": "Say this to your agent",
+    "tellAgentSkillText": "Use the {{skill}} skill and follow its AutoSkill trial protocol.",
+    "notStartedSince": "Waiting since {{since}}.",
+    "runEndedTitle": "The agent ended the run without finishing the walkthrough",
+    "runEndedReported": "The agent reported the task as finished",
+    "runEndedBody": "Only {{done}} of {{total}} steps were approved from this page. What the agent did after that was never shown here, so AutoSkill cannot confirm it.",
+    "runEndedHint": "Check the result yourself before accepting. For a fully witnessed run, start a new trial and tell the agent to follow the trial protocol for every step.",
     "suspend": "Suspend",
     "resume": "Resume",
     "suspendedBanner": "This trial is suspended. The trial copy stays installed; resume whenever you want.",
@@ -297,7 +323,10 @@
     "noSummary": "No summary yet.",
     "note": "Note for the record (optional)",
     "outcomeSaved": "Outcome saved",
-    "finishedHelp": "This trial is finished: {{outcome}}. Use the CLI to keep or remove the copy: autoskill trial accept/remove.",
+    "finishedHelp": "This trial is finished: {{outcome}}. The copy on your machine is still the trial one — run one of these to settle it.",
+    "keepCommand": "Keep it installed (replaces the trial copy with the final version)",
+    "keepCommandHint": "Downloads the skill without the trial instructions, so it runs on its own without checkpoints.",
+    "dropCommand": "Remove the copy from your agent",
     "history": "Decisions",
     "steps": "Steps",
     "iteration": "iteration {{n}}",
@@ -368,12 +397,23 @@
       "removed": "Remove",
       "abandoned": "abandoned"
     },
+    "outcomeDone": {
+      "accepted": "Accepted",
+      "changes_requested": "Changes requested",
+      "major_rework": "Major rework requested",
+      "removed": "Removed",
+      "abandoned": "Abandoned"
+    },
+    "deleteForever": "Delete permanently",
+    "deleteForeverConfirm": "Delete permanently",
+    "deleteForeverHelp": "This erases the trial and everything it recorded: checkpoints, runs, snapshots, discussions and its download link. The skill and its versions are untouched. It cannot be undone.",
+    "installInstructions": "Installation instructions (includes the trial token)",
     "cliCommand": "CLI command",
     "bundleUrl": "Installation file (online address)",
     "bundleUrlHint": "Anyone with this address can download the installation description and every component it cites (skill, MCP servers, shared components) without logging in, until the trial is closed. It does not contain the trial token.",
     "manifestUrl": "Machine-readable manifest (install.json)",
     "tellAgent": "What to tell your agent",
-    "tellAgentText": "Install the AutoSkill skill described at {{url}} (machine-readable manifest: {{manifest}}). Download every component from the addresses given there, verify the checksums, register the MCP servers and ask me for the environment values and the trial token.",
+    "tellAgentText": "Install the AutoSkill skill described at {{url}} (machine-readable manifest: {{manifest}}). Download every component from the addresses given there, verify the checksums, register the MCP servers using the trial token {{token}}, and ask me for the environment values. Then follow the AutoSkill trial protocol for every step.",
     "autoConfirm": "Skip steps already confirmed several times",
     "autoConfirmHint": "Deterministic steps you confirmed N times in earlier trials are decided automatically (never executions, never irreversible steps). You can switch it off during the trial.",
     "autoConfirmShort": "Auto-confirm known steps",
@@ -383,7 +423,11 @@
     "snapshot": {
       "title": "Backup recorded ({{n}} items)",
       "restored": "restored"
-    }
+    },
+    "commandLost": "The install command was shown once when the trial was created. Nothing happens on this machine until you run it.",
+    "showCommand": "Show the command again",
+    "showCommandHint": "This issues a new trial token; the one shown before stops working.",
+    "targetNotDetected": "No machine has reported this agent yet. The list is refreshed when the CLI runs, so an agent installed since then simply may not appear — check that this is the agent you actually use."
   },
   "runs": {
     "title": "Runs",
@@ -404,7 +448,14 @@
       "ok": "OK",
       "corrected": "Corrected",
       "wrong": "Wrong"
-    }
+    },
+    "executedAction": "Action performed",
+    "proposedAction": "Action proposed",
+    "tool": "Tool",
+    "inputs": "Input",
+    "outputs": "Output",
+    "error": "Error",
+    "noDetail": "This step recorded no detail."
   },
   "review": {
     "queue": "Review queue",
@@ -667,5 +718,80 @@
       "expiresAt": "expires {{when}}",
       "revoke": "Revoke"
     }
+  },
+  "steps": {
+    "title": "Step history",
+    "description": "What the interview did, step by step",
+    "show": "Show step history",
+    "hide": "Hide step history",
+    "empty": "No step recorded yet.",
+    "attempt": "Attempt",
+    "question": "Question asked",
+    "decision": "Supervisor decision",
+    "error": "Error",
+    "tokens": "Tokens",
+    "replay": "Re-run this step",
+    "replayActive": "Re-running from step {{n}}",
+    "replayHint": "Accept to keep this run and set aside the steps that followed, or discard to go back exactly where you were.",
+    "accept": "Accept",
+    "discard": "Discard",
+    "status": {
+      "running": "running",
+      "succeeded": "done",
+      "failed": "failed",
+      "waiting": "waiting",
+      "superseded": "replaced",
+      "discarded": "discarded"
+    },
+    "key": {
+      "intake": "Initial understanding",
+      "compute_gates": "Completeness check",
+      "supervise": "Supervision",
+      "ask": "Question",
+      "ingest": "Answer processing",
+      "confirm_summary": "Summary confirmation",
+      "finalize": "Finalisation"
+    }
+  },
+  "delivery": {
+    "title": "How the steps are delivered",
+    "description": "Chosen once for the whole skill, before writing it.",
+    "script": "Scripts",
+    "scriptHelp": "Modules with a command line. Nothing stays running and no tool descriptions take up the agent's context.",
+    "mcp": "MCP server",
+    "mcpHelp": "The steps become tools of a server. Needed for agents without a command line, or to reuse them across skills.",
+    "default": "default",
+    "forced": "{{count}} step cannot be a script",
+    "forced_other": "{{count}} steps cannot be scripts",
+    "noShell": "Agents without a command line: {{agents}}",
+    "reason": {
+      "authorization": "irreversible: needs authorisation per action"
+    }
+  },
+  "ways": {
+    "title": "Three ways to build a skill",
+    "here": {
+      "title": "Here in the browser",
+      "body": "Describe the task and answer the questions. Nothing to install — but AutoSkill cannot see your machine."
+    },
+    "attach": {
+      "title": "With your agent helping",
+      "body": "Start here, then attach your agent from the interview page: AutoSkill can look at folders, files and connections instead of asking you to recall them."
+    },
+    "fromAgent": {
+      "title": "From your agent",
+      "body": "Ask your agent to create a skill; it opens the session and brings you back here to continue."
+    }
+  },
+  "agent": {
+    "title": "Your agent",
+    "description": "AutoSkill leads the interview; your agent answers what can be observed on your machine.",
+    "help": "Attach your agent and AutoSkill will look things up instead of asking you to remember them.",
+    "attach": "Attach my agent",
+    "paste": "Paste this into your agent:",
+    "live": "listening",
+    "looking": "Your agent is looking into this",
+    "notListening": "Your agent has not called in for a while — answer below if you prefer.",
+    "privacy": "What your agent reports (paths, file names, column headers) is sent to AutoSkill and used in the interview."
   }
 }

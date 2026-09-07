@@ -106,12 +106,33 @@ class SupervisorDecision(BaseModel):
     confidence: float = Field(default=0.5, ge=0, le=1)
 
 
+class AgentTask(BaseModel):
+    """Work the application asks the executor to carry out on the person's machine.
+
+    `inspect` is reading — a folder, a workbook, a version, whether an endpoint answers — and needs
+    no authorisation: it is why the agent is attached. `act` changes something and goes through a
+    checkpoint, where the person decides in the browser.
+    """
+
+    mode: Literal["inspect", "act"] = "inspect"
+    kind: Literal[
+        "list_dir", "path_exists", "describe_tabular", "read_head", "command_check", "http_check", "other"
+    ] = "other"
+    targets: list[str] = Field(default_factory=list)  # paths, urls or command names as the person named them
+    wants: list[str] = Field(default_factory=list)  # "sheet names", "column headers", "newest file"
+    may_upload: bool = False  # true when a sample answers better than a description
+
+
 class QuestionSpec(BaseModel):
     question: str
     why: str = ""
     expects: Literal["text", "choice", "yes_no", "file"] = "text"
     options: list[str] = Field(default_factory=list)
     target_gate: str = "G1"
+    # who must produce the answer. "agent" only when an executor is attached: code downgrades it
+    # otherwise, so a session without an agent behaves exactly as before.
+    audience: Literal["person", "agent"] = "person"
+    task: AgentTask | None = None
 
 
 class MemoryEntryProposal(BaseModel):

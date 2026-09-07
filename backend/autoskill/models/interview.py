@@ -36,6 +36,15 @@ class InterviewSession(IdMixin, TimestampMixin, Base):
     pending_question: Mapped[dict | None] = mapped_column(JSON)
     completed_at: Mapped[datetime | None] = mapped_column(TZDateTime)
     error: Mapped[str | None] = mapped_column(Text)
+    # Where the session was created from: "browser" (the form) or "agent" (the CLI/companion).
+    origin: Mapped[str] = mapped_column(String(16), default="browser", nullable=False)
+    # An executor attached to this session: the application still leads and the person still answers
+    # in the browser, but facts about the machine can be asked of the agent instead of recalled.
+    # The token is what an agent presents; hashed, like a trial token.
+    agent_token_hash: Mapped[str | None] = mapped_column(String(64), unique=True, index=True)
+    device_id: Mapped[str | None] = mapped_column(String(36))
+    agent_target: Mapped[str | None] = mapped_column(String(32))
+    agent_last_seen_at: Mapped[datetime | None] = mapped_column(TZDateTime)
 
 
 class InterviewMessage(IdMixin, Base):

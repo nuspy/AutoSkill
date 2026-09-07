@@ -13,6 +13,7 @@ from sqlalchemy import func, select
 
 from autoskill.core.events import emit, project_channel, user_channel
 from autoskill.db.base import utcnow
+from autoskill.llm.budget import output_budget
 from autoskill.llm.provider import ChatMessage, ChatRequest
 from autoskill.llm.registry import get_provider
 from autoskill.llm.structured import structured
@@ -41,6 +42,9 @@ from autoskill.services.procedures.engine import (
 
 LANGUAGE_NAMES = {"en": "English", "it": "Italian", "hu": "Hungarian", "de": "German", "es": "Spanish", "fr": "French"}
 MAX_TURNS_DEFAULT = 40
+# How many turns may be spent on one gate before code stops aiming at it. Three is enough for a
+# person to answer, rephrase and answer again; beyond that the obstacle is not the person.
+MAX_GATE_ATTEMPTS = 3
 
 
 async def _session(ctx: ProcedureContext) -> InterviewSession:
@@ -121,7 +125,7 @@ async def _llm(
             ChatMessage(role="user", content=prompt),
         ],
         temperature=temperature,
-        max_tokens=4000,
+        max_tokens=await output_budget(ctx.session),
         seed=7,
         purpose=purpose,
     )
@@ -141,7 +145,19 @@ async def intake(ctx: ProcedureContext):
     interview = await _session(ctx)
     interview.state = "intake"
     res = await ctx.session.execute(select(DataSource).where(DataSource.project_id == interview.project_id))
-    sources = [{"name": d.name, "kind": d.kind, "description": d.description} for d in res.scalars()]
+    # access notes and schema come along: gate G2 demands them, so withholding them from the model
+    # made the interview ask for what the project had already recorded
+    sources = [
+        {
+            "name": d.name,
+            "kind": d.kind,
+            "description": d.description,
+            "access": d.access_notes,
+            "sensitivity": d.sensitivity,
+            "fields": list((d.schema_def or {}).get("fields") or []),
+        }
+        for d in res.scalars()
+    ]
     prompt = render(
         "interview_intake",
         description=ctx.state.get("description", ""),
@@ -192,7 +208,15 @@ async def supervise(ctx: ProcedureContext):
     result = await _llm(ctx, interview, "supervisor", prompt, SupervisorDecision, temperature=0.0)
     decision: SupervisorDecision = result.value
     doc = KnowledgeDocModel.model_validate(knowledge.doc)
-    failing = first_failing(compute_gates(doc))
+    # A gate that has been aimed at repeatedly and still will not close is not going to close by
+    # asking a seventh time: the model is failing to record the shape the gate checks for, and no
+    # answer the person gives can change that. Seen for real — six consecutive turns rephrasing the
+    # same question about a backup copy, each answered, each ingested, the gate red every time.
+    # Setting it aside lets the interview finish and say what stayed unsettled, which is worth far
+    # more than a loop that burns the turn budget and ends in "blocked".
+    attempts: dict[str, int] = dict(ctx.state.get("gate_attempts") or {})
+    stuck = tuple(gate_id for gate_id, tries in attempts.items() if tries >= MAX_GATE_ATTEMPTS)
+    failing = first_failing(compute_gates(doc), skip=("G8", *stuck))
     # code has the final say: deterministic gates override an over-eager "proceed"
     effective = decision.decision
     if failing is not None and effective == "proceed":
@@ -202,7 +226,12 @@ async def supervise(ctx: ProcedureContext):
     if interview.turn_count >= max_turns and effective == "need_more":
         effective = "block"
         decision.reasons.append("turn budget exhausted")
-    record = {**decision.model_dump(), "effective": effective, "failing_gate": failing.id if failing else None}
+    record = {
+        **decision.model_dump(),
+        "effective": effective,
+        "failing_gate": failing.id if failing else None,
+        "exhausted_gates": list(stuck),
+    }
     ctx.state["supervisor"] = record
     if effective == "proceed":
         return Next("confirm_summary", decision=record, usage=result.usage.as_dict())
@@ -211,10 +240,44 @@ async def supervise(ctx: ProcedureContext):
         interview.error = "; ".join(decision.reasons) or "blocked by supervisor"
         await _notify(interview, "interview.updated")
         return Done({"blocked": True, "reasons": decision.reasons})
-    ctx.state["target_gate"] = decision.target_gate or (failing.id if failing else "G1")
+    target = decision.target_gate or (failing.id if failing else "G1")
+    if target in stuck and failing is not None:
+        target = failing.id  # the supervisor may still name a gate code has given up on
+    attempts[target] = attempts.get(target, 0) + 1
+    ctx.state["gate_attempts"] = attempts
+    ctx.state["target_gate"] = target
     ctx.state["guidance"] = "; ".join(decision.missing or decision.reasons) or (failing.detail if failing else "")
     ctx.state["suggested"] = decision.next_question
     return Next("ask", decision=record, usage=result.usage.as_dict())
+
+
+MAX_CONSECUTIVE_AGENT_TURNS = 3
+
+
+def _executor(interview: InterviewSession) -> dict[str, Any] | None:
+    """The agent attached to this session, or None. Only then may a turn be addressed to it."""
+    from autoskill.services.interview.service import has_live_agent
+
+    if not has_live_agent(interview):
+        return None
+    return {"agent": interview.agent_target or "the person's agent"}
+
+
+def _settle_audience(ctx: ProcedureContext, q: QuestionSpec, executor: dict[str, Any] | None) -> None:
+    """Code decides who answers, as it already does with the supervisor's verdict.
+
+    Without an attached agent every turn goes to the person, which is what makes a session with no
+    executor behave exactly as it did before. And the machine does not get to talk to itself for
+    long while somebody waits.
+    """
+    if q.audience != "agent":
+        q.task = None
+        return
+    if executor is None or q.task is None:
+        q.audience, q.task = "person", None
+        return
+    if ctx.state.get("agent_turns", 0) >= MAX_CONSECUTIVE_AGENT_TURNS:
+        q.audience, q.task = "person", None
 
 
 async def ask(ctx: ProcedureContext):
@@ -223,6 +286,7 @@ async def ask(ctx: ProcedureContext):
     assert knowledge is not None
     if ctx.human_input is None:
         if interview.pending_question is None:
+            executor = _executor(interview)
             prompt = render(
                 "interview_question",
                 language_name=_lang(interview),
@@ -231,10 +295,12 @@ async def ask(ctx: ProcedureContext):
                 suggested=ctx.state.get("suggested"),
                 knowledge_json=json.dumps(knowledge.doc, ensure_ascii=False),
                 library=await library_catalog(ctx.session),
+                executor=executor,
             )
             result = await _llm(ctx, interview, "interviewer", prompt, QuestionSpec, temperature=0.3)
             q: QuestionSpec = result.value
             q.target_gate = ctx.state.get("target_gate", q.target_gate)
+            _settle_audience(ctx, q, executor)
             interview.pending_question = q.model_dump()
             await _add_message(ctx, interview, "assistant", q.question, meta={"question": q.model_dump()})
         interview.state = "awaiting_answer"
@@ -243,7 +309,12 @@ async def ask(ctx: ProcedureContext):
     # resumed with the answer
     answer = ctx.human_input
     ctx.state["last_answer"] = answer
-    interview.turn_count += 1
+    asked_agent = (interview.pending_question or {}).get("audience") == "agent"
+    ctx.state["answered_by"] = "agent" if asked_agent else "person"
+    ctx.state["agent_turns"] = ctx.state.get("agent_turns", 0) + 1 if asked_agent else 0
+    if not asked_agent:
+        # only a person's answer costs a turn of the budget: looking at the machine is not a question
+        interview.turn_count += 1
     await _add_message(ctx, interview, "user", answer.get("text", ""), attachments=answer.get("attachments", []))
     return Next("ingest")
 
@@ -261,6 +332,7 @@ async def ingest(ctx: ProcedureContext):
         answer=answer.get("text", ""),
         attachments=answer.get("attachments", []),
         knowledge_json=json.dumps(knowledge.doc, ensure_ascii=False),
+        answered_by=ctx.state.get("answered_by", "person"),
     )
     result = await _llm(ctx, interview, "interviewer", prompt, KnowledgeDocModel)
     doc: KnowledgeDocModel = result.value
@@ -291,7 +363,7 @@ async def confirm_summary(ctx: ProcedureContext):
                     ),
                 ],
                 temperature=0.2,
-                max_tokens=1200,
+                max_tokens=await output_budget(ctx.session),
                 purpose="interviewer",
             )
             res = await provider.chat(req)
@@ -386,6 +458,9 @@ async def finalize(ctx: ProcedureContext):
                 "mode": "new",
                 "origin": "interview",
                 "language": interview.language,
+                # so the job can put the interview back when it is done: `drafting_requested` reads
+                # as "still working" everywhere, and only the job knows when that stops being true
+                "interview_id": interview.id,
             },
             project_id=interview.project_id,
             user_id=interview.user_id,
@@ -394,10 +469,67 @@ async def finalize(ctx: ProcedureContext):
     return Done({"knowledge_id": knowledge.id, "memory_entries": extracted})
 
 
+async def snapshot_interview(session, procedure) -> dict[str, Any]:
+    """What a step of this procedure can change, beyond `procedure.context`.
+
+    Knowledge docs and messages are append-only, so the snapshot only records *how far* they had
+    got: the revision in use and the last visible message. Restoring rewinds those pointers, it
+    never deletes what was written.
+    """
+    interview = await session.get(InterviewSession, procedure.subject_id)
+    if interview is None:
+        return {}
+    res = await session.execute(
+        select(func.coalesce(func.max(InterviewMessage.ordinal), 0)).where(
+            InterviewMessage.session_id == interview.id
+        )
+    )
+    return {
+        "state": interview.state,
+        "turn_count": interview.turn_count,
+        "pending_question": interview.pending_question,
+        "knowledge_id": interview.knowledge_id,
+        "token_usage": dict(interview.token_usage or {}),
+        "error": interview.error,
+        "message_ordinal": int(res.scalar_one()),
+    }
+
+
+async def restore_interview(session, procedure, snap: dict[str, Any]) -> None:
+    """Rewind the session to `snap`. Messages past the mark are hidden, not removed."""
+    interview = await session.get(InterviewSession, procedure.subject_id)
+    if interview is None or not snap:
+        return
+    interview.state = snap.get("state", interview.state)
+    interview.turn_count = int(snap.get("turn_count") or 0)
+    interview.pending_question = snap.get("pending_question")
+    interview.knowledge_id = snap.get("knowledge_id")
+    interview.token_usage = dict(snap.get("token_usage") or {})
+    interview.error = snap.get("error")
+    mark = int(snap.get("message_ordinal") or 0)
+    res = await session.execute(
+        select(InterviewMessage).where(InterviewMessage.session_id == interview.id)
+    )
+    for msg in res.scalars().all():
+        meta = dict(msg.meta or {})
+        # a message written after the mark belongs to a future that no longer applies; one written
+        # before it may have been hidden by an earlier rewind and is now visible again
+        hidden = msg.ordinal > mark
+        if hidden == bool(meta.get("rewound")):
+            continue
+        if hidden:
+            meta["rewound"] = True
+        else:
+            meta.pop("rewound", None)
+        msg.meta = meta
+
+
 register(
     ProcedureDef(
         kind="interview",
         max_iterations=400,
+        snapshot=snapshot_interview,
+        restore=restore_interview,
         steps=[
             StepDef("intake", "llm", intake),
             StepDef("compute_gates", "code", compute_gates_step),

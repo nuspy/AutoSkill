@@ -36,7 +36,34 @@ async def lifespan(app: FastAPI):
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.drop_all)
             await conn.run_sync(Base.metadata.create_all)
+    await _resume_interrupted_work()
     yield
+
+
+async def _resume_interrupted_work() -> None:
+    """Pick up whatever the previous process was doing when it stopped.
+
+    Restarts are ordinary — an autoreload after an edit, a deploy, a machine that sleeps — and until
+    now they were also silent: an interview waiting on a model never came back, and the person in
+    the browser went on watching a spinner for work nobody was doing.
+
+    It runs after the end-to-end reset above, so a wiped schema has nothing to recover, and it
+    refuses to take the server down with it: a failure here is logged and startup continues, because
+    a server that will not start is worse than one that lost a job.
+    """
+    from autoskill.core.jobs import get_job_runner
+    from autoskill.db.session import get_session_factory
+    from autoskill.services.procedures import engine
+
+    log = logging.getLogger(__name__)
+    try:
+        async with get_session_factory()() as session:
+            steps = await engine.mark_interrupted(session)
+        jobs = await get_job_runner().recover()
+        if steps or jobs:
+            log.warning("startup: resumed %d job(s), closed %d interrupted step(s)", jobs, steps)
+    except Exception:  # noqa: BLE001 - recovery must never keep the server down
+        log.exception("startup: could not resume interrupted work")
 
 
 def create_app() -> FastAPI:

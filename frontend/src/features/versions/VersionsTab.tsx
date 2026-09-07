@@ -80,7 +80,8 @@ function VersionDetail({ versionId, skillName, onDiscard }: { versionId: string;
         title={<span className="font-mono">v{v.version}</span>}
         description={`${t(`skills:versions.origin.${v.origin}`, { defaultValue: v.origin })} · ${timeAgo(v.created_at, i18n.language)}${v.changelog ? ` · ${v.changelog}` : ""}`}
         actions={
-          <div className="flex gap-2">
+          // wraps rather than overflowing: on a narrow screen these must stack, never spill
+          <div className="flex flex-wrap justify-end gap-2">
             {["draft", "testing", "tested", "approved", "published"].includes(v.state) && <TrialLauncher versionId={v.id} projectId={projectId} skillId={skillId} purpose={v.state === "draft" || v.state === "testing" ? "develop" : "retest"} label={v.state === "draft" || v.state === "testing" ? undefined : t("skills:trials.retest")} />}
             <Button size="sm" variant="outline" onClick={() => downloadZip(v.id, `${skillName}-${v.version}.zip`, ["hermes", "openclaw"]).catch(() => toast.error(t("common:errors.generic")))}><Download className="h-4 w-4" />{t("skills:versions.download")}</Button>
             {discardable && <Button size="sm" variant="ghost" onClick={() => onDiscard(v.id)}><Trash2 className="h-4 w-4 text-danger" /></Button>}

@@ -43,7 +43,9 @@ class ChatRequest:
     tools: list[ToolSpec] = field(default_factory=list)
     tool_choice: str | None = None  # "auto" | "none" | "<tool name>"
     temperature: float = 0.2
-    max_tokens: int = 2048
+    # None: no ceiling, the provider decides how much the model may write. A limit that is too low
+    # truncates a reasoning model before it writes anything at all.
+    max_tokens: int | None = 2048
     json_schema: dict[str, Any] | None = None  # native structured output when supported
     seed: int | None = None
     purpose: str | None = None

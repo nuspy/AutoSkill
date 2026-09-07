@@ -2,6 +2,34 @@
   "title": "Projects", "subtitle": "Each project groups the skills, data sources and people for one area of work.",
   "new": "New project", "name": "Project name", "description": "Description", "members": "Members", "settings": "Settings",
   "empty": "Create your first project to start describing a task.", "created": "Project created",
+  "gettingStarted": {
+    "title": "Getting started",
+    "subtitle": "From an empty account to an agent that works from your skills.",
+    "done": "done",
+    "dismiss": "Don't show this again",
+    "provider": {
+      "title": "Choose an LLM provider",
+      "body": "Nothing generative runs until the server has one: interviews, drafts and the coach all answer no_llm_provider.",
+      "action": "Open AI providers"
+    },
+    "project": {
+      "title": "Create a project",
+      "body": "Skills live inside a project, together with the people who work on them."
+    },
+    "cli": {
+      "title": "Install the command line tool",
+      "body": "It is not on PyPI: this server distributes it. pipx keeps it in a virtualenv of its own, with no administrator rights."
+    },
+    "device": {
+      "title": "Register the device",
+      "body": "The command prints a code. Enter it here and approve: the machine then holds a key of its own, which you can revoke from My devices.",
+      "action": "Enter the code"
+    },
+    "skill": {
+      "title": "Create the first skill",
+      "body": "Open a project and answer the interview: AutoSkill writes the skill from your answers, then hands your agent an address to install it from."
+    }
+  },
   "dashboard": { "skills": "Skills", "runs": "Recent runs", "trials": "Trials in progress", "pending": "Waiting for you" },
   "member": { "add": "Add member", "email": "Email of an existing user", "role": "Role", "added": "Member added", "removed": "Member removed" },
   "apiKeys": {

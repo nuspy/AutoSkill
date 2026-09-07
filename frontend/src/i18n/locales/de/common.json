@@ -60,6 +60,8 @@
     "registration_closed": "Die Registrierung ist geschlossen. Bitte einen Administrator um eine Einladung.",
     "not_authenticated": "Bitte anmelden.",
     "forbidden": "Dafür hast du keine Berechtigung.",
+    "self_review_not_allowed": "Du hast diese Version eingereicht und kannst sie daher nicht selbst prüfen. Ein Administrator kann „allow self review“ unter Administration → Einstellungen aktivieren, oder eine andere prüfende Person entscheidet.",
+    "review_not_open": "Diese Prüfung wurde bereits entschieden oder zurückgezogen.",
     "not_found": "Nicht gefunden.",
     "validation_failed": "Bitte das Formular prüfen.",
     "last_owner": "Ein Projekt braucht mindestens einen Eigentümer.",
@@ -70,5 +72,9 @@
     "device_request_not_found": "Dieser Code wurde nicht gefunden oder bereits verwendet.",
     "device_request_expired": "Dieser Code ist abgelaufen. Führe den Login-Befehl erneut aus.",
     "generic": "Etwas ist schiefgelaufen. Bitte erneut versuchen."
+  },
+  "sound": {
+    "mute": "Ton ausschalten",
+    "unmute": "Ton einschalten"
   }
 }

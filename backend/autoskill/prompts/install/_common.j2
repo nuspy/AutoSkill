@@ -4,7 +4,7 @@
 > **Trial installation.** This copy is marked as a trial (`autoskill_trial` in the metadata). Use it to
 > test the skill step by step with AutoSkill, then accept it (which makes it permanent) or remove it.
 {% endif %}
-{% if ctx.bundle_url %}
+{% if ctx.bundle_url and not ctx.concise %}
 
 This document is online at `{{ ctx.bundle_url }}` and its machine-readable twin at `{{ ctx.manifest_url }}`.
 Every file mentioned below can be downloaded from the address given, without logging in{% if ctx.expires_at %}, until {{ ctx.expires_at }}{% endif %}.
@@ -12,20 +12,26 @@ Every file mentioned below can be downloaded from the address given, without log
 
 ## Fastest way: the AutoSkill CLI
 
+{# Only the line that installs *this* skill. Setting AutoSkill up on the machine — the wheel, the
+   login, the assistant skill — used to be printed here too, on a page reached by someone who has
+   already done all of it, since the page is inside the application they are logged into. Three
+   commands where one was needed read as three things to do, and the one that mattered was the last. #}
 ```bash
-{{ ctx.companion_install_command }}   # once per machine (or: uv tool install autoskill-local)
-autoskill login {{ ctx.server_url }}  # opens the browser to connect this machine
 {% if ctx.manifest_url %}
-autoskill {{ "trial install" if ctx.trial else "install" }} --from {{ ctx.manifest_url }} --target {{ adapter.id }}{% if ctx.trial %} --token <trial-token>{% endif %}
+autoskill {{ "trial install" if ctx.trial else "install" }} --from {{ ctx.manifest_url }} --target {{ adapter.id }}{% if ctx.trial %} --token {{ ctx.trial_token or '<trial-token>' }}{% endif +%}
 {% else %}
-autoskill {{ "trial install" if ctx.trial else "install" }} {{ ctx.skill_name }}@{{ ctx.version }} --target {{ adapter.id }}
+autoskill {{ "trial install" if ctx.trial else "install" }} --version-id {{ ctx.version_id }} --target {{ adapter.id }}{% if ctx.trial %} --token {{ ctx.trial_token or '<trial-token>' }}{% endif +%}
 {% endif %}
 ```
 
-The CLI downloads everything listed below, verifies the checksums, installs the shared components and the MCP
-servers, copies the skill into the right folder, registers the MCP servers in `{{ adapter.mcp_config_path }}`,
-asks you for the required environment values and stores them only in your agent's configuration.
-{% if ctx.artifacts %}
+No `autoskill` command yet on this machine? Set it up once from **My devices**
+({{ ctx.server_url }}/me/devices), then come back here.
+
+The CLI downloads {{ "everything the skill needs" if ctx.concise else "everything listed below" }}, verifies the
+checksums, installs the shared components and the MCP servers, copies the skill into the right folder, registers
+the MCP servers in `{{ adapter.mcp_config_path }}`, asks you for the required environment values and stores them
+only in your agent's configuration.
+{% if ctx.artifacts and not ctx.concise %}
 
 ## Download links
 
@@ -36,6 +42,7 @@ asks you for the required environment values and stores them only in your agent'
 {% endfor %}
 {% endif %}
 
+{% if not ctx.concise %}
 ## Manual installation
 
 1. Download the skill package{% if ctx.zip_url %} from `{{ ctx.zip_url }}`{% endif %} and unzip it.
@@ -74,6 +81,27 @@ asks you for the required environment values and stores them only in your agent'
 {% endif %}
 {% endfor %}
 {% endif %}
+{% set cli_servers = ctx.mcp_servers | selectattr("kind", "equalto", "generated_cli") | list %}
+{% if cli_servers %}
+
+## Steps of this skill
+
+They are commands, not tools to register: install the package and the skill calls it from the shell.
+{% for s in cli_servers %}
+
+**{{ s.name }}**{% if s.description %} — {{ s.description }}{% endif %}
+{% if s.install_command %}
+- install: `{{ s.install_command }}`
+{% elif s.install_hint %}
+- install: `{{ s.install_hint }}`
+{% endif %}
+- list the steps: `{{ s.name }} --list-tools`
+- parameters of a step: `{{ s.name }} <step> --help`
+
+Results are printed as JSON on stdout; a non-zero exit code means the step failed. Steps with
+effects only describe them unless `--apply` is given.
+{% endfor %}
+{% endif %}
 {% if mcp_snippets %}
 {{ "4" if ctx.dependencies else "3" }}. Install and register the MCP servers in `{{ adapter.mcp_config_path }}` ({{ adapter.mcp_config_format }}):
 {% for spec, snippet in mcp_snippets %}
@@ -103,7 +131,8 @@ asks you for the required environment values and stores them only in your agent'
 {% endif %}
 {% endfor %}
 {% endif %}
-{% if skill_config %}
+{% endif %}
+{% if skill_config and not ctx.concise %}
 
 Optional skill configuration for {{ adapter.display_name }}:
 
@@ -120,7 +149,7 @@ curl -X POST {{ ctx.installed_callback_url }} -H "X-AutoSkill-Trial: <trial-toke
      -H "Content-Type: application/json" -d '{"install_manifest": {"target": "{{ adapter.id }}", "manual": true}, "build": {{ ctx.build }}}'
 ```
 {% endif %}
-{% if ctx.agent_instructions %}
+{% if ctx.agent_instructions and not ctx.concise %}
 
 ## For AI agents
 
@@ -128,6 +157,26 @@ If you are an agent installing this skill for a person:
 {% for line in ctx.agent_instructions %}
 {{ loop.index }}. {{ line }}
 {% endfor %}
+{% endif %}
+
+## Uninstall
+
+{# Printed with the real token for the person whose trial it is, so the line runs as it stands even
+   on a machine that never installed it — settling the trial needs the token, not the local record. #}
+```bash
+{% if ctx.trial %}
+autoskill trial remove {{ ctx.trial_session_id or "<trial-id>" }}{% if ctx.trial_token %} --token {{ ctx.trial_token }}{% endif +%}
+{% else %}
+autoskill remove {{ ctx.skill_name }} --target {{ adapter.id }}
+{% endif %}
+```
+
+{% if ctx.trial %}
+This removes the trial copy and tells AutoSkill the outcome. To keep it instead, replace `remove` with
+`accept` — that swaps the trial copy for the final version, which runs without checkpoints.
+{% else %}
+This deletes the skill folder, unregisters the MCP servers it added and removes the private
+environments installed with it. Anything that was there before the install is put back.
 {% endif %}
 
 ## Verify

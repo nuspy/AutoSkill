@@ -6,6 +6,7 @@ from __future__ import annotations
 import hashlib
 import io
 import json
+import os
 import zipfile
 from pathlib import Path
 
@@ -15,6 +16,16 @@ import pytest
 from autoskill_local import cli, client, config
 from autoskill_local.config import LocalConfig
 from autoskill_local.targets import get_target
+
+# A venv puts its executables in `bin` on POSIX and `Scripts` on Windows. Asserting the POSIX
+# spelling made these tests fail on Windows for a reason that has nothing to do with what they
+# check — and a suite that is red for a known-irrelevant reason stops being read at all.
+BIN = "Scripts" if os.name == "nt" else "bin"
+
+
+def _venv_exe(home_dir: Path, name: str) -> Path:
+    return home_dir / ".autoskill" / "venvs" / name / BIN / name
+
 
 BASE = "http://server/dl/tok"
 
@@ -132,7 +143,7 @@ def test_install_from_manifest_and_clean_removal(home):
     assert set(servers) == {"autoskill-companion", "invoice-check-tools", "email-mcp"}
     assert servers["autoskill-companion"]["env"]["AUTOSKILL_SESSION_TOKEN"] == "trial-token"
     venv_cmd = servers["invoice-check-tools"]["command"]
-    assert venv_cmd.endswith("/venvs/invoice-check-tools/bin/invoice-check-tools")
+    assert Path(venv_cmd) == _venv_exe(home_dir, "invoice-check-tools")
     assert servers["invoice-check-tools"]["env"] == {"SMTP_HOST": "smtp.example"}
     assert servers["email-mcp"]["url"] == "http://localhost:4010/mcp"
     # the generated server was installed from the verified archive into a private venv
@@ -197,19 +208,319 @@ def test_npm_git_and_binary_components(home, monkeypatch):
     t = get_target("hermes")
     servers = t.registered_mcps()
     assert servers["calendar-mcp"]["command"] == "calendar-mcp" and servers["calendar-mcp"]["args"] == ["--stdio"]
-    assert servers["crm-mcp"]["command"].endswith("/venvs/crm-mcp/bin/crm-mcp")
+    assert Path(servers["crm-mcp"]["command"]) == _venv_exe(home_dir, "crm-mcp")
     assert ["npm", "install", "-g", "@acme/calendar-mcp"] in calls
     pip_call = next(c for c in calls if "pip" in c and "install" in c)
     assert pip_call[-1] == "git+https://git.example/crm-mcp.git@v2"
     tool = home_dir / ".autoskill" / "bin" / "ldap-tool"
-    assert tool.read_bytes() == binary and tool.stat().st_mode & 0o111
+    assert tool.read_bytes() == binary
+    # Windows has no executable bit — `chmod` there cannot set one, and what makes a file runnable is
+    # its extension. Asserting it would only test the operating system.
+    assert os.name == "nt" or tool.stat().st_mode & 0o111
     methods = sorted(p["method"] for p in record["python_packages"])
     assert methods == ["binary", "npm", "venv"]
     cli._remove_bundle_parts(t, record)
     assert not tool.exists() and set(t.registered_mcps()) == {"autoskill-companion"}
-    assert [
-        "npm",
-        "uninstall",
-        "-g",
-        "@acme/calendar-mcp",
-    ] not in calls  # uninstall goes through subprocess.run, not _run
+    # Removal spawns its processes through the same `_run` as installation, so what it uninstalls is
+    # visible here. It used to call `subprocess.run` directly, which this test asserted as if it were
+    # intended: the practical effect was that removing a bundle really did try to launch npm in the
+    # middle of a test run, and on a machine where the stubbed path does not exist it simply crashed.
+    assert ["npm", "uninstall", "-g", "@acme/calendar-mcp"] in calls
+
+
+# --- keeping the companion current -------------------------------------------------------------
+
+
+def test_the_companion_is_upgraded_when_the_server_advertises_a_newer_one(home, monkeypatch):
+    """It used to be installed only when missing, so a machine kept its first copy for ever.
+
+    The manifest has always carried the companion's version; nothing compared it. So a server could
+    ship a companion with new tools or corrected instructions and every install here went on
+    registering the old one — silently, since registration succeeds either way.
+    """
+    _home_dir, _calls = home
+    installed: list[str] = []
+    monkeypatch.setattr(cli.shutil, "which", lambda name: "/usr/bin/autoskill-companion" if name == "autoskill-companion" else None)
+    monkeypatch.setattr(cli, "_install_python_package", lambda name, spec: (installed.append(spec) or ("cmd", {"method": "venv", "spec": spec})))
+    monkeypatch.setattr(cli, "__version__", "0.2.3")
+
+    m = manifest()
+    m["mcp_servers"] = [
+        {
+            "name": "autoskill-companion",
+            "kind": "companion",
+            "version": "0.2.5",
+            "download": {"url": f"{BASE}/companion.whl", "filename": "autoskill_local-0.2.5-py3-none-any.whl"},
+            "registration": {"command": "autoskill-companion"},
+        }
+    ]
+    cfg = LocalConfig(server_url="http://server", api_key="ask_x")
+    cli._install_from_manifest(cfg, m, "hermes", None)
+    assert installed == [f"{BASE}/companion.whl"], "a newer companion must be fetched even when one is present"
+
+
+def test_a_companion_already_current_is_left_alone(home, monkeypatch):
+    _home_dir, _calls = home
+    installed: list[str] = []
+    monkeypatch.setattr(cli.shutil, "which", lambda name: "/usr/bin/autoskill-companion" if name == "autoskill-companion" else None)
+    monkeypatch.setattr(cli, "_install_python_package", lambda name, spec: (installed.append(spec) or ("cmd", {})))
+    monkeypatch.setattr(cli, "__version__", "0.2.5")
+
+    m = manifest()
+    m["mcp_servers"] = [
+        {
+            "name": "autoskill-companion",
+            "kind": "companion",
+            "version": "0.2.5",
+            "download": {"url": f"{BASE}/companion.whl", "filename": "x.whl"},
+            "registration": {"command": "autoskill-companion"},
+        }
+    ]
+    cli._install_from_manifest(LocalConfig(server_url="http://server"), m, "hermes", None)
+    assert installed == [], "reinstalling the same version on every install would be pure noise"
+
+
+def test_version_comparison_is_numeric():
+    assert cli._is_newer("0.2.10", "0.2.9") is True, "0.2.10 is newer than 0.2.9, not older"
+    assert cli._is_newer("0.2.3", "0.2.3") is False
+    assert cli._is_newer("0.2.3", "0.2.5") is False
+    assert cli._is_newer(None, "0.2.3") is False
+    # an unparseable build must not loop: refusing to upgrade is the recoverable answer
+    assert cli._is_newer("0.0.0+dev", "0.2.3") is False
+
+
+def test_a_locked_companion_explains_itself_and_leaves_the_install_standing(home, monkeypatch, capsys):
+    """On Windows the upgrade fails whenever the agent is running, which is nearly always.
+
+    The companion the agent started holds `python.exe` inside the virtualenv pipx must replace, and
+    the install dies with `os error 32`. The raw error names two paths and a process id and leaves
+    the person to deduce that the process is their own agent.
+    """
+    _home_dir, _calls = home
+    monkeypatch.setattr(cli.shutil, "which", lambda name: "/usr/bin/autoskill-companion" if name == "autoskill-companion" else None)
+    monkeypatch.setattr(cli, "__version__", "0.2.3")
+
+    def boom(name, spec):
+        raise OSError("failed to copy file ... python.exe: The process cannot access the file because it is being used by another process. (os error 32)")
+
+    monkeypatch.setattr(cli, "_install_python_package", boom)
+    m = manifest()
+    m["mcp_servers"] = [
+        {
+            "name": "autoskill-companion",
+            "kind": "companion",
+            "version": "0.2.6",
+            "download": {"url": f"{BASE}/companion.whl", "filename": "x.whl"},
+            "registration": {"command": "autoskill-companion"},
+        }
+    ]
+
+    # the rest of the install still completes: a companion that could not be replaced still works
+    _folder, _meta, record = cli._install_from_manifest(LocalConfig(server_url="http://server"), m, "hermes", None)
+    assert record["mcp"], "the companion is still registered with the copy already installed"
+
+    out = capsys.readouterr().out
+    assert "holding its files open" in out, "the cause must be named, not just reported"
+    assert "pipx install --force" in out and f"{BASE}/companion.whl" in out, "and the cure given verbatim"
+
+
+# --- graduating from a trial ---------------------------------------------------------------------
+
+
+TRIAL_MD = """---
+name: invoice-check
+metadata:
+  version: 0.1.0
+  autoskill_trial: t1
+---
+# Check the invoices
+
+> ## ⚠ This copy is a trial — walk it, do not just run it
+>
+> **If the `autoskill-companion` tools are not available to you, stop and say so.**
+
+## Steps
+do the thing
+"""
+FINAL_ZIP = _zip({"invoice-check/SKILL.md": "---\nname: invoice-check\n---\n# Check the invoices\n\n## Steps\ndo the thing\n"})
+
+
+def test_accepting_replaces_the_trial_copy_with_the_final_package(home, monkeypatch):
+    """A trial copy tells the agent to stop when the companion is missing; a kept skill must not.
+
+    Promotion used to delete one frontmatter line and leave the rest, so an accepted skill kept the
+    banner that makes it refuse to run outside a trial — depending for ever on the machinery it was
+    supposed to graduate from.
+    """
+    _home_dir, _calls = home
+    t = get_target("hermes")
+    skill_dir = t.skill_dir / "invoice-check"
+    skill_dir.mkdir(parents=True)
+    (skill_dir / "SKILL.md").write_text(TRIAL_MD)
+    backup = t.skill_dir / ".invoice-check.autoskill-backup"
+    backup.mkdir()
+    (backup / "SKILL.md").write_text("what was here before the trial")
+
+    monkeypatch.setattr(cli, "_client", lambda cfg=None, **kw: type("C", (), {"get": staticmethod(lambda path: FINAL_ZIP)})())
+    cfg = LocalConfig(server_url="http://server", api_key="ask_x")
+    cfg.trials["t1"] = {
+        "token": "tok", "target": "hermes", "skill": "invoice-check", "version": "0.1.0",
+        "manifest": {"skill_dir": str(skill_dir), "version_id": "v1", "backup_dir": str(backup)},
+    }
+
+    cli._finish_trial(cfg, "t1", keep=True)
+
+    text = (skill_dir / "SKILL.md").read_text()
+    assert "This copy is a trial" not in text, "the trial banner must not survive acceptance"
+    assert "autoskill_trial" not in text
+    assert "do the thing" in text, "and the skill itself is still there"
+    # what the machine looked like before the trial is not this function's business to destroy
+    assert (backup / "SKILL.md").read_text() == "what was here before the trial"
+    assert "hermes:invoice-check" in cfg.installs
+
+
+def test_when_the_final_package_cannot_be_fetched_the_trial_markings_still_go(home, monkeypatch):
+    _home_dir, _calls = home
+    t = get_target("hermes")
+    skill_dir = t.skill_dir / "invoice-check"
+    skill_dir.mkdir(parents=True)
+    (skill_dir / "SKILL.md").write_text(TRIAL_MD)
+
+    def offline(cfg=None, **kw):
+        raise OSError("no route to host")
+
+    monkeypatch.setattr(cli, "_client", offline)
+    cfg = LocalConfig(server_url="http://server", api_key="ask_x")
+    cfg.trials["t1"] = {
+        "token": "tok", "target": "hermes", "skill": "invoice-check", "version": "0.1.0",
+        "manifest": {"skill_dir": str(skill_dir), "version_id": "v1"},
+    }
+    cli._finish_trial(cfg, "t1", keep=True)
+
+    text = (skill_dir / "SKILL.md").read_text()
+    assert "This copy is a trial" not in text and "autoskill_trial" not in text
+    assert "# Check the invoices" in text and "do the thing" in text
+
+
+def test_accepting_a_trial_already_decided_in_the_browser_still_settles_the_copy(home, monkeypatch, capsys):
+    """The outcome is normally chosen in the page, which then tells the person to run this command.
+
+    Posting the outcome a second time is refused with `409 trial_not_open` — correctly, a closed trial
+    is not decided twice. Treating that as failure meant the command died with a traceback having done
+    none of the local work it exists for, and the copy on the machine stayed a trial copy for ever.
+    """
+    _home_dir, _calls = home
+    t = get_target("hermes")
+    skill_dir = t.skill_dir / "invoice-check"
+    skill_dir.mkdir(parents=True)
+    (skill_dir / "SKILL.md").write_text(TRIAL_MD)
+
+    class Refusing:
+        @staticmethod
+        def post(path, body=None, **kw):
+            raise cli.ServerError(409, {"error": {"code": "trial_not_open", "message": "trial_not_open"}})
+
+        @staticmethod
+        def get(path):
+            if path.endswith("/package.zip"):
+                return FINAL_ZIP
+            return {"trial": {"outcome": "accepted", "keep_installed": True}}
+
+    monkeypatch.setattr(cli, "_client", lambda cfg=None, **kw: Refusing())
+    cfg = LocalConfig(server_url="http://server", api_key="ask_x")
+    cfg.trials["t1"] = {
+        "token": "tok", "target": "hermes", "skill": "invoice-check", "version": "0.1.0",
+        "manifest": {"skill_dir": str(skill_dir), "version_id": "v1"},
+    }
+    monkeypatch.setattr(cli, "_cfg", lambda: cfg)
+
+    cli.trial_accept("t1", keep=True)
+
+    assert "This copy is a trial" not in (skill_dir / "SKILL.md").read_text()
+    assert "hermes:invoice-check" in cfg.installs
+    assert "Already decided" in capsys.readouterr().out
+
+
+def test_the_browsers_decision_wins_over_the_flag_typed_here(home, monkeypatch):
+    """`--keep` must not resurrect a copy the person already chose to remove in the page."""
+    _home_dir, _calls = home
+    t = get_target("hermes")
+    skill_dir = t.skill_dir / "invoice-check"
+    skill_dir.mkdir(parents=True)
+    (skill_dir / "SKILL.md").write_text(TRIAL_MD)
+
+    class Refusing:
+        @staticmethod
+        def post(path, body=None, **kw):
+            raise cli.ServerError(409, {"error": {"code": "trial_not_open", "message": "trial_not_open"}})
+
+        @staticmethod
+        def get(path):
+            return {"trial": {"outcome": "removed", "keep_installed": False}}
+
+    monkeypatch.setattr(cli, "_client", lambda cfg=None, **kw: Refusing())
+    cfg = LocalConfig(server_url="http://server", api_key="ask_x")
+    cfg.trials["t1"] = {
+        "token": "tok", "target": "hermes", "skill": "invoice-check", "version": "0.1.0",
+        "manifest": {"skill_dir": str(skill_dir)},
+    }
+    monkeypatch.setattr(cli, "_cfg", lambda: cfg)
+
+    cli.trial_accept("t1", keep=True)
+
+    assert not skill_dir.exists(), "the page said remove, so it is removed"
+    assert "hermes:invoice-check" not in cfg.installs
+
+
+def test_a_server_refusal_is_a_sentence_not_a_traceback(monkeypatch, capsys):
+    """A 409 from the server is an answer. Forty frames of httpx and typer buried the one useful line."""
+    import typer
+
+    def boom():
+        raise cli.ServerError(409, {"error": {"code": "trial_not_open", "message": "This trial is closed."}})
+
+    monkeypatch.setattr(cli, "app", boom)
+    with pytest.raises(typer.Exit) as exit_info:
+        cli.main()
+    assert exit_info.value.exit_code == 1
+    err = capsys.readouterr().err
+    assert "trial_not_open" in err and "This trial is closed." in err
+    assert "Traceback" not in err
+
+
+def test_a_trial_can_be_settled_with_its_token_on_a_machine_that_never_installed_it(home, monkeypatch, capsys):
+    """The printed uninstall line carries the token, so it must run where it is pasted.
+
+    Settling used to need this machine to still hold the trial's record — the normal case and not the
+    only one: a config restored elsewhere, a second machine, someone following the command from the
+    page on a laptop that never ran the install. The token is what proves the right to settle it.
+    """
+    _home_dir, _calls = home
+    posted: list[tuple] = []
+
+    class Server:
+        @staticmethod
+        def post(path, body=None, **kw):
+            posted.append((path, body))
+            return {"ok": True}
+
+    monkeypatch.setattr(cli, "_client", lambda cfg=None, **kw: Server())
+    cfg = LocalConfig(server_url="http://server", api_key="ask_x")  # no trials recorded here
+    monkeypatch.setattr(cli, "_cfg", lambda: cfg)
+
+    cli.trial_remove("t-elsewhere", outcome="removed", token="the-token")
+
+    assert posted and posted[0][0] == "/trials/t-elsewhere/outcome"
+    out = capsys.readouterr().out
+    assert "No local record" in out
+    assert "no local copy was touched" in out.lower(), "it must not claim to have deleted anything"
+
+
+def test_without_a_record_and_without_a_token_it_says_what_is_missing(home, monkeypatch):
+    import typer
+
+    _home_dir, _calls = home
+    cfg = LocalConfig(server_url="http://server", api_key="ask_x")
+    monkeypatch.setattr(cli, "_cfg", lambda: cfg)
+    with pytest.raises(typer.Exit):
+        cli.trial_remove("t-unknown", outcome="removed", token=None)

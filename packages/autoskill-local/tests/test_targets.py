@@ -49,3 +49,62 @@ def test_install_register_and_clean_removal(tmp_path: Path, target_id: str):
 def test_unknown_target():
     with pytest.raises(KeyError):
         get_target("emacs")
+
+
+# --- finding the agent before installing into it ---------------------------------------------
+#
+# Every one of these is a bug that actually happened. Hermes was assumed to live in `~/.hermes`
+# while it was under `AppData/Local/hermes`: detection never saw it, the dashboard offered a target
+# list without the very agent in use, and installing "for Hermes" created `~/.hermes` and put the
+# skill there — a directory Hermes has never once read, with every step reporting success.
+
+
+def test_the_agents_own_variable_says_where_it_lives(tmp_path: Path, monkeypatch):
+    elsewhere = tmp_path / "opt" / "hermes"
+    elsewhere.mkdir(parents=True)
+    monkeypatch.setenv("HERMES_HOME", str(elsewhere))
+    t = get_target("hermes")
+    assert t.base == elsewhere and t.detect() and t.base_source == "$HERMES_HOME"
+    assert t.skill_dir == elsewhere / "skills"
+
+
+def test_an_explicit_home_outranks_the_environment(tmp_path: Path, monkeypatch):
+    """A caller that named a home must reach that home and nothing else.
+
+    This is the rule that keeps a test suite out of somebody's live installation, and it was learnt
+    the hard way: with `HERMES_HOME` set, tests running against a temporary directory installed a
+    fixture skill into the real agent and rewrote its configuration.
+    """
+    monkeypatch.setenv("HERMES_HOME", str(tmp_path / "real"))
+    (tmp_path / "real").mkdir()
+    t = get_target("hermes", home=tmp_path / "sandbox")
+    assert t.base == tmp_path / "sandbox" / "AppData/Local/hermes"
+    assert not t.detect() and t.base_source == "assumed"
+
+
+def test_the_person_can_declare_where_an_agent_is(tmp_path: Path):
+    where = tmp_path / "D" / "tools" / "hermes"
+    where.mkdir(parents=True)
+    t = get_target("hermes", home_dir=where)
+    assert t.base == where and t.base_source == "configured"
+
+
+def test_a_known_layout_is_found_before_one_is_assumed(tmp_path: Path):
+    home = tmp_path / "home"
+    (home / ".local/share/hermes").mkdir(parents=True)
+    t = get_target("hermes", home=home)
+    # the second entry of `bases`, not the first: what exists beats what would be created
+    assert t.base == home / ".local/share/hermes" and t.base_source == "found"
+
+
+def test_a_catalog_path_follows_the_agent_it_names(tmp_path: Path, monkeypatch):
+    """`~/.hermes/skills/x` from a catalog is a guess about the layout, not an instruction.
+
+    Honouring it literally on a machine where the agent lives elsewhere puts the component in a
+    folder the agent never reads — precisely the failure discovery exists to prevent."""
+    home = tmp_path / "home"
+    (home / "AppData/Local/hermes").mkdir(parents=True)
+    t = get_target("hermes", home=home)
+    assert t.resolve_install_path("~/.hermes/skills/ldap-notes") == t.skill_dir / "ldap-notes"
+    # a path matching no known layout was chosen deliberately and is left alone
+    assert t.resolve_install_path(tmp_path / "elsewhere" / "x") == tmp_path / "elsewhere" / "x"

@@ -15,3 +15,7 @@ def get_adapter(target: str) -> TargetAdapter:
 
 def list_targets() -> list[dict]:
     return [a.describe() for a in ADAPTERS.values()]
+
+
+def all_adapters() -> list[TargetAdapter]:
+    return list(ADAPTERS.values())

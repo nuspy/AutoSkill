@@ -60,6 +60,8 @@
     "registration_closed": "A regisztráció zárva. Kérj meghívót egy adminisztrátortól.",
     "not_authenticated": "Kérjük, jelentkezz be.",
     "forbidden": "Ehhez nincs jogosultságod.",
+    "self_review_not_allowed": "Ezt a verziót te küldted be, ezért nem bírálhatod el magad. Egy adminisztrátor bekapcsolhatja az „allow self review” beállítást az Adminisztráció → Beállítások alatt, vagy dönthet másik bíráló.",
+    "review_not_open": "Ezt a bírálatot már eldöntötték vagy visszavonták.",
     "not_found": "Nem található.",
     "validation_failed": "Ellenőrizd az űrlapot.",
     "last_owner": "Egy projektnek legalább egy tulajdonosra van szüksége.",
@@ -70,5 +72,9 @@
     "device_request_not_found": "Ez a kód nem található vagy már fel lett használva.",
     "device_request_expired": "Ez a kód lejárt. Futtasd újra a bejelentkezési parancsot.",
     "generic": "Hiba történt. Próbáld újra."
+  },
+  "sound": {
+    "mute": "Hang kikapcsolása",
+    "unmute": "Hang bekapcsolása"
   }
 }

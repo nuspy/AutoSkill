@@ -232,7 +232,7 @@ async def create_checkpoint(body: CheckpointIn, session: SessionDep, caller: Cal
         requested_mode=body.execution_mode,
     )
     await session.commit()
-    return cps.decision_payload(cp)
+    return await cps.decision_reply(session, cp)
 
 
 @router.post("/telemetry/snapshots", response_model=SnapshotOut)
@@ -261,7 +261,10 @@ async def latest_snapshot(run_id: str, step_key: str, session: SessionDep, calle
 @router.get("/checkpoints/{checkpoint_id}")
 async def await_decision(checkpoint_id: str, caller: CallerDep, wait: int = 0) -> dict:
     cp = await cps.wait_for_decision(get_session_factory(), checkpoint_id, wait)
-    return cps.decision_payload(cp)
+    # The answer says what to do next, not only what was decided: `wait_for_decision` uses its own
+    # short-lived sessions, so one more is opened here to read the step order.
+    async with get_session_factory()() as session:
+        return await cps.decision_reply(session, cp)
 
 
 @router.get("/checkpoints/{checkpoint_id}/detail", response_model=CheckpointOut)

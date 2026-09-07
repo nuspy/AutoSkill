@@ -11,9 +11,12 @@
     "empty": "Még nincs csatlakoztatott eszköz.",
     "connect": "Eszköz csatlakoztatása",
     "howto": "Telepítsd a CLI-t, és futtasd:",
+    "notOnPypi": "A csomag nincs fenn a PyPI-n: ez a kiszolgáló osztja szét.",
+    "noWheel": "Ez a kiszolgáló még nem tesz közzé autoskill-local wheelt, így innen nincs mit telepíteni.",
     "lastSeen": "Utoljára látva",
     "agents": "Ügynökök",
-    "remove": "Leválasztás"
+    "remove": "Leválasztás",
+    "assistantSkill": "A harmadik sor telepíti azt a skillt, amely megtanítja az ügynökének az AutoSkill használatát; enélkül nem tudja, mit tegyen."
   },
   "notifications": {
     "title": "Értesítések",

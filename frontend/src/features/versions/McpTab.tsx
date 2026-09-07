@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Badge, EmptyState, ErrorState, Skeleton } from "@/components/ui/misc";
 import { errorMessage } from "@/lib/errors";
 import { cn } from "@/lib/cn";
+import { DeliveryChoice } from "./DeliveryChoice";
 
 export function McpTab({ versionId, steps, skillName }: { versionId: string; steps: StepDefinition[]; skillName: string }) {
   const { t } = useTranslation(["skills", "common"]);
@@ -22,6 +23,7 @@ export function McpTab({ versionId, steps, skillName }: { versionId: string; ste
   const mv = mcp.data;
   return (
     <div className="space-y-4">
+      <DeliveryChoice versionId={versionId} />
       <div className="flex flex-wrap items-center gap-2">
         <p className="flex-1 text-sm text-muted">{t("skills:mcp.help", { count: deterministic.length })}</p>
         <Button disabled={deterministic.length === 0} loading={generate.isPending} onClick={() => generate.mutate(undefined, { onError: (e) => toast.error(errorMessage(e, t)) })}><Wrench className="h-4 w-4" />{mv ? t("skills:mcp.regenerate") : t("skills:mcp.generate")}</Button>

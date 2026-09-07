@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from autoskill.llm.budget import output_budget
 from autoskill.core.errors import Conflict, NotFound
 from autoskill.core.events import emit, project_channel
 from autoskill.db.base import utcnow
@@ -104,7 +105,7 @@ async def run_proposal(session: AsyncSession, proposal_id: str, *, language: str
         result = await structured(
             provider,
             ChatRequest(
-                messages=[ChatMessage(role="user", content=prompt)], temperature=0.1, max_tokens=3000, purpose="analyst"
+                messages=[ChatMessage(role="user", content=prompt)], temperature=0.1, max_tokens=await output_budget(session), purpose="analyst"
             ),
             AnalystOutput,
         )

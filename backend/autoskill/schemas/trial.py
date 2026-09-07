@@ -79,6 +79,10 @@ class TrialDetail(BaseModel):
     package_url: str
     bundle_url: str | None = None
     manifest_url: str | None = None
+    # Present when a recoverable copy of the trial's token was kept; absent for trials created before
+    # that, which can still re-issue. Never a freshly minted token: this is what was already handed out.
+    cli_command: str | None = None
+    session_token: str | None = None
 
 
 # --- telemetry -------------------------------------------------------------------------

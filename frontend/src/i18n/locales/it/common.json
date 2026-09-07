@@ -60,6 +60,8 @@
     "registration_closed": "Le registrazioni sono chiuse. Chiedi un invito a un amministratore.",
     "not_authenticated": "Accedi per continuare.",
     "forbidden": "Non hai i permessi per farlo.",
+    "self_review_not_allowed": "Hai inviato tu questa versione, quindi non puoi revisionarla da solo. Un amministratore può attivare «allow self review» in Amministrazione → Impostazioni, oppure può decidere un altro revisore.",
+    "review_not_open": "Questa revisione è già stata decisa o ritirata.",
     "not_found": "Non trovato.",
     "validation_failed": "Controlla i dati inseriti.",
     "last_owner": "Un progetto deve avere almeno un proprietario.",
@@ -70,5 +72,9 @@
     "device_request_not_found": "Codice non trovato o già usato.",
     "device_request_expired": "Codice scaduto. Esegui di nuovo il comando di login.",
     "generic": "Qualcosa è andato storto. Riprova."
+  },
+  "sound": {
+    "mute": "Disattiva il suono",
+    "unmute": "Attiva il suono"
   }
 }

@@ -31,7 +31,7 @@ class OpenAICompatProvider:
         api_key: str | None = None,
         capabilities: Capabilities | None = None,
         extra_headers: dict[str, str] | None = None,
-        timeout: float = 120.0,
+        timeout: float = 900.0,
         transport: httpx.AsyncBaseTransport | None = None,
     ) -> None:
         self.model = model
@@ -46,7 +46,11 @@ class OpenAICompatProvider:
 
     def _client(self) -> httpx.AsyncClient:
         return httpx.AsyncClient(
-            base_url=self.base_url, headers=self._headers, timeout=self._timeout, transport=self._transport
+            base_url=self.base_url,
+            headers=self._headers,
+            # generous on reading the answer, quick to notice a server that is not there
+            timeout=httpx.Timeout(self._timeout, connect=15.0),
+            transport=self._transport,
         )
 
     @staticmethod
@@ -74,8 +78,9 @@ class OpenAICompatProvider:
             "model": self.model,
             "messages": self._to_messages(req.messages),
             "temperature": req.temperature,
-            "max_tokens": req.max_tokens,
         }
+        if req.max_tokens is not None:
+            body["max_tokens"] = req.max_tokens
         if stream:
             body["stream"] = True
         if req.seed is not None:
@@ -90,6 +95,10 @@ class OpenAICompatProvider:
             ]
             if req.tool_choice in ("auto", "none"):
                 body["tool_choice"] = req.tool_choice
+            elif req.tool_choice and len(req.tools) == 1:
+                # with a single tool "required" says the same thing as naming it, and every
+                # OpenAI-compatible server understands it — LM Studio rejects the object form
+                body["tool_choice"] = "required"
             elif req.tool_choice:
                 body["tool_choice"] = {"type": "function", "function": {"name": req.tool_choice}}
         if req.json_schema and self.capabilities.json_schema:
@@ -112,7 +121,13 @@ class OpenAICompatProvider:
                 retryable=res.status_code in (408, 409, 429, 500, 502, 503, 504),
             )
         data = res.json()
-        choice = (data.get("choices") or [{}])[0]
+        # some servers answer 200 with an error body (LM Studio does this for a wrong path, e.g.
+        # when base_url misses the /v1 suffix). Without this the caller sees an empty completion
+        # and blames the model for "no JSON in the output".
+        if not data.get("choices"):
+            detail = data.get("error") or data
+            raise LlmError(f"provider returned no completion: {str(detail)[:300]}", status=res.status_code)
+        choice = data["choices"][0]
         msg = choice.get("message") or {}
         tool_calls = []
         for tc in msg.get("tool_calls") or []:

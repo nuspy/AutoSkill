@@ -95,9 +95,24 @@ async def structured(
         for round_ in range(repair_rounds + 1):
             try:
                 res = await provider.chat(attempt_req)
-            except LlmError:
-                raise
+            except LlmError as exc:
+                # a provider that cannot serve *this* strategy (it rejects tool_choice, or the
+                # schema) must not sink the ones below it; a transport failure is another matter
+                # and there is no point retrying it with a different shape of the same request.
+                if exc.retryable:
+                    raise
+                last_error = exc
+                break
             add_usage(res.usage)
+            if res.finish_reason == "length" and not (res.text or "").strip() and not res.message.tool_calls:
+                # reasoning models can spend the entire budget thinking; saying "no JSON found"
+                # here would blame the model for what is a ceiling set too low
+                last_error = ValueError(
+                    f"the model hit the {attempt_req.max_tokens}-token output limit before writing an "
+                    "answer (reasoning used the whole budget): raise or switch off the output "
+                    "limit in Administration -> Settings"
+                )
+                break
             try:
                 if strategy == "tool" and res.message.tool_calls:
                     payload = res.message.tool_calls[0].arguments

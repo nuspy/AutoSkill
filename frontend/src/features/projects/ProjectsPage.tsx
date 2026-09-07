@@ -9,6 +9,7 @@ import { Card, CardBody } from "@/components/ui/card";
 import { Dialog } from "@/components/ui/dialog";
 import { Field, Input, Textarea } from "@/components/ui/input";
 import { Badge, EmptyState, ErrorState, PageHeader, Skeleton } from "@/components/ui/misc";
+import { GettingStarted } from "@/features/projects/GettingStarted";
 import { errorMessage } from "@/lib/errors";
 import { timeAgo } from "@/lib/format";
 
@@ -32,6 +33,7 @@ export default function ProjectsPage() {
 
   return (
     <>
+      <GettingStarted hasProjects={(projects.data?.length ?? 0) > 0} onCreateProject={() => setOpen(true)} />
       <PageHeader title={t("projects:title")} subtitle={t("projects:subtitle")} actions={<Button onClick={() => setOpen(true)}><Plus className="h-4 w-4" />{t("projects:new")}</Button>} />
       {projects.isLoading && <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-32" />)}</div>}
       {projects.isError && <ErrorState message={errorMessage(projects.error, t)} onRetry={() => projects.refetch()} retryLabel={t("common:actions.retry")} />}

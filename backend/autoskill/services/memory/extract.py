@@ -11,6 +11,7 @@ import json
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from autoskill.llm.budget import output_budget
 from autoskill.llm.provider import ChatMessage, ChatRequest
 from autoskill.llm.registry import get_provider
 from autoskill.llm.structured import structured
@@ -63,7 +64,7 @@ async def extract_memory(
     try:
         result = await structured(
             provider,
-            ChatRequest(messages=messages, temperature=0.1, max_tokens=3000, seed=7, purpose=purpose),
+            ChatRequest(messages=messages, temperature=0.1, max_tokens=await output_budget(session), seed=7, purpose=purpose),
             MemoryExtraction,
         )
     except Exception as exc:  # noqa: BLE001 - memory is best effort

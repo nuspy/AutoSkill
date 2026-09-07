@@ -5,7 +5,10 @@
 :root {
   --bg: 250 250 252;
   --fg: 17 24 39;
-  --muted: 107 114 128;
+  /* Secondary text has to stay readable on every surface it lands on, and the tinted panels of the
+     trial page are the darkest of them: at 107 114 128 it measured 4.32:1 there, under the 4.5:1
+     this project holds itself to. 90 100 115 reads 5.36:1 on the tint and 5.99:1 on a white card. */
+  --muted: 90 100 115;
   --card: 255 255 255;
   --border: 229 231 235;
   --primary: 79 70 229;

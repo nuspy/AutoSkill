@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 import tomlkit
@@ -9,11 +10,19 @@ from autoskill_local.targets.base import LocalTarget, McpRegistration
 
 
 class Hermes(LocalTarget):
+    """Hermes keeps everything under one application directory, not a dotfolder in $HOME.
+
+    `~/.hermes` was the old assumption and it was wrong on this platform, where Hermes lives under
+    `AppData/Local/hermes` and sets `HERMES_HOME` to say so. The dotfolder stays last in the list so
+    an installation that really does use it keeps working.
+    """
+
     id = "hermes"
     display_name = "Hermes Agent"
-    skill_dir_rel = ".hermes/skills"
-    mcp_config_rel = ".hermes/config.yaml"
-    detect_rel = (".hermes",)
+    bases = ("AppData/Local/hermes", ".local/share/hermes", ".hermes")
+    home_env = "HERMES_HOME"
+    skill_dir_rel = "skills"
+    mcp_config_rel = "config.yaml"
     root_key = "mcp_servers"
 
     def _parse(self, text: str) -> dict[str, Any]:
@@ -34,17 +43,22 @@ class Hermes(LocalTarget):
 class OpenClaw(LocalTarget):
     id = "openclaw"
     display_name = "OpenClaw"
-    skill_dir_rel = ".openclaw/skills"
-    mcp_config_rel = ".openclaw/skills/config/mcporter.json"
-    detect_rel = (".openclaw",)
+    bases = (".openclaw",)
+    skill_dir_rel = "skills"
+    mcp_config_rel = "skills/config/mcporter.json"
 
 
 class ClaudeCode(LocalTarget):
     id = "claude_code"
     display_name = "Claude Code"
-    skill_dir_rel = ".claude/skills"
-    mcp_config_rel = ".claude.json"
-    detect_rel = (".claude",)
+    bases = (".claude",)
+    home_env = "CLAUDE_CONFIG_DIR"
+    skill_dir_rel = "skills"
+
+    @property
+    def mcp_config(self) -> Path:
+        # The one file that is not under the agent's own directory: it sits beside it, in $HOME.
+        return self.home / ".claude.json"
 
     def _entry(self, reg: McpRegistration) -> dict[str, Any]:
         if reg.url:
@@ -58,9 +72,10 @@ class ClaudeCode(LocalTarget):
 class Codex(LocalTarget):
     id = "codex"
     display_name = "OpenAI Codex"
-    skill_dir_rel = ".codex/skills"
-    mcp_config_rel = ".codex/config.toml"
-    detect_rel = (".codex",)
+    bases = (".codex",)
+    home_env = "CODEX_HOME"
+    skill_dir_rel = "skills"
+    mcp_config_rel = "config.toml"
     root_key = "mcp_servers"
 
     def _parse(self, text: str) -> dict[str, Any]:
@@ -81,9 +96,9 @@ class Codex(LocalTarget):
 class Antigravity(LocalTarget):
     id = "antigravity"
     display_name = "Google Antigravity"
-    skill_dir_rel = ".gemini/config/skills"
-    mcp_config_rel = ".gemini/antigravity/mcp_config.json"
-    detect_rel = (".gemini",)
+    bases = (".gemini",)
+    skill_dir_rel = "config/skills"
+    mcp_config_rel = "antigravity/mcp_config.json"
 
 
 TARGETS: dict[str, type[LocalTarget]] = {t.id: t for t in (Hermes, OpenClaw, ClaudeCode, Codex, Antigravity)}

@@ -21,7 +21,7 @@ export default function MyTrialsPage() {
                 <Badge tone={tr.state === "testing" ? "primary" : tr.state === "suspended" ? "warning" : "neutral"}>{t(`skills:trials.state.${tr.state}`)}</Badge>
                 <Badge>{tr.target_agent}</Badge>
                 <span className="flex-1 text-muted">{t(`skills:trials.purposes.${tr.purpose}`)} · {timeAgo(tr.updated_at, i18n.language)}</span>
-                {tr.outcome && <Badge tone="success">{t(`skills:trials.outcomes.${tr.outcome}`)}</Badge>}
+                {tr.outcome && <Badge tone="success">{t(`skills:trials.outcomeDone.${tr.outcome}`)}</Badge>}
                 <Link className="font-medium text-primary hover:underline" to={`/p/${tr.project_id}/skills/${tr.skill_id}/trials/${tr.id}`}>{t("skills:trials.openPage")}</Link>
               </li>
             ))}

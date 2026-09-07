@@ -3,7 +3,7 @@
   "new": "Nueva skill",
   "empty": "Todavía no hay skills. Describe una tarea para empezar.",
   "state": {
-    "active": "En desarrollo",
+    "active": "Desarrollo abierto",
     "suspended": "Suspendida",
     "archived": "Archivada",
     "created": "Iniciando",
@@ -15,7 +15,9 @@
     "complete": "Comprensión completa",
     "drafting_requested": "Redactando",
     "abandoned": "Abandonada",
-    "failed": "Necesita atención"
+    "failed": "Necesita atención",
+    "published": "Publicada",
+    "publishedPrivate": "Publicada · solo en el proyecto"
   },
   "start": {
     "title": "Describe tu tarea",
@@ -42,7 +44,7 @@
     "sendCorrection": "Enviar corrección",
     "summaryTitle": "Esto es lo que he entendido",
     "completeTitle": "Comprensión completa",
-    "completeBody": "El documento de conocimiento está congelado y la memoria de la skill se ha escrito. El siguiente paso es redactar la skill.",
+    "completeBody": "El documento de conocimiento está congelado y la memoria de la skill se ha escrito. El primer borrador de la skill se redacta a partir de ahí automáticamente.",
     "failedTitle": "La entrevista se ha detenido",
     "abandon": "Abandonar la entrevista",
     "supervisor": "Supervisor",
@@ -50,7 +52,17 @@
     "turns": "{{count}} turnos",
     "gate": "control {{id}}",
     "resume": "Continuar la entrevista",
-    "newSession": "Empezar una nueva entrevista"
+    "newSession": "Empezar una nueva entrevista",
+    "retry": "Reintentar",
+    "retryHint": "Se reanuda desde el paso que falló: no se pierde nada de la entrevista.",
+    "attach": "Adjuntar un archivo",
+    "disconnected": "Sin contacto con el servidor: lo que ves debajo puede estar desactualizado.",
+    "reconnect": "Reintentar",
+    "lastChecked": "comprobado a las {{time}}",
+    "continue": "Continuar",
+    "open": "Abrir",
+    "openDraft": "Abrir el borrador",
+    "drafting": "Escribiendo el primer borrador…"
   },
   "knowledge": {
     "title": "Lo que he entendido hasta ahora",
@@ -75,7 +87,12 @@
       "deterministic": "mecánico",
       "generative": "requiere criterio",
       "human_gate": "requiere aprobación"
-    }
+    },
+    "example": "Ejemplo",
+    "usesSources": "Fuentes de datos usadas",
+    "restore": "Cómo deshacer",
+    "missing": "aún no recogido",
+    "noRunYet": "Esto es lo que entendió la entrevista. Lo que ocurrió realmente se registra cuando la skill se ejecuta, en Ejecuciones."
   },
   "gates": {
     "G1": "Objetivo y disparador",
@@ -282,12 +299,21 @@
       "interactive": "Recomendado: el agente se detiene en cada paso hasta que decides.",
       "async": "Para agentes con un tiempo de espera de herramientas demasiado corto; los pasos se registran y los revisas después."
     },
-    "createdHelp": "Ejecuta el comando en tu máquina (después de `pipx install autoskill-local` y `autoskill login`), o dale a tu agente la dirección en línea de abajo: puede descargar e instalar todo por sí mismo.",
+    "createdHelp": "Ejecuta el comando en tu máquina (el comando para instalar la CLI está en la página Mis dispositivos, luego `autoskill login`), o dale a tu agente la dirección en línea de abajo: puede descargar e instalar todo por sí mismo.",
     "tokenWarning": "El comando contiene un token de prueba de un solo uso: no lo compartas.",
     "openPage": "Abrir la prueba",
     "waitingInstall": "Esperando la instalación",
     "waitingInstallHelp": "Ejecuta el comando de la CLI o instala manualmente con la guía de abajo y luego inicia la tarea en tu agente.",
     "waitingAgent": "Esperando a que el agente llegue al siguiente paso… inicia la tarea en tu agente.",
+    "notStartedTitle": "Tu agente aún no ha iniciado esta prueba",
+    "notStartedBody": "A AutoSkill no ha llegado nada: el agente no ha llamado a start_run. Si describiste la tarea con tus palabras, puede haber elegido otra skill, o haberla hecho a mano sin las comprobaciones paso a paso. Nombra en su lugar la skill de la prueba de forma explícita.",
+    "tellAgentSkill": "Dile esto a tu agente",
+    "tellAgentSkillText": "Usa la skill {{skill}} y sigue su protocolo de prueba de AutoSkill.",
+    "notStartedSince": "Esperando desde hace {{since}}.",
+    "runEndedTitle": "El agente terminó la ejecución sin completar el recorrido",
+    "runEndedReported": "El agente informó de que la tarea está terminada",
+    "runEndedBody": "Desde esta página solo se aprobaron {{done}} de {{total}} pasos. Lo que el agente hizo después nunca pasó por aquí, así que AutoSkill no puede confirmarlo.",
+    "runEndedHint": "Comprueba tú el resultado antes de aceptarlo. Para una ejecución observada por completo, inicia una prueba nueva y dile al agente que siga el protocolo de prueba en cada paso.",
     "suspend": "Suspender",
     "resume": "Reanudar",
     "suspendedBanner": "Esta prueba está suspendida. La copia de prueba sigue instalada; reanuda cuando quieras.",
@@ -297,7 +323,10 @@
     "noSummary": "Todavía no hay resumen.",
     "note": "Nota para el registro (opcional)",
     "outcomeSaved": "Resultado guardado",
-    "finishedHelp": "Esta prueba ha terminado: {{outcome}}. Usa la CLI para conservar o quitar la copia: autoskill trial accept/remove.",
+    "finishedHelp": "Esta prueba ha terminado: {{outcome}}. La copia en tu máquina sigue siendo la de prueba: ejecuta uno de estos comandos para resolverlo.",
+    "keepCommand": "Mantenerla instalada (sustituye la copia de prueba por la versión definitiva)",
+    "keepCommandHint": "Descarga la skill sin las instrucciones de la prueba, para que funcione sola sin puntos de control.",
+    "dropCommand": "Quitar la copia de tu agente",
     "history": "Decisiones",
     "steps": "Pasos",
     "iteration": "iteración {{n}}",
@@ -368,12 +397,23 @@
       "removed": "Quitar",
       "abandoned": "abandonada"
     },
+    "outcomeDone": {
+      "accepted": "Aceptado",
+      "changes_requested": "Cambios solicitados",
+      "major_rework": "Revisión profunda solicitada",
+      "removed": "Eliminado",
+      "abandoned": "Abandonado"
+    },
+    "deleteForever": "Eliminar definitivamente",
+    "deleteForeverConfirm": "Eliminar definitivamente",
+    "deleteForeverHelp": "Borra la prueba y todo lo que registró: puntos de control, ejecuciones, instantáneas, discusiones y su enlace de descarga. La skill y sus versiones no se tocan. No se puede deshacer.",
+    "installInstructions": "Instrucciones de instalación (incluyen el token de la prueba)",
     "cliCommand": "Comando de la CLI",
     "bundleUrl": "Archivo de instalación (dirección en línea)",
     "bundleUrlHint": "Cualquiera con esta dirección puede descargar la descripción de la instalación y cada componente que cita (skill, servidores MCP, componentes compartidos) sin iniciar sesión, hasta que se cierre la prueba. No contiene el token de prueba.",
     "manifestUrl": "Manifiesto legible por máquina (install.json)",
     "tellAgent": "Qué decirle a tu agente",
-    "tellAgentText": "Instala la skill de AutoSkill descrita en {{url}} (manifiesto legible por máquina: {{manifest}}). Descarga cada componente desde las direcciones indicadas, verifica las sumas de comprobación, registra los servidores MCP y pídeme los valores de entorno y el token de prueba.",
+    "tellAgentText": "Instala la skill de AutoSkill descrita en {{url}} (manifiesto legible por máquina: {{manifest}}). Descarga cada componente desde las direcciones indicadas allí, verifica las sumas de comprobación, registra los servidores MCP usando el token de la prueba {{token}} y pídeme los valores de entorno. Luego sigue el protocolo de prueba de AutoSkill en cada paso.",
     "autoConfirm": "Saltar los pasos ya confirmados varias veces",
     "autoConfirmHint": "Los pasos deterministas que confirmaste N veces en pruebas anteriores se deciden automáticamente (nunca las ejecuciones, nunca los pasos irreversibles). Puedes desactivarlo durante la prueba.",
     "autoConfirmShort": "Autoconfirmar pasos conocidos",
@@ -383,7 +423,11 @@
     "snapshot": {
       "title": "Copia de seguridad registrada ({{n}} elementos)",
       "restored": "restaurada"
-    }
+    },
+    "commandLost": "El comando de instalación se mostró una sola vez, al crear la prueba. Hasta que no lo ejecutes, en la máquina no ocurre nada.",
+    "showCommand": "Mostrar el comando de nuevo",
+    "showCommandHint": "Esto emite un token de prueba nuevo; el anterior deja de funcionar.",
+    "targetNotDetected": "Ninguna máquina ha informado todavía de este agente. La lista se actualiza cuando se ejecuta la CLI, así que un agente instalado después puede simplemente no aparecer: comprueba que sea el agente que usas de verdad."
   },
   "runs": {
     "title": "Ejecuciones",
@@ -404,7 +448,14 @@
       "ok": "OK",
       "corrected": "Corregida",
       "wrong": "Incorrecta"
-    }
+    },
+    "executedAction": "Acción ejecutada",
+    "proposedAction": "Acción propuesta",
+    "tool": "Herramienta",
+    "inputs": "Entrada",
+    "outputs": "Salida",
+    "error": "Error",
+    "noDetail": "Este paso no registró detalles."
   },
   "review": {
     "queue": "Cola de revisión",
@@ -667,5 +718,80 @@
       "expiresAt": "caduca {{when}}",
       "revoke": "Revocar"
     }
+  },
+  "steps": {
+    "title": "Historial de pasos",
+    "description": "Lo que hizo la entrevista, paso a paso",
+    "show": "Mostrar historial",
+    "hide": "Ocultar historial",
+    "empty": "Aún no hay pasos registrados.",
+    "attempt": "Intento",
+    "question": "Pregunta formulada",
+    "decision": "Decisión del supervisor",
+    "error": "Error",
+    "tokens": "Tokens",
+    "replay": "Rehacer este paso",
+    "replayActive": "Rehaciendo desde el paso {{n}}",
+    "replayHint": "Acepta para conservar esta ejecución y apartar los pasos siguientes, o descarta para volver exactamente donde estabas.",
+    "accept": "Aceptar",
+    "discard": "Descartar",
+    "status": {
+      "running": "en curso",
+      "succeeded": "hecho",
+      "failed": "fallido",
+      "waiting": "esperando",
+      "superseded": "reemplazado",
+      "discarded": "descartado"
+    },
+    "key": {
+      "intake": "Comprensión inicial",
+      "compute_gates": "Comprobación de completitud",
+      "supervise": "Supervisión",
+      "ask": "Pregunta",
+      "ingest": "Procesado de la respuesta",
+      "confirm_summary": "Confirmación del resumen",
+      "finalize": "Finalización"
+    }
+  },
+  "delivery": {
+    "title": "Cómo se entregan los pasos",
+    "description": "Se elige una vez para toda la skill, antes de escribirla.",
+    "script": "Scripts",
+    "scriptHelp": "Módulos con línea de comandos. Nada queda en ejecución y ninguna descripción de herramienta ocupa el contexto del agente.",
+    "mcp": "Servidor MCP",
+    "mcpHelp": "Los pasos se vuelven herramientas de un servidor. Necesario para agentes sin línea de comandos o para reutilizarlos.",
+    "default": "predeterminado",
+    "forced": "{{count}} paso no puede ser un script",
+    "forced_other": "{{count}} pasos no pueden ser scripts",
+    "noShell": "Agentes sin línea de comandos: {{agents}}",
+    "reason": {
+      "authorization": "irreversible: requiere autorización por acción"
+    }
+  },
+  "ways": {
+    "title": "Tres formas de crear una skill",
+    "here": {
+      "title": "Aquí en el navegador",
+      "body": "Describe la tarea y responde a las preguntas. No hay que instalar nada, pero AutoSkill no ve tu máquina."
+    },
+    "attach": {
+      "title": "Con la ayuda de tu agente",
+      "body": "Empieza aquí y conecta tu agente desde la página de la entrevista: AutoSkill podrá mirar carpetas, archivos y conexiones en vez de pedirte que las recuerdes."
+    },
+    "fromAgent": {
+      "title": "Desde tu agente",
+      "body": "Pide a tu agente que cree una skill: abre la sesión y te trae aquí para continuar."
+    }
+  },
+  "agent": {
+    "title": "Tu agente",
+    "description": "AutoSkill dirige la entrevista; tu agente responde lo que se puede observar en tu máquina.",
+    "help": "Conecta tu agente y AutoSkill mirará por su cuenta en lugar de pedirte que recuerdes.",
+    "attach": "Conectar mi agente",
+    "paste": "Pega esto en tu agente:",
+    "live": "escuchando",
+    "looking": "Tu agente está mirando",
+    "notListening": "Tu agente lleva un rato sin responder: contesta tú si lo prefieres.",
+    "privacy": "Lo que informa tu agente (rutas, nombres de archivo, encabezados) se envía a AutoSkill y se usa en la entrevista."
   }
 }

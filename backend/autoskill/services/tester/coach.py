@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from autoskill.llm.budget import output_budget
 from autoskill.core.errors import NotFound
 from autoskill.db.base import utcnow
 from autoskill.llm.provider import ChatMessage, ChatRequest
@@ -104,7 +105,7 @@ async def coach_turn(
             ChatMessage(role="user", content=prompt),
         ],
         temperature=0.2,
-        max_tokens=2000,
+        max_tokens=await output_budget(session),
         purpose="coach",
     )
     result = await structured(provider, req, CoachOutcome)

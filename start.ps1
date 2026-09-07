@@ -87,7 +87,15 @@ function Start-Component {
 
 try {
     if ($wantBackend) {
-        $uvicorn = @('-m', 'uvicorn', 'autoskill.main:app', '--port', "$ApiPort")
+        # Uvicorn closes an idle keep-alive connection after five seconds by default, which is shorter
+        # than the gap between two polls of a page waiting for a person to answer. Anything in front
+        # that pools sockets -- the Vite dev proxy here, nginx in production -- then hands the next
+        # request to a socket the server has just closed, and the caller gets ECONNRESET instead of an
+        # answer. The server must be the patient one; whoever is in front should do the closing.
+        # 1800s covers a trial where the person steps away between two checkpoints. Note what it does
+        # *not* bound: it is the idle life of a TCP connection, not of a trial. A trial can last hours
+        # -- its state lives in the database, and a client whose socket was closed opens another one.
+        $uvicorn = @('-m', 'uvicorn', 'autoskill.main:app', '--port', "$ApiPort", '--timeout-keep-alive', '1800')
         if (-not $NoReload) { $uvicorn += '--reload' }
         $started += Start-Component -Label "API      http://localhost:$ApiPort  (docs at /docs)" `
             -Exe $py -Arguments $uvicorn -WorkDir (Join-Path $Root 'backend')

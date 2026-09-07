@@ -21,6 +21,12 @@ DEFAULTS: dict[str, Any] = {
     "auto_confirm_after_confirmations": 3,
     "download_rate_per_minute": 120,
     "max_active_download_links_per_user": 50,
+    # Output ceiling for the automatic tasks (interview, drafting, review, memory...). Off by
+    # default: the model writes as much as it needs, up to whatever its own limit is. Turn it on
+    # to cap the spend — but keep it generous, because a reasoning model can burn the whole budget
+    # thinking and return nothing at all.
+    "llm_output_limit_enabled": False,
+    "llm_output_limit_tokens": 12000,
 }
 
 

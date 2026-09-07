@@ -19,13 +19,39 @@ try:  # mcp SDK 2.x
 except ImportError:  # mcp SDK 1.x
     from mcp.server.fastmcp import FastMCP as _Server  # type: ignore[no-redef]
 
+from autoskill_local import __version__
 from autoskill_local.client import Client, ServerError
 from autoskill_local.config import HOME, LocalConfig
 
-mcp = _Server("autoskill-companion", instructions="Checkpoints and run telemetry for AutoSkill skills.")
+MAX_UPLOAD_BYTES = 25 * 1024 * 1024  # mirrors the server; refuse locally instead of uploading in vain
+
+mcp = _Server(
+    "autoskill-companion",
+    # Read at every connection, unlike a skill document loaded once. Three consecutive trials were
+    # carried out with a single checkpoint because the per-step cycle lived only in that document; the
+    # cycle is therefore stated here too, in the shortest form that still says what to do.
+    instructions=(
+        "Checkpoints and run telemetry for AutoSkill skills, and the executor side of an AutoSkill "
+        "interview.\n\n"
+        "RUNNING A SKILL THAT IS ON TRIAL (its SKILL.md says so at the top): the person is watching "
+        "each step in their browser and approving it. Call `start_run` once, then walk EVERY step of "
+        "the skill through its own cycle — `checkpoint` explain, then preview, then execute (or "
+        "straight to verify when the step is simulated), then verify — before you name the next step. "
+        "A decision of `continue` means carry on inside the step you are in; only "
+        "`approve_and_authorize_next` on a `verify` opens the following step. Every checkpoint reply "
+        "carries `next_phase`, `next_step_key` and `next_hint`: do what it says, including when the "
+        "reply is an error. Call `end_run` only after the last step has been verified — never as a way "
+        "out of a refusal, because work done after that reaches the person as nothing at all.\n\n"
+        "ASSISTING AN INTERVIEW: call `assist_interview` with the session key they paste, then loop "
+        "`await_task` / `report_task` until it reports done. AutoSkill leads the interview and the "
+        "person answers in their browser: you are not interviewing anyone. Carry out what is asked and "
+        "report what you find. An `inspect` task is read-only — never change anything to answer one; a "
+        "task in `act` mode goes through `checkpoint` first, like a trial step."
+    ),
+)
 
 _client: Client | None = None
-_state: dict[str, Any] = {"trial_token": None, "skill_id": None, "run_id": None}
+_state: dict[str, Any] = {"trial_token": None, "skill_id": None, "run_id": None, "interview": None}
 
 
 def set_client(client: Client | None) -> None:
@@ -282,6 +308,102 @@ def restore_snapshot(run_id: str, step_key: str) -> dict:
 def get_step_guidance(skill_id: str, step_key: str) -> dict:
     """Latest instruction, corrections and memory notes for a step (use after a 'change' decision)."""
     return _call(lambda: get_client().get(f"/telemetry/guidance/{skill_id}/{step_key}"))
+
+
+# --- interview: this machine as the executor -------------------------------------------------
+#
+# AutoSkill runs the interview and the person answers in their browser. What arrives here are the
+# turns addressed to the machine: look at a folder, open a workbook, check that something answers.
+
+
+def _interview(session_key: str | None) -> dict:
+    """Headers for an interview call: which session, and which version of this package is asking.
+
+    The server compares the version with what it publishes and can ask us to update before going on.
+    """
+    key = session_key or _state.get("interview")
+    if not key:
+        raise ValueError("no interview session: call assist_interview with the key from the browser")
+    _state["interview"] = key
+    return {"X-AutoSkill-Interview": key, "X-AutoSkill-Client": __version__}
+
+
+@mcp.tool()
+def assist_interview(session_key: str) -> dict:
+    """Join an AutoSkill interview as its executor, using the key the person pasted from the browser.
+
+    Returns the first turn. If it is a task, carry it out and send the result with `report_task`.
+    """
+
+    def go():
+        headers = _interview(session_key)
+        return get_client().get("/interviews/turn?wait=0", headers=headers)
+
+    return _call(go)
+
+
+@mcp.tool()
+def await_task(session_key: str | None = None, timeout_s: int = 50, max_wait_s: int = 900) -> dict:
+    """Wait for the next turn addressed to this machine.
+
+    Polls in short spells rather than holding one long request: the interview may think for minutes
+    while the person answers questions in the browser. Returns a turn, or `{"status": "timeout"}`.
+    """
+
+    def go():
+        headers = _interview(session_key)
+        client = get_client()
+        spent = 0
+        while spent < max(0, max_wait_s):
+            wait = max(0, min(timeout_s, 50))
+            turn = client.get(f"/interviews/turn?wait={wait}", headers=headers, timeout=wait + 20)
+            if turn.get("status") != "working":
+                # includes "update": the agent must act on it before the interview can go on
+                return turn
+            spent += wait or 1
+        return {"status": "timeout", "waited_s": spent}
+
+    return _call(go)
+
+
+@mcp.tool()
+def report_task(
+    text: str, session_key: str | None = None, turn_id: int | None = None, attachments: list[dict] | None = None
+) -> dict:
+    """Report what you found or did. Include the turn_id from the task you are answering."""
+
+    def go():
+        headers = _interview(session_key)
+        return get_client().post(
+            "/interviews/turn",
+            {"text": text, "attachments": attachments or [], "turn_id": turn_id},
+            headers=headers,
+        )
+
+    return _call(go)
+
+
+@mcp.tool()
+def attach_file(path: str, session_key: str | None = None) -> dict:
+    """Send a file to the interview; the server summarises it (sheets, headers, first rows).
+
+    Use it when a sample answers better than a description, and pass the returned descriptor in the
+    `attachments` list of `report_task`.
+    """
+
+    def go():
+        headers = _interview(session_key)
+        src = Path(path).expanduser()
+        if not src.is_file():
+            return {"error": "not_a_file", "message": f"{src} does not exist or is not a file"}
+        data = src.read_bytes()
+        if len(data) > MAX_UPLOAD_BYTES:
+            return {"error": "file_too_large", "message": f"{src.name} is {len(data)} bytes", "limit": MAX_UPLOAD_BYTES}
+        return get_client().post_file(
+            "/interviews/turn/attachments", filename=src.name, content=data, headers=headers
+        )
+
+    return _call(go)
 
 
 def main() -> None:

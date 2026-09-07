@@ -44,15 +44,17 @@ export interface RequestOptions extends Omit<RequestInit, "body"> {
 export async function api<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { body, auth = true, retry = true, headers, ...rest } = options;
   const token = useSession.getState().accessToken;
+  // a FormData body carries its own multipart boundary: setting Content-Type would break it
+  const isForm = body instanceof FormData;
   const init: RequestInit = {
     ...rest,
     credentials: "include",
     headers: {
-      ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
+      ...(body !== undefined && !isForm ? { "Content-Type": "application/json" } : {}),
       ...(auth && token ? { Authorization: `Bearer ${token}` } : {}),
       ...(headers as Record<string, string>),
     },
-    body: body !== undefined ? JSON.stringify(body) : undefined,
+    body: body === undefined ? undefined : isForm ? body : JSON.stringify(body),
   };
   const res = await fetch(`${BASE}${path}`, init);
   if (res.status === 401 && auth && retry) {

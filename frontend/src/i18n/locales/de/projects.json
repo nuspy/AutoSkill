@@ -8,6 +8,34 @@
   "settings": "Einstellungen",
   "empty": "Erstelle dein erstes Projekt, um eine Aufgabe zu beschreiben.",
   "created": "Projekt erstellt",
+  "gettingStarted": {
+    "title": "So fängt es an",
+    "subtitle": "Von einem leeren Konto zu einem Agenten, der mit deinen Skills arbeitet.",
+    "done": "erledigt",
+    "dismiss": "Nicht mehr anzeigen",
+    "provider": {
+      "title": "LLM-Anbieter wählen",
+      "body": "Ohne ihn läuft nichts Generatives: Interview, Entwürfe und Coach antworten alle mit no_llm_provider.",
+      "action": "KI-Anbieter öffnen"
+    },
+    "project": {
+      "title": "Projekt anlegen",
+      "body": "Skills leben in einem Projekt, zusammen mit den Menschen, die daran arbeiten."
+    },
+    "cli": {
+      "title": "Kommandozeilenwerkzeug installieren",
+      "body": "Es liegt nicht auf PyPI: Dieser Server verteilt es. pipx hält es in einem eigenen Virtualenv, ohne Administratorrechte."
+    },
+    "device": {
+      "title": "Gerät registrieren",
+      "body": "Der Befehl gibt einen Code aus. Gib ihn hier ein und bestätige: Der Rechner bekommt einen eigenen Schlüssel, den du unter Meine Geräte widerrufen kannst.",
+      "action": "Code eingeben"
+    },
+    "skill": {
+      "title": "Ersten Skill anlegen",
+      "body": "Öffne ein Projekt und beantworte das Interview: AutoSkill schreibt den Skill aus deinen Antworten und gibt deinem Agenten dann eine Adresse zum Installieren."
+    }
+  },
   "dashboard": {
     "skills": "Skills",
     "runs": "Letzte Läufe",

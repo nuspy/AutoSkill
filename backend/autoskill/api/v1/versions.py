@@ -26,6 +26,7 @@ from autoskill.services.review.service import authorize as authorize_version
 from autoskill.services.settings import get_setting
 from autoskill.services.targets import get_adapter, list_targets
 from autoskill.services.targets.base import InstallContext
+from autoskill.services.trials import service as trials_service
 from autoskill.services.versioning.changes import compare
 from autoskill.services.versioning.state_machine import allowed_targets, transition
 
@@ -201,6 +202,24 @@ async def install_doc(version_id: str, target: str, session: SessionDep, user: C
     project = await session.get(Project, skill.project_id)
     ctx = bundles.install_context(bundle, target, project.slug if project else "")
     ctx.trial = trial
+    ctx.concise = True  # read in the app, not by an agent that only has this document
+    # A hub address only resolves for a public skill on a server with the public hub switched on.
+    # Printed for a private skill it is a command that returns `skill_not_found` — which is what the
+    # page offered as "the fastest way". The person reading is logged in, so the honest command is the
+    # one that authenticates as them and needs no public URL at all.
+    if bundle.kind == "hub" and not (skill.visibility == "public" and await get_setting(session, "public_hub")):
+        ctx.manifest_url = None
+    if trial:
+        # The caller's own open trial, and nobody else's. A token authenticates one person's trial of
+        # one version: on a skill several people are trying, each has their own, and printing anyone
+        # else's here would hand over their session. This endpoint knows who is asking, which is why
+        # the command can carry a real token here and only a placeholder in the public INSTALL.md.
+        mine = await trials_service.open_trial_for(session, user_id=user.id, version_id=version.id)
+        if mine is not None:
+            # The id as well as the token: the uninstall line names the session, and a placeholder
+            # there would leave the person to find an id the page already knows.
+            ctx.trial_session_id = mine.id
+            ctx.trial_token = trials_service.stored_token(mine)
     return InstallDoc(
         target=target,
         markdown=get_adapter(target).render_install_md(ctx),

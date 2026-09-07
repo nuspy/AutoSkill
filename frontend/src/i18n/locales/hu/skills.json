@@ -3,7 +3,7 @@
   "new": "Új skill",
   "empty": "Még nincs skill. Írj le egy feladatot a kezdéshez.",
   "state": {
-    "active": "Fejlesztés alatt",
+    "active": "Fejlesztés nyitva",
     "suspended": "Felfüggesztve",
     "archived": "Archiválva",
     "created": "Indítás",
@@ -15,7 +15,9 @@
     "complete": "Megértés kész",
     "drafting_requested": "Vázlat készítése",
     "abandoned": "Elhagyva",
-    "failed": "Figyelmet igényel"
+    "failed": "Figyelmet igényel",
+    "published": "Közzétéve",
+    "publishedPrivate": "Közzétéve · csak a projektben"
   },
   "start": {
     "title": "Írd le a feladatodat",
@@ -42,7 +44,7 @@
     "sendCorrection": "Javítás küldése",
     "summaryTitle": "Ezt értettem meg",
     "completeTitle": "Megértés kész",
-    "completeBody": "A tudásdokumentum rögzítve, a skill memóriája megírva. A következő lépés a skill vázlatának elkészítése.",
+    "completeBody": "A tudásdokumentum rögzítve van, és a skill memóriája elkészült. A skill első vázlata ebből automatikusan megíródik.",
     "failedTitle": "Az interjú leállt",
     "abandon": "Interjú elhagyása",
     "supervisor": "Felügyelő",
@@ -50,7 +52,17 @@
     "turns": "{{count}} kör",
     "gate": "{{id}} ellenőrzés",
     "resume": "Interjú folytatása",
-    "newSession": "Új interjú indítása"
+    "newSession": "Új interjú indítása",
+    "retry": "Újrapróbálkozás",
+    "retryHint": "A megszakadt lépéstől folytatja: az interjúból semmi nem vész el.",
+    "attach": "Fájl csatolása",
+    "disconnected": "Nincs kapcsolat a kiszolgálóval — az alább látható adatok elavultak lehetnek.",
+    "reconnect": "Újra",
+    "lastChecked": "ellenőrizve: {{time}}",
+    "continue": "Folytatás",
+    "open": "Megnyitás",
+    "openDraft": "Vázlat megnyitása",
+    "drafting": "Az első vázlat írása…"
   },
   "knowledge": {
     "title": "Amit eddig megértettem",
@@ -75,7 +87,12 @@
       "deterministic": "mechanikus",
       "generative": "mérlegelést igényel",
       "human_gate": "jóváhagyást igényel"
-    }
+    },
+    "example": "Példa",
+    "usesSources": "Használt adatforrások",
+    "restore": "Visszavonás módja",
+    "missing": "még nincs rögzítve",
+    "noRunYet": "Ezt értette meg az interjú. Ami valójában történt, a skill futtatásakor kerül rögzítésre, a Futtatások alatt."
   },
   "gates": {
     "G1": "Cél és kiváltó ok",
@@ -282,12 +299,21 @@
       "interactive": "Ajánlott: az ügynök minden lépésnél megáll, amíg nem döntesz.",
       "async": "Olyan ügynökökhöz, ahol az eszközök időkorlátja túl rövid; a lépések rögzülnek, és utólag nézed át őket."
     },
-    "createdHelp": "Futtasd a parancsot a gépeden (a `pipx install autoskill-local` és az `autoskill login` után), vagy add át az ügynöködnek az alábbi online címet: mindent maga le tud tölteni és telepíteni.",
+    "createdHelp": "Futtasd a parancsot a gépeden (a CLI telepítőparancsa az Eszközeim oldalon található, utána `autoskill login`), vagy add át az ügynöködnek az alábbi online címet: mindent maga le tud tölteni és telepíteni.",
     "tokenWarning": "A parancs egyszer használatos próbatokent tartalmaz: ne oszd meg.",
     "openPage": "Próba megnyitása",
     "waitingInstall": "Várakozás a telepítésre",
     "waitingInstallHelp": "Futtasd a CLI-parancsot vagy telepítsd kézzel az alábbi útmutatóval, majd indítsd el a feladatot az ügynöködben.",
     "waitingAgent": "Várakozás, hogy az ügynök a következő lépéshez érjen… indítsd el a feladatot az ügynöködben.",
+    "notStartedTitle": "Az ügynököd még nem indította el ezt a próbát",
+    "notStartedBody": "Az AutoSkillhez semmi nem érkezett: az ügynök nem hívta meg a start_run-t. Ha a feladatot a saját szavaiddal írtad le, lehet, hogy másik képességet választott, vagy kézzel végezte el a munkát a lépésenkénti ellenőrzések nélkül. Ehelyett nevezd meg kifejezetten a próba képességét.",
+    "tellAgentSkill": "Ezt mondd az ügynöködnek",
+    "tellAgentSkillText": "Használd a(z) {{skill}} képességet, és kövesd az AutoSkill próbaprotokollját.",
+    "notStartedSince": "Várakozás {{since}} óta.",
+    "runEndedTitle": "Az ügynök úgy zárta le a futást, hogy nem fejezte be a végigjárást",
+    "runEndedReported": "Az ügynök befejezettként jelentette a feladatot",
+    "runEndedBody": "Erről az oldalról csak {{total}} lépésből {{done}} lett jóváhagyva. Amit az ügynök utána tett, az sosem jelent meg itt, így az AutoSkill nem tudja megerősíteni.",
+    "runEndedHint": "Elfogadás előtt magad ellenőrizd az eredményt. Teljesen végigkövetett futáshoz indíts új próbát, és mondd meg az ügynöknek, hogy minden lépésnél kövesse a próbaprotokollt.",
     "suspend": "Felfüggesztés",
     "resume": "Folytatás",
     "suspendedBanner": "Ez a próba fel van függesztve. A próbamásolat telepítve marad; folytasd, amikor akarod.",
@@ -297,7 +323,10 @@
     "noSummary": "Még nincs összefoglaló.",
     "note": "Feljegyzés (nem kötelező)",
     "outcomeSaved": "Eredmény mentve",
-    "finishedHelp": "Ez a próba lezárult: {{outcome}}. A másolat megtartásához vagy eltávolításához használd a CLI-t: autoskill trial accept/remove.",
+    "finishedHelp": "Ez a próba lezárult: {{outcome}}. A gépeden lévő példány még mindig a próbaváltozat — futtasd az alábbiak egyikét a lezáráshoz.",
+    "keepCommand": "Maradjon telepítve (a próbapéldányt a végleges változatra cseréli)",
+    "keepCommandHint": "A képességet a próba utasításai nélkül tölti le, így ellenőrzőpontok nélkül önállóan fut.",
+    "dropCommand": "A példány eltávolítása az ügynökről",
     "history": "Döntések",
     "steps": "Lépések",
     "iteration": "{{n}}. iteráció",
@@ -368,12 +397,23 @@
       "removed": "Eltávolítás",
       "abandoned": "elhagyva"
     },
+    "outcomeDone": {
+      "accepted": "Elfogadva",
+      "changes_requested": "Módosítás kérve",
+      "major_rework": "Alapos átdolgozás kérve",
+      "removed": "Eltávolítva",
+      "abandoned": "Elhagyva"
+    },
+    "deleteForever": "Végleges törlés",
+    "deleteForeverConfirm": "Végleges törlés",
+    "deleteForeverHelp": "Törli a próbát és mindent, amit rögzített: ellenőrzőpontokat, futásokat, pillanatképeket, megbeszéléseket és a letöltési hivatkozását. A képesség és verziói érintetlenek maradnak. Nem vonható vissza.",
+    "installInstructions": "Telepítési útmutató (tartalmazza a próba tokenjét)",
     "cliCommand": "CLI-parancs",
     "bundleUrl": "Telepítőfájl (online cím)",
     "bundleUrlHint": "Bárki, akinek megvan ez a cím, bejelentkezés nélkül letöltheti a telepítési leírást és minden benne hivatkozott komponenst (skill, MCP-szerverek, megosztott komponensek), amíg a próba le nem zárul. A próbatokent nem tartalmazza.",
     "manifestUrl": "Gépi olvasású jegyzék (install.json)",
     "tellAgent": "Mit mondj az ügynöködnek",
-    "tellAgentText": "Telepítsd az AutoSkill skillt, amelyet itt írnak le: {{url}} (gépi olvasású jegyzék: {{manifest}}). Tölts le minden komponenst a megadott címekről, ellenőrizd az ellenőrző összegeket, regisztráld az MCP-szervereket, és kérd tőlem a környezeti értékeket és a próbatokent.",
+    "tellAgentText": "Telepítsd az AutoSkill képességet, amelyet a(z) {{url}} ír le (géppel olvasható manifest: {{manifest}}). Töltsd le minden komponenst az ott megadott címekről, ellenőrizd az ellenőrzőösszegeket, regisztráld az MCP-kiszolgálókat a(z) {{token}} próbatokennel, és kérd el tőlem a környezeti értékeket. Ezután minden lépésnél kövesd az AutoSkill próbaprotokollját.",
     "autoConfirm": "A már többször megerősített lépések kihagyása",
     "autoConfirmHint": "A korábbi próbákban N-szer megerősített determinisztikus lépések automatikusan eldőlnek (a végrehajtások és a visszafordíthatatlan lépések soha). A próba közben kikapcsolhatod.",
     "autoConfirmShort": "Ismert lépések automatikus megerősítése",
@@ -383,7 +423,11 @@
     "snapshot": {
       "title": "Mentés rögzítve ({{n}} elem)",
       "restored": "visszaállítva"
-    }
+    },
+    "commandLost": "A telepítési parancs csak egyszer jelent meg, a próba létrehozásakor. Amíg nem futtatja, a gépen nem történik semmi.",
+    "showCommand": "Parancs újbóli megjelenítése",
+    "showCommandHint": "Ez új próba-tokent ad ki; a korábban mutatott érvénytelenné válik.",
+    "targetNotDetected": "Egyetlen gép sem jelentette még ezt az ügynököt. A lista a CLI futásakor frissül, így egy azóta telepített ügynök egyszerűen hiányozhat — ellenőrizze, hogy valóban ezt az ügynököt használja-e."
   },
   "runs": {
     "title": "Futások",
@@ -404,7 +448,14 @@
       "ok": "OK",
       "corrected": "Javítva",
       "wrong": "Hibás"
-    }
+    },
+    "executedAction": "Végrehajtott művelet",
+    "proposedAction": "Javasolt művelet",
+    "tool": "Eszköz",
+    "inputs": "Bemenet",
+    "outputs": "Kimenet",
+    "error": "Hiba",
+    "noDetail": "Ez a lépés nem rögzített részleteket."
   },
   "review": {
     "queue": "Bírálati sor",
@@ -667,5 +718,80 @@
       "expiresAt": "lejár: {{when}}",
       "revoke": "Visszavonás"
     }
+  },
+  "steps": {
+    "title": "Lépések előzményei",
+    "description": "Mit csinált az interjú, lépésről lépésre",
+    "show": "Előzmények mutatása",
+    "hide": "Előzmények elrejtése",
+    "empty": "Még nincs rögzített lépés.",
+    "attempt": "Próbálkozás",
+    "question": "Feltett kérdés",
+    "decision": "Felügyelői döntés",
+    "error": "Hiba",
+    "tokens": "Tokenek",
+    "replay": "Lépés újrafuttatása",
+    "replayActive": "Újrafuttatás a(z) {{n}}. lépéstől",
+    "replayHint": "Az elfogadás megtartja ezt a futtatást és félreteszi az utána következő lépéseket; az elvetés pontosan oda visz vissza, ahol voltál.",
+    "accept": "Elfogadás",
+    "discard": "Elvetés",
+    "status": {
+      "running": "fut",
+      "succeeded": "kész",
+      "failed": "sikertelen",
+      "waiting": "várakozik",
+      "superseded": "lecserélve",
+      "discarded": "elvetve"
+    },
+    "key": {
+      "intake": "Kezdeti megértés",
+      "compute_gates": "Teljességi ellenőrzés",
+      "supervise": "Felügyelet",
+      "ask": "Kérdés",
+      "ingest": "Válasz feldolgozása",
+      "confirm_summary": "Összefoglaló megerősítése",
+      "finalize": "Véglegesítés"
+    }
+  },
+  "delivery": {
+    "title": "Hogyan készülnek a lépések",
+    "description": "Egyszer választod ki az egész skillhez, a megírása előtt.",
+    "script": "Szkriptek",
+    "scriptHelp": "Parancssoros modulok. Semmi nem fut folyamatosan, és nem foglalnak helyet az ügynök kontextusában.",
+    "mcp": "MCP-kiszolgáló",
+    "mcpHelp": "A lépések egy kiszolgáló eszközeivé válnak. Parancssor nélküli ügynökökhöz vagy újrafelhasználáshoz kell.",
+    "default": "alapértelmezett",
+    "forced": "{{count}} lépés nem lehet szkript",
+    "forced_other": "{{count}} lépés nem lehet szkript",
+    "noShell": "Parancssor nélküli ügynökök: {{agents}}",
+    "reason": {
+      "authorization": "visszafordíthatatlan: műveletenkénti engedély kell"
+    }
+  },
+  "ways": {
+    "title": "Három út egy skillhez",
+    "here": {
+      "title": "Itt, a böngészőben",
+      "body": "Írja le a feladatot és válaszoljon a kérdésekre. Semmit nem kell telepíteni, de az AutoSkill nem látja a gépét."
+    },
+    "attach": {
+      "title": "Az ügynöke segítségével",
+      "body": "Kezdje itt, majd csatolja az ügynökét az interjú oldalán: az AutoSkill megnézheti a mappákat, fájlokat és kapcsolatokat ahelyett, hogy emlékezetből kérdezné."
+    },
+    "fromAgent": {
+      "title": "Az ügynökéből",
+      "body": "Kérje meg az ügynökét, hogy hozzon létre egy skillt: megnyitja a munkamenetet és visszahozza ide."
+    }
+  },
+  "agent": {
+    "title": "Az ügynöke",
+    "description": "Az interjút az AutoSkill vezeti; az ügynöke arra válaszol, ami a gépén megfigyelhető.",
+    "help": "Csatolja az ügynökét, és az AutoSkill maga néz utána.",
+    "attach": "Ügynök csatolása",
+    "paste": "Illessze be ezt az ügynökébe:",
+    "live": "figyel",
+    "looking": "Az ügynöke épp utánanéz",
+    "notListening": "Az ügynöke egy ideje nem jelentkezett — ha szeretné, válaszoljon Ön.",
+    "privacy": "Amit az ügynöke jelent (útvonalak, fájlnevek, oszlopfejlécek), elküldjük az AutoSkillnek és felhasználjuk az interjúban."
   }
 }

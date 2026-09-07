@@ -29,7 +29,9 @@
     "checkpoint_timeout_minutes": "Délai d'expiration des checkpoints (minutes)",
     "auto_confirm_after_confirmations": "Confirmer automatiquement les étapes déterministes après N confirmations",
     "download_rate_per_minute": "Téléchargements par minute par lien / IP",
-    "max_active_download_links_per_user": "Liens de téléchargement actifs max par utilisateur"
+    "max_active_download_links_per_user": "Liens de téléchargement actifs max par utilisateur",
+    "llm_output_limit_enabled": "Limiter la sortie des tâches automatiques",
+    "llm_output_limit_tokens": "Limite de sortie (jetons)"
   },
   "library": "Bibliothèque",
   "hub": "Hub",

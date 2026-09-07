@@ -24,6 +24,8 @@ dependencies = [
     "sse-starlette>=2.1",
     "typer>=0.12",
     "pyyaml>=6.0",
+    # reads the spreadsheets people attach to an interview, to summarise them for the model
+    "openpyxl>=3.1",
 ]
 
 [project.optional-dependencies]

@@ -53,6 +53,24 @@ async def _rate_limit(key: str, session=None) -> None:
 # --- autoskill-local wheels ---------------------------------------------------------------
 
 
+# --- the assistant skill ------------------------------------------------------------------
+#
+# What teaches an agent to use AutoSkill at all. Built from code, not authored by a model: it
+# describes a protocol, and a protocol has one correct wording.
+
+
+@router.get("/skill/autoskill.zip")
+async def assistant_skill_zip():
+    from autoskill.services.distribution import assistant_skill
+
+    data = assistant_skill.build().to_zip()
+    return Response(
+        content=data,
+        media_type="application/zip",
+        headers={"Content-Disposition": 'attachment; filename="autoskill.zip"'},
+    )
+
+
 @router.get("/autoskill-local/latest")
 async def companion_latest():
     wheel = bundles.companion_wheel()
@@ -83,6 +101,9 @@ async def _serve(session, skill: Skill, version: SkillVersion, bundle, path: str
     project = await session.get(Project, skill.project_id)
     slug = project.slug if project else ""
     targets = {t["id"] for t in list_targets()}
+    # No trial token here. This document is served without a login, so the server cannot tell who is
+    # reading it, and the grant URL that reaches it is meant to be passed around. A token belongs to
+    # one person's trial: it is printed only where the caller has been identified.
     if path in ("INSTALL.md", ""):
         target = bundle.default_target if bundle.default_target in targets else "hermes"
         return Response(bundles.render_install_md(bundle, target, slug), media_type="text/markdown; charset=utf-8")

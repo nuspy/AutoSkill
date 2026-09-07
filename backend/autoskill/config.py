@@ -54,6 +54,10 @@ class Settings(BaseSettings):
     # Local engines only: True lets a request load the chosen model when the GPU is idle, False
     # limits the VRAM rule to using what is already in memory.
     llmswitch_load_models: bool = True
+    # How long to wait for one completion. A local reasoning model writes thousands of tokens
+    # before the answer, at a speed measured in tens of tokens per second: minutes, not seconds.
+    # Only the wait for the response is this long — connecting still times out quickly.
+    llm_request_timeout_seconds: float = 900.0
 
     @property
     def dist_dir(self) -> Path:

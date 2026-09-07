@@ -8,6 +8,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from autoskill.llm.budget import output_budget
 from autoskill.core.errors import Conflict, NotFound
 from autoskill.core.events import emit, project_channel, user_channel
 from autoskill.db.base import utcnow
@@ -118,7 +119,7 @@ async def generate_draft(
     for attempt in range(2):
         result = await structured(
             provider,
-            ChatRequest(messages=messages, temperature=0.2, max_tokens=8000, seed=11, purpose="author"),
+            ChatRequest(messages=messages, temperature=0.2, max_tokens=await output_budget(session), seed=11, purpose="author"),
             DraftSpec,
         )
         await record_usage(session, skill.project_id, provider_id, result.usage)

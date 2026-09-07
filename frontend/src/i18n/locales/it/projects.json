@@ -2,6 +2,34 @@
   "title": "Progetti", "subtitle": "Ogni progetto raggruppa skill, sorgenti dati e persone di un'area di lavoro.",
   "new": "Nuovo progetto", "name": "Nome del progetto", "description": "Descrizione", "members": "Membri", "settings": "Impostazioni",
   "empty": "Crea il tuo primo progetto per iniziare a descrivere un task.", "created": "Progetto creato",
+  "gettingStarted": {
+    "title": "Come si comincia",
+    "subtitle": "Da un account vuoto a un agente che lavora con le tue skill.",
+    "done": "fatto",
+    "dismiss": "Non mostrare più",
+    "provider": {
+      "title": "Scegli un provider LLM",
+      "body": "Senza, niente di generativo funziona: intervista, bozze e coach rispondono no_llm_provider.",
+      "action": "Apri i provider AI"
+    },
+    "project": {
+      "title": "Crea un progetto",
+      "body": "Le skill vivono dentro un progetto, insieme a chi ci lavora."
+    },
+    "cli": {
+      "title": "Installa lo strumento a riga di comando",
+      "body": "Non è su PyPI: lo distribuisce questo server. pipx lo tiene in un virtualenv suo, senza diritti di amministratore."
+    },
+    "device": {
+      "title": "Registra il dispositivo",
+      "body": "Il comando stampa un codice. Inseriscilo qui e approva: la macchina riceve una chiave propria, che puoi revocare da I miei dispositivi.",
+      "action": "Inserisci il codice"
+    },
+    "skill": {
+      "title": "Crea la prima skill",
+      "body": "Apri un progetto e rispondi all'intervista: AutoSkill scrive la skill dalle tue risposte, poi dà al tuo agente un indirizzo da cui installarla."
+    }
+  },
   "dashboard": { "skills": "Skill", "runs": "Esecuzioni recenti", "trials": "Prove in corso", "pending": "In attesa di te" },
   "member": { "add": "Aggiungi membro", "email": "Email di un utente esistente", "role": "Ruolo", "added": "Membro aggiunto", "removed": "Membro rimosso" },
   "apiKeys": {

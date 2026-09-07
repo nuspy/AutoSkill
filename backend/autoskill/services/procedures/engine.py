@@ -71,11 +71,20 @@ class StepDef:
     max_attempts: int = 2
 
 
+# Snapshot/restore of the state a procedure owns outside `procedure.context` (for the interview:
+# the session row, its knowledge revision and how far the transcript had got). The engine stays
+# generic: each definition declares what belongs to its own state.
+Snapshot = Callable[[AsyncSession, Procedure], Awaitable[dict[str, Any]]]
+Restore = Callable[[AsyncSession, Procedure, dict[str, Any]], Awaitable[None]]
+
+
 @dataclass
 class ProcedureDef:
     kind: str
     steps: list[StepDef]
     max_iterations: int = 200
+    snapshot: Snapshot | None = None
+    restore: Restore | None = None
 
     def index(self, key: str) -> int:
         for i, s in enumerate(self.steps):
@@ -125,7 +134,13 @@ async def create_procedure(
 
 
 def _new_step_row(
-    procedure_id: str, ordinal: int, key: str, kind: str, attempt: int, human_input: dict | None
+    procedure_id: str,
+    ordinal: int,
+    key: str,
+    kind: str,
+    attempt: int,
+    human_input: dict | None,
+    checkpoint: dict | None = None,
 ) -> ProcedureStep:
     return ProcedureStep(
         procedure_id=procedure_id,
@@ -134,9 +149,39 @@ def _new_step_row(
         kind=kind,
         status="running",
         attempt=attempt,
+        checkpoint=checkpoint,
         input={"human_input": human_input} if human_input else {},
         started_at=utcnow(),
     )
+
+
+async def capture(session: AsyncSession, procedure: Procedure) -> dict[str, Any]:
+    """State to come back to: the procedure's own fields plus whatever the definition owns."""
+    definition = get_definition(procedure.kind)
+    snap: dict[str, Any] = {
+        "procedure": {
+            "context": dict(procedure.context),
+            "current_step_key": procedure.current_step_key,
+            "iteration": procedure.iteration,
+            "state": procedure.state,
+            "waiting_for": procedure.waiting_for,
+        }
+    }
+    if definition.snapshot is not None:
+        snap["subject"] = await definition.snapshot(session, procedure)
+    return snap
+
+
+async def restore_snapshot(session: AsyncSession, procedure: Procedure, snap: dict[str, Any]) -> None:
+    """Put the procedure back as `snap` describes it. The caller decides the resulting state."""
+    definition = get_definition(procedure.kind)
+    fields = snap.get("procedure") or {}
+    procedure.context = dict(fields.get("context") or {})
+    procedure.current_step_key = fields.get("current_step_key")
+    procedure.iteration = int(fields.get("iteration") or 0)
+    procedure.waiting_for = fields.get("waiting_for")
+    if definition.restore is not None and "subject" in snap:
+        await definition.restore(session, procedure, snap["subject"])
 
 
 async def _next_ordinal(session: AsyncSession, procedure_id: str) -> int:
@@ -176,8 +221,10 @@ async def run(session: AsyncSession, procedure: Procedure) -> Procedure:
         ctx = ProcedureContext(session=session, procedure=procedure, state=state, human_input=human_input)
         procedure_id = procedure.id
         ordinal = await _next_ordinal(session, procedure_id)
+        # taken before the handler runs: this is where a replay of this step rewinds to
+        checkpoint = await capture(session, procedure)
 
-        row = _new_step_row(procedure_id, ordinal, key, step_def.kind, 1, human_input)
+        row = _new_step_row(procedure_id, ordinal, key, step_def.kind, 1, human_input, checkpoint)
         session.add(row)
         outcome: StepOutcome | None = None
         error: str | None = None
@@ -196,7 +243,9 @@ async def run(session: AsyncSession, procedure: Procedure) -> Procedure:
                 procedure = await session.get(Procedure, procedure_id)  # type: ignore[assignment]
                 assert procedure is not None
                 next_attempt = attempt + 1 if attempt < step_def.max_attempts else attempt
-                row = _new_step_row(procedure_id, ordinal, key, step_def.kind, next_attempt, human_input)
+                row = _new_step_row(
+                    procedure_id, ordinal, key, step_def.kind, next_attempt, human_input, checkpoint
+                )
                 session.add(row)
                 ctx = ProcedureContext(session=session, procedure=procedure, state=dict(state), human_input=human_input)
         procedure.iteration += 1
@@ -207,7 +256,11 @@ async def run(session: AsyncSession, procedure: Procedure) -> Procedure:
             procedure.state = "failed"
             procedure.error = error
             procedure.finished_at = utcnow()
-            procedure.context = ctx.state
+            # keep the human input in the context: a retry re-runs this step and needs it back
+            failed_state = dict(ctx.state)
+            if human_input is not None:
+                failed_state["_human_input"] = human_input
+            procedure.context = failed_state
             await session.commit()
             break
         procedure.context = ctx.state
@@ -236,3 +289,110 @@ async def run(session: AsyncSession, procedure: Procedure) -> Procedure:
             procedure.finished_at = utcnow()
         await session.commit()
     return procedure
+
+
+# --- navigating the past -------------------------------------------------------------------
+#
+# Steps are never deleted. A replay rewinds to the checkpoint of a past step and runs it again;
+# the steps it would replace stay in place until the user decides:
+#
+#   replay(7) -> stash of "where I was now", rewind to checkpoint of step 7, run again
+#       accept  -> the old steps from 7 on become 'superseded', the re-run is the truth
+#       discard -> the re-run becomes 'discarded', the stash puts everything back
+
+
+async def steps(session: AsyncSession, procedure: Procedure) -> list[ProcedureStep]:
+    res = await session.execute(
+        select(ProcedureStep)
+        .where(ProcedureStep.procedure_id == procedure.id)
+        .order_by(ProcedureStep.ordinal, ProcedureStep.attempt)
+    )
+    return list(res.scalars().all())
+
+
+async def _step_at(session: AsyncSession, procedure: Procedure, ordinal: int) -> ProcedureStep:
+    """The last attempt recorded for that ordinal: the one whose checkpoint describes the step."""
+    res = await session.execute(
+        select(ProcedureStep)
+        .where(ProcedureStep.procedure_id == procedure.id, ProcedureStep.ordinal == ordinal)
+        .order_by(ProcedureStep.attempt.desc())
+    )
+    step = res.scalars().first()
+    if step is None:
+        raise LookupError(f"step {ordinal} not found")
+    return step
+
+
+async def start_replay(session: AsyncSession, procedure: Procedure, ordinal: int) -> ProcedureStep:
+    """Rewind to just before step `ordinal` and re-run it, keeping a way back."""
+    if procedure.replay:
+        raise RuntimeError("a replay is already in progress")
+    if procedure.state not in ("running", "waiting_human", "failed", "completed"):
+        raise RuntimeError(f"cannot replay a {procedure.state} procedure")
+    step = await _step_at(session, procedure, ordinal)
+    if step.checkpoint is None:
+        raise RuntimeError("this step predates checkpoints and cannot be replayed")
+    stash = await capture(session, procedure)
+    next_ordinal = await _next_ordinal(session, procedure.id)
+    await restore_snapshot(session, procedure, step.checkpoint)
+    procedure.replay = {"from_ordinal": ordinal, "new_from_ordinal": next_ordinal, "stash": stash}
+    procedure.state = "running"
+    procedure.error = None
+    procedure.finished_at = None
+    await session.commit()
+    return step
+
+
+async def accept_replay(session: AsyncSession, procedure: Procedure) -> None:
+    """Keep the re-run: the steps it replaced are marked superseded and stay readable."""
+    info = procedure.replay
+    if not info:
+        raise RuntimeError("no replay in progress")
+    old_from, new_from = int(info["from_ordinal"]), int(info["new_from_ordinal"])
+    for step in await steps(session, procedure):
+        if old_from <= step.ordinal < new_from and step.status not in ("superseded", "discarded"):
+            step.status = "superseded"
+    procedure.replay = None
+    await session.commit()
+
+
+async def discard_replay(session: AsyncSession, procedure: Procedure) -> None:
+    """Throw the re-run away and go back exactly where the replay started."""
+    info = procedure.replay
+    if not info:
+        raise RuntimeError("no replay in progress")
+    new_from = int(info["new_from_ordinal"])
+    for step in await steps(session, procedure):
+        if step.ordinal >= new_from:
+            step.status = "discarded"
+    stash = info["stash"]
+    await restore_snapshot(session, procedure, stash)
+    fields = stash.get("procedure") or {}
+    procedure.state = fields.get("state") or "running"
+    procedure.error = None
+    procedure.finished_at = None
+    procedure.replay = None
+    await session.commit()
+
+
+async def mark_interrupted(session: AsyncSession) -> int:
+    """Close the step rows a dead process left open, and report how many there were.
+
+    A step row is written before its handler runs and updated when the handler returns, so a process
+    that stops in the middle of one — a reload, a deploy, a kill — leaves behind a row that claims to
+    be running for ever. It misleads twice: in the timeline the person reads, and in the ordinals a
+    replay walks back through.
+
+    At startup nothing of ours is running yet, so a row still marked `running` belongs to a process
+    that no longer exists. The procedure itself is deliberately left alone: it is still `running`,
+    and that is precisely what lets its job resume it from `current_step_key`, writing a fresh
+    attempt of the same step rather than pretending the interrupted one succeeded.
+    """
+    rows = (await session.execute(select(ProcedureStep).where(ProcedureStep.status == "running"))).scalars().all()
+    for row in rows:
+        row.status = "failed"
+        row.error = "interrupted by a server restart"
+        row.ended_at = utcnow()
+    if rows:
+        await session.commit()
+    return len(rows)

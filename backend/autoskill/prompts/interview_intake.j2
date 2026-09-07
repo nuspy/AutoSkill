@@ -10,9 +10,14 @@ They also shared these files (name, type, first lines):
 {% endfor %}
 {% endif %}
 {% if data_sources %}
-Known data sources in this project (you may reference them by name):
+Known data sources in this project. Reference them by name and carry what is already known into
+`data_sources[]`: `access` from the access notes, `fields_used` from the fields listed, `sensitivity`
+as given. Do not ask the person again for what appears here.
 {% for ds in data_sources %}
-- {{ ds.name }} [{{ ds.kind }}]: {{ ds.description or "" }}
+- {{ ds.name }} [{{ ds.kind }}]: {{ ds.description or "" }}{% if ds.access %}
+  access: {{ ds.access }}{% endif %}{% if ds.fields %}
+  fields: {{ ds.fields | join(", ") }}{% endif %}{% if ds.sensitivity and ds.sensitivity != "none" %}
+  sensitivity: {{ ds.sensitivity }}{% endif %}
 {% endfor %}
 {% endif %}
 

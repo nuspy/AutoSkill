@@ -46,15 +46,25 @@ class InstallContext:
     companion_install_command: str = "pipx install autoskill-local"
     artifacts: list[dict] = field(default_factory=list)  # [{name, kind, url, sha256, size}]
     agent_instructions: list[str] = field(default_factory=list)
+    version_id: str | None = None
     trial_session_id: str | None = None
+    # The real trial token, printed in the install command. It is a bearer credential and this
+    # document is also served without a login, so whoever holds the document's URL holds the trial.
+    trial_token: str | None = None
     installed_callback_url: str | None = None
     expires_at: str | None = None
+    # One template serves two readers. The public INSTALL.md is followed by an agent that has nothing
+    # but the URL: it needs the download table, the manual steps and the instructions addressed to it.
+    # The copy shown inside the application is read by someone already logged in, already holding the
+    # CLI, on a page that also offers the download links as controls — for them the same sections are
+    # four screens of noise around the one command that matters.
+    concise: bool = False
 
     @property
     def cli_install_command(self) -> str:
         verb = "trial install" if self.trial else "install"
         if self.manifest_url:
-            token = " --token <trial-token>" if self.trial else ""
+            token = f" --token {self.trial_token or '<trial-token>'}" if self.trial else ""
             return f"autoskill {verb} --from {self.manifest_url}{token}"
         return f"autoskill {verb} {self.skill_name}@{self.version} --target <target>"
 
@@ -69,6 +79,9 @@ class TargetAdapter:
     mcp_config_path: str = ""
     mcp_config_format: str = "json"  # json | yaml | toml | cli
     supports_git_install: bool = False
+    # False when the agent cannot run a command: there a step delivered as a script is not
+    # merely less elegant, it is unusable, and the skill needs its steps as MCP tools.
+    runs_shell: bool = True
 
     def skill_install_paths(self) -> list[str]:
         paths = [f"{self.global_skill_dir}/<skill-name>/"]
@@ -90,7 +103,11 @@ class TargetAdapter:
             f"install/{self.id}",
             ctx=ctx,
             adapter=self,
-            mcp_snippets=[(m, self.mcp_config_snippet(m)) for m in ctx.mcp_servers],
+            # a generated command line is installed like the rest but has nothing to register:
+            # it is documented among the steps instead
+            mcp_snippets=[
+                (m, self.mcp_config_snippet(m)) for m in ctx.mcp_servers if m.kind != "generated_cli"
+            ],
             skill_config=self.skill_config_snippet(ctx),
             git_command=self.git_install_command(ctx),
         )
