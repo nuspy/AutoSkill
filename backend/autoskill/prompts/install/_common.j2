@@ -163,20 +163,25 @@ If you are an agent installing this skill for a person:
 
 {# Printed with the real token for the person whose trial it is, so the line runs as it stands even
    on a machine that never installed it — settling the trial needs the token, not the local record. #}
+{# Which command depends on what is actually installed, not on which variant of this document is
+   being rendered: an open trial means the copy on disk is a trial copy, and that is what has to be
+   settled. #}
 ```bash
-{% if ctx.trial %}
+{% if ctx.trial_session_id or ctx.trial %}
 autoskill trial remove {{ ctx.trial_session_id or "<trial-id>" }}{% if ctx.trial_token %} --token {{ ctx.trial_token }}{% endif +%}
 {% else %}
 autoskill remove {{ ctx.skill_name }} --target {{ adapter.id }}
 {% endif %}
 ```
 
-{% if ctx.trial %}
-This removes the trial copy and tells AutoSkill the outcome. To keep it instead, replace `remove` with
-`accept` — that swaps the trial copy for the final version, which runs without checkpoints.
+{% if ctx.trial_session_id or ctx.trial %}
+You have a trial of this version open, so the copy on your machine is the trial one. This removes it
+and tells AutoSkill the outcome. To keep it instead, replace `remove` with `accept` — that swaps the
+trial copy for the final version, which runs without checkpoints.
 {% else %}
 This deletes the skill folder, unregisters the MCP servers it added and removes the private
-environments installed with it. Anything that was there before the install is put back.
+environments installed with it. Anything that was there before the install is put back, and AutoSkill
+is told the skill is no longer installed here.
 {% endif %}
 
 ## Verify

@@ -1031,5 +1031,26 @@ async def test_the_install_command_shows_your_own_token_and_never_somebody_elses
         ).json()["markdown"]
         assert "/dl/hub/" not in plain, "an address that cannot resolve is not an install instruction"
         assert f"autoskill install --version-id {version['id']} --target hermes" in plain
+        # An open trial means the copy on disk is a trial copy, so the uninstall line settles the
+        # trial — on this page too, which asks for the plain document and used to print a bare
+        # `autoskill remove` with no token at all.
+        assert f"autoskill trial remove {trial['id']} --token {token}" in plain
+
+        # once the trial is closed the local removal is the right command again
+        await app_client.post(
+            f"/api/v1/trials/{trial['id']}/installed",
+            json={"install_manifest": {}, "build": 1},
+            headers=headers,
+        )
+        await app_client.post(
+            f"/api/v1/trials/{trial['id']}/outcome",
+            json={"outcome": "removed", "keep_installed": False},
+            headers=headers,
+        )
+        after = (
+            await app_client.get(f"/api/v1/versions/{version['id']}/install/hermes", headers=headers)
+        ).json()["markdown"]
+        assert "autoskill remove invoice-check --target hermes" in after
+        assert token not in after
     finally:
         set_fake_provider(None)

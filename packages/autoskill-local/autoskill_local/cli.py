@@ -299,10 +299,15 @@ def _install(
     return manifest
 
 
-def _register_installation(cfg: LocalConfig, version_id: str, target: str, channel: str) -> None:
-    """Tell the server this machine installed the version (enables update alerts); never fatal."""
+def _register_installation(cfg: LocalConfig, version_id: str, target: str, channel: str) -> str | None:
+    """Tell the server this machine installed the version, and keep the id it answers with.
+
+    The id was thrown away, which left removal with nothing to address: `autoskill remove` deleted the
+    files and said nothing to anybody, so the application went on listing a skill that was gone.
+    Never fatal — reporting an install is bookkeeping, and must not break the install.
+    """
     try:
-        _client(cfg).post(
+        res = _client(cfg).post(
             "/me/installations",
             {
                 "skill_version_id": version_id,
@@ -312,8 +317,40 @@ def _register_installation(cfg: LocalConfig, version_id: str, target: str, chann
                 "device_id": cfg.device_id,
             },
         )
+        return res.get("id") if isinstance(res, dict) else None
     except Exception as exc:  # noqa: BLE001
         typer.echo(f"(could not register the installation with AutoSkill: {exc})")
+        return None
+
+
+def _report_removal(cfg: LocalConfig, manifest: dict[str, Any], target: str) -> None:
+    """Tell the server the skill is no longer installed here.
+
+    The id comes from the install record; installs made before it was kept have none, so the row is
+    looked up by version and agent instead. Failing to report must never stop a removal: the files are
+    on this machine and the person asked for them to go, whatever the server thinks.
+    """
+    if not cfg.server_url or not cfg.api_key:
+        return
+    installation_id = manifest.get("installation_id")
+    version_id = manifest.get("version_id")
+    try:
+        client = _client(cfg)
+        if not installation_id and version_id:
+            rows = client.get("/me/installations")
+            match = next(
+                (
+                    r
+                    for r in (rows if isinstance(rows, list) else [])
+                    if r.get("skill_version_id") == version_id and r.get("target_agent") == target
+                ),
+                None,
+            )
+            installation_id = match.get("id") if match else None
+        if installation_id:
+            client.request("DELETE", f"/me/installations/{installation_id}")
+    except Exception as exc:  # noqa: BLE001
+        typer.echo(f"(could not tell AutoSkill about the removal: {exc})")
 
 
 def _sha256(data: bytes) -> str:
@@ -750,10 +787,14 @@ def _finish_trial(cfg: LocalConfig, sid: str, keep: bool) -> None:
         skill_dir = Path(manifest.get("skill_dir", t.skill_dir / info["skill"]))
         _promote_to_permanent(cfg, skill_dir, manifest.get("version_id"), info["skill"])
         t.register_mcp(_companion_registration(cfg))  # re-registered without the trial token
-        cfg.installs[f"{info['target']}:{info['skill']}"] = {**manifest, "version": info.get("version")}
+        key = f"{info['target']}:{info['skill']}"
+        cfg.installs[key] = {**manifest, "version": info.get("version")}
         typer.secho(f"{info['skill']} kept as a permanent installation on {t.display_name}.", fg=typer.colors.GREEN)
         if manifest.get("version_id"):
-            _register_installation(cfg, manifest["version_id"], info["target"], "cli")
+            # Kept beside the rest of the record so `remove` has something to address later.
+            cfg.installs[key]["installation_id"] = _register_installation(
+                cfg, manifest["version_id"], info["target"], "cli"
+            )
     else:
         t.remove_skill(info["skill"], manifest)
         _remove_bundle_parts(t, manifest)
@@ -863,10 +904,11 @@ def install(
         vid = meta.get("version_id", vid)
         version = meta.get("version")
     t = get_target(target)
-    cfg.installs[f"{target}:{folder}"] = {**record, "version_id": vid}
-    cfg.save()
+    key = f"{target}:{folder}"
+    cfg.installs[key] = {**record, "version_id": vid}
     if cfg.api_key and vid:
-        _register_installation(cfg, vid, target, "cli")
+        cfg.installs[key]["installation_id"] = _register_installation(cfg, vid, target, "cli")
+    cfg.save()
     typer.secho(
         f"{folder} v{version} installed for {t.display_name}. Restart the agent to load it.", fg=typer.colors.GREEN
     )
@@ -880,6 +922,7 @@ def remove(skill: str, target: str = typer.Option(..., "--target")) -> None:
     t = get_target(target)
     t.remove_skill(skill, manifest)
     _remove_bundle_parts(t, manifest)
+    _report_removal(cfg, manifest, target)
     cfg.save()
     typer.echo(f"{skill} removed from {target}")
 

@@ -209,17 +209,21 @@ async def install_doc(version_id: str, target: str, session: SessionDep, user: C
     # one that authenticates as them and needs no public URL at all.
     if bundle.kind == "hub" and not (skill.visibility == "public" and await get_setting(session, "public_hub")):
         ctx.manifest_url = None
-    if trial:
-        # The caller's own open trial, and nobody else's. A token authenticates one person's trial of
-        # one version: on a skill several people are trying, each has their own, and printing anyone
-        # else's here would hand over their session. This endpoint knows who is asking, which is why
-        # the command can carry a real token here and only a placeholder in the public INSTALL.md.
-        mine = await trials_service.open_trial_for(session, user_id=user.id, version_id=version.id)
-        if mine is not None:
-            # The id as well as the token: the uninstall line names the session, and a placeholder
-            # there would leave the person to find an id the page already knows.
-            ctx.trial_session_id = mine.id
-            ctx.trial_token = trials_service.stored_token(mine)
+    # The caller's own open trial, and nobody else's. A token authenticates one person's trial of one
+    # version: on a skill several people are trying, each has their own, and printing anyone else's
+    # here would hand over their session. This endpoint knows who is asking, which is why the command
+    # can carry a real token here and only a placeholder in the public INSTALL.md.
+    #
+    # Looked up whichever variant of the document is being rendered, not only the trial one. Someone
+    # with an open trial has a *trial copy* on disk right now, so the command that removes it is the
+    # one they need — and the versions tab asks for `trial=false`, which is why that page offered a
+    # plain `autoskill remove` and no token at all.
+    mine = await trials_service.open_trial_for(session, user_id=user.id, version_id=version.id)
+    if mine is not None:
+        # The id as well as the token: the uninstall line names the session, and a placeholder there
+        # would leave the person to find an id the page already knows.
+        ctx.trial_session_id = mine.id
+        ctx.trial_token = trials_service.stored_token(mine)
     return InstallDoc(
         target=target,
         markdown=get_adapter(target).render_install_md(ctx),

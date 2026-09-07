@@ -524,3 +524,91 @@ def test_without_a_record_and_without_a_token_it_says_what_is_missing(home, monk
     monkeypatch.setattr(cli, "_cfg", lambda: cfg)
     with pytest.raises(typer.Exit):
         cli.trial_remove("t-unknown", outcome="removed", token=None)
+
+
+# --- the application must learn that a skill was removed ----------------------------------------
+
+
+class _Recorder:
+    """A stand-in server that remembers what it was asked, and can be told to fail."""
+
+    def __init__(self, installations=None, boom=False):
+        self.calls: list[tuple] = []
+        self.installations = installations or []
+        self.boom = boom
+
+    def post(self, path, body=None, **kw):
+        self.calls.append(("POST", path, body))
+        return {"id": "inst-1"}
+
+    def get(self, path, **kw):
+        self.calls.append(("GET", path, None))
+        return self.installations
+
+    def request(self, method, path, **kw):
+        if self.boom:
+            raise OSError("no route to host")
+        self.calls.append((method, path, None))
+        return {"ok": True}
+
+
+def _installed(_home_dir, monkeypatch, server, record_extra=None):
+    t = get_target("hermes")
+    skill_dir = t.skill_dir / "invoice-check"
+    skill_dir.mkdir(parents=True)
+    (skill_dir / "SKILL.md").write_text("---\nname: invoice-check\n---\nbody\n")
+    monkeypatch.setattr(cli, "_client", lambda cfg=None, **kw: server)
+    cfg = LocalConfig(server_url="http://server", api_key="ask_x")
+    cfg.installs["hermes:invoice-check"] = {"version_id": "v1", **(record_extra or {})}
+    monkeypatch.setattr(cli, "_cfg", lambda: cfg)
+    return cfg, skill_dir
+
+
+def test_removing_a_skill_tells_the_application_it_is_gone(home, monkeypatch):
+    """`autoskill remove` deleted the files and said nothing, so the app kept listing the skill."""
+    _home_dir, _calls = home
+    server = _Recorder()
+    cfg, skill_dir = _installed(_home_dir, monkeypatch, server, {"installation_id": "inst-7"})
+
+    cli.remove("invoice-check", target="hermes")
+
+    assert not skill_dir.exists()
+    assert ("DELETE", "/me/installations/inst-7", None) in server.calls
+    assert "hermes:invoice-check" not in cfg.installs
+
+
+def test_an_install_keeps_the_id_the_server_answered_with(home, monkeypatch):
+    """Without it there is nothing for a later removal to address."""
+    _home_dir, _calls = home
+    server = _Recorder()
+    monkeypatch.setattr(cli, "_client", lambda cfg=None, **kw: server)
+    cfg = LocalConfig(server_url="http://server", api_key="ask_x")
+    got = cli._register_installation(cfg, "v1", "hermes", "cli")
+    assert got == "inst-1"
+
+
+def test_an_older_record_without_the_id_is_matched_by_version_and_agent(home, monkeypatch):
+    _home_dir, _calls = home
+    server = _Recorder(installations=[
+        {"id": "other", "skill_version_id": "v9", "target_agent": "hermes"},
+        {"id": "inst-match", "skill_version_id": "v1", "target_agent": "hermes"},
+    ])
+    _cfg, skill_dir = _installed(_home_dir, monkeypatch, server)  # no installation_id in the record
+
+    cli.remove("invoice-check", target="hermes")
+
+    assert not skill_dir.exists()
+    assert ("DELETE", "/me/installations/inst-match", None) in server.calls
+
+
+def test_an_unreachable_server_never_stops_a_removal(home, monkeypatch, capsys):
+    """The files are on this machine and the person asked for them to go."""
+    _home_dir, _calls = home
+    server = _Recorder(boom=True)
+    cfg, skill_dir = _installed(_home_dir, monkeypatch, server, {"installation_id": "inst-7"})
+
+    cli.remove("invoice-check", target="hermes")
+
+    assert not skill_dir.exists(), "a bookkeeping failure must not leave the skill installed"
+    assert "hermes:invoice-check" not in cfg.installs
+    assert "could not tell AutoSkill" in capsys.readouterr().out
