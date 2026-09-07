@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { AlertTriangle, Archive, Check, MessageSquare, PauseCircle, PlayCircle, RotateCcw, SkipForward, Square, Undo2 } from "lucide-react";
 import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 import { useTrial, useTrialActions } from "@/api/hooks/trials";
 import type { Checkpoint, Discussion, Run, StepDefinition, TrialCreated, TrialSnapshot } from "@/api/types";
 import { Button } from "@/components/ui/button";
@@ -117,11 +118,24 @@ function InstallInstructions({
   // token an agent may already be using.
   const cliCommand = command?.cli_command ?? detail.cli_command;
   const token = command?.session_token ?? detail.session_token;
+  // After the helper installs, the trial has moved on: the page has to ask again rather than keep
+  // showing the state it had before the thing it just triggered.
+  const qc = useQueryClient();
+  const refresh = () => qc.invalidateQueries({ queryKey: ["trials"] });
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted">{t("skills:trials.createdHelp")}</p>
       {cliCommand ? (
-        <CopyRow label={t("skills:trials.cliCommand")} value={cliCommand} hint={t("skills:trials.tokenWarning")} />
+        <CopyRow
+          label={t("skills:trials.cliCommand")}
+          value={cliCommand}
+          hint={t("skills:trials.tokenWarning")}
+          action={
+            detail.manifest_url && token
+              ? { op: "trial_install", params: { manifest_url: detail.manifest_url, token }, onDone: refresh }
+              : undefined
+          }
+        />
       ) : (
         <div className="space-y-2 rounded-lg border border-primary/40 bg-primary/5 p-3">
           <p className="text-sm">{t("skills:trials.commandLost")}</p>
@@ -371,11 +385,24 @@ function ReviewCard({ detail, actions, done }: { detail: { trial: { id: string; 
             <p>{t("skills:trials.finishedHelp", { outcome: t(`skills:trials.outcomeDone.${tr.outcome}`) })}</p>
             {tr.outcome === "accepted" ? (
               <>
-                <CopyRow label={t("skills:trials.keepCommand")} value={`autoskill trial accept ${tr.id}`} hint={t("skills:trials.keepCommandHint")} />
-                <CopyRow label={t("skills:trials.dropCommand")} value={`autoskill trial accept ${tr.id} --remove`} />
+                <CopyRow
+                  label={t("skills:trials.keepCommand")}
+                  value={`autoskill trial accept ${tr.id}`}
+                  hint={t("skills:trials.keepCommandHint")}
+                  action={{ op: "trial_settle", params: { session: tr.id, outcome: "accepted", keep: true } }}
+                />
+                <CopyRow
+                  label={t("skills:trials.dropCommand")}
+                  value={`autoskill trial accept ${tr.id} --remove`}
+                  action={{ op: "trial_settle", params: { session: tr.id, outcome: "accepted", keep: false } }}
+                />
               </>
             ) : (
-              <CopyRow label={t("skills:trials.dropCommand")} value={`autoskill trial remove ${tr.id}`} />
+              <CopyRow
+                label={t("skills:trials.dropCommand")}
+                value={`autoskill trial remove ${tr.id}`}
+                action={{ op: "trial_settle", params: { session: tr.id, outcome: "removed" } }}
+              />
             )}
           </div>
         )}

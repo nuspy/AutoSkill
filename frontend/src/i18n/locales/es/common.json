@@ -76,5 +76,10 @@
   "sound": {
     "mute": "Desactivar el sonido",
     "unmute": "Activar el sonido"
+  },
+  "localAgent": {
+    "run": "Hazlo por mí",
+    "done": "Hecho en esta máquina",
+    "running": "Trabajando en esta máquina…"
   }
 }

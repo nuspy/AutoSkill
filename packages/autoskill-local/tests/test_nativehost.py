@@ -214,3 +214,114 @@ def test_the_shipped_id_is_the_one_the_manifest_actually_produces():
     digest = hashlib.sha256(base64.b64decode(key)).hexdigest()[:32]
     derived = "".join(chr(ord("a") + int(c, 16)) for c in digest)
     assert derived in nh.EXTENSION_IDS, f"the manifest produces {derived}, which this host does not allow"
+
+
+# --- the operations that write --------------------------------------------------------------------
+
+
+@pytest.fixture
+def connected(monkeypatch, tmp_path):
+    """A machine connected to one AutoSkill, with nothing actually installed."""
+    from autoskill_local.config import LocalConfig
+
+    cfg = LocalConfig(server_url="http://server", api_key="ask_x")
+    monkeypatch.setattr("autoskill_local.cli._cfg", lambda: cfg)
+    return cfg
+
+
+def call(op: str, params: dict, said: list | None = None):
+    out = io.BytesIO()
+    nh.serve(framed({"id": 1, "op": op, "params": params}), out, ORIGIN)
+    messages = replies(out)
+    if said is not None:
+        said.extend(m["message"] for m in messages if m["kind"] == "progress")
+    return messages[-1]
+
+
+def test_a_manifest_somewhere_else_is_refused(connected):
+    """The page names the address; the page is not the authority on where this machine may fetch from.
+
+    A wrong or compromised page could otherwise have the host install from anywhere. What decides is
+    the server a person put in the configuration with `autoskill login`.
+    """
+    for op in ("needs", "install", "trial_install"):
+        reply = call(op, {"manifest_url": "https://elsewhere.example/install.json", "token": "t"})
+        assert reply["kind"] == "error" and reply["code"] == "foreign_url", op
+
+
+def test_without_a_server_nothing_is_fetched_at_all(monkeypatch):
+    from autoskill_local.config import LocalConfig
+
+    monkeypatch.setattr("autoskill_local.cli._cfg", lambda: LocalConfig())
+    reply = call("needs", {"manifest_url": "http://server/dl/tok/install.json"})
+    assert reply["code"] == "not_logged_in"
+
+
+def test_a_trial_install_without_the_token_is_refused_before_anything_is_written(connected, monkeypatch):
+    ran: list[str] = []
+    monkeypatch.setattr("autoskill_local.cli.install_trial_bundle", lambda *a, **k: ran.append("installed"))
+    reply = call("trial_install", {"manifest_url": "http://server/dl/tok/install.json"})
+    assert reply["code"] == "token_required" and ran == [], "refused first, not partway through"
+
+
+def test_the_values_an_install_needs_are_read_from_the_manifest(connected, monkeypatch):
+    monkeypatch.setattr(
+        "autoskill_local.cli.fetch_json",
+        lambda _url: {
+            "skill": {"name": "invoice-check"},
+            "mcp_servers": [
+                {"name": "c", "kind": "companion", "registration": {}},
+                {"name": "t", "registration": {"env_requirements": [{"name": "SMTP_HOST"}]}},
+            ],
+        },
+    )
+    reply = call("needs", {"manifest_url": "http://server/dl/tok/install.json"})
+    assert reply["result"] == {"env": ["SMTP_HOST"], "skill": "invoice-check"}
+
+
+def test_a_trial_install_passes_the_values_through_and_reports_progress(connected, monkeypatch):
+    seen: dict = {}
+
+    def fake(cfg, url, token, *, target=None, session=None, env_provider=None, progress=None):
+        seen["token"] = token
+        seen["env"] = env_provider(["SMTP_HOST", "ABSENT"])
+        progress("halfway")
+        return {"session": "t1", "skill": "invoice-check", "version": "0.1.0", "target": "hermes"}
+
+    monkeypatch.setattr("autoskill_local.cli.install_trial_bundle", fake)
+    said: list[str] = []
+    reply = call(
+        "trial_install",
+        {"manifest_url": "http://server/dl/tok/install.json", "token": "tok", "env": {"SMTP_HOST": "smtp.x"}},
+        said,
+    )
+    assert reply["kind"] == "result" and reply["result"]["skill"] == "invoice-check"
+    assert seen["token"] == "tok" and seen["env"] == {"SMTP_HOST": "smtp.x"}
+    assert "halfway" in said, "a page that cannot say how far it has got looks broken"
+
+
+def test_settling_a_trial_refuses_an_outcome_it_does_not_know(connected):
+    reply = call("trial_settle", {"session": "t1", "outcome": "whatever"})
+    assert reply["code"] == "bad_outcome"
+
+
+def test_removing_needs_to_be_told_what_and_where(connected):
+    assert call("remove", {"skill": "invoice-check"})["code"] == "skill_and_target_required"
+    assert call("remove", {"target": "hermes"})["code"] == "skill_and_target_required"
+
+
+def test_no_operation_takes_a_command_a_path_or_a_foreign_address():
+    """The surface is closed on purpose: this runs as the person, with their files.
+
+    A parameter naming a program to run or a directory to write would make every other guard here
+    decorative. If one is ever added, this is the test that should stop it.
+    """
+    import inspect
+
+    from autoskill_local import nativehost
+
+    source = inspect.getsource(nativehost)
+    for forbidden in ("params.get(\"command\")", "params.get(\"path\")", "params.get(\"cmd\")", "subprocess"):
+        assert forbidden not in source, forbidden
+    # every address goes through the guard, never straight from the request
+    assert source.count('params.get("manifest_url")') == 0, "urls must be read through _url()"

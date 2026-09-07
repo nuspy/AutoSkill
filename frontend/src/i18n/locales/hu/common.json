@@ -76,5 +76,10 @@
   "sound": {
     "mute": "Hang kikapcsolása",
     "unmute": "Hang bekapcsolása"
+  },
+  "localAgent": {
+    "run": "Csináld meg helyettem",
+    "done": "Kész ezen a gépen",
+    "running": "Dolgozom ezen a gépen…"
   }
 }

@@ -76,5 +76,10 @@
   "sound": {
     "mute": "Ton ausschalten",
     "unmute": "Ton einschalten"
+  },
+  "localAgent": {
+    "run": "Automatisch erledigen",
+    "done": "Auf diesem Rechner erledigt",
+    "running": "Arbeite auf diesem Rechner…"
   }
 }

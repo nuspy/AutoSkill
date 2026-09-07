@@ -748,6 +748,46 @@ def required_env(manifest: dict[str, Any]) -> list[str]:
     return names
 
 
+def install_trial_bundle(
+    cfg: LocalConfig,
+    manifest_url: str,
+    token: str,
+    *,
+    target: str | None = None,
+    session: str | None = None,
+    env_provider: EnvProvider | None = None,
+    progress: Progress | None = None,
+) -> dict[str, Any]:
+    """Install a trial from its manifest and tell the server it landed. Returns what was installed.
+
+    The body of `autoskill trial install --from`, lifted out so the browser's native host performs the
+    same installation rather than a second implementation of it that drifts. It returns a value and
+    raises `LocalError`; the command prints, which is the only difference between the two callers.
+    """
+    say = progress or (lambda _line: None)
+    manifest = fetch_json(manifest_url)
+    trial = manifest.get("trial") or {}
+    session = session or trial.get("session_id")
+    target = target or trial.get("target_agent") or manifest.get("default_target")
+    if not session or not target:
+        raise LocalError("not_a_trial_bundle", "this bundle names no trial session or agent")
+    say(f"installing for {target}")
+    folder, _meta, record = _install_from_manifest(
+        cfg, manifest, target, token, env_provider=env_provider, progress=progress
+    )
+    version = manifest["skill"].get("version")
+    _refresh_device(cfg)
+    client = Client(cfg.server_url or manifest.get("server_url"), api_key=cfg.api_key, trial_token=token)
+    client.post(
+        f"/trials/{session}/installed",
+        {"install_manifest": record, "build": manifest["skill"].get("build", 1)},
+    )
+    cfg.trials[session] = {"token": token, "target": target, "skill": folder, "version": version, "manifest": record}
+    cfg.save()
+    say(f"{folder} v{version} installed")
+    return {"session": session, "skill": folder, "version": version, "target": target}
+
+
 @trial_app.command("install")
 def trial_install(
     skill: str | None = typer.Argument(None, help="skill-name@version (legacy form; prefer --from)"),
@@ -759,18 +799,20 @@ def trial_install(
     """Install a trial copy of a skill, its MCP servers and shared components on your agent."""
     cfg = _cfg()
     if from_url:
-        manifest = fetch_json(from_url)
-        trial = manifest.get("trial") or {}
-        session = session or trial.get("session_id")
-        target = target or trial.get("target_agent") or manifest.get("default_target")
-        if not session or not target:
-            _fail("this bundle is not a trial bundle: give --session and --target")
-        server = cfg.server_url or manifest.get("server_url")
-        client = Client(server, api_key=cfg.api_key, trial_token=token)
-        folder, _meta, record = _install_from_manifest(cfg, manifest, target, token)
-        version = manifest["skill"].get("version")
-        build = manifest["skill"].get("build", 1)
-    else:
+        result = install_trial_bundle(cfg, from_url, token, target=target, session=session)
+        typer.secho(
+            f"Trial copy of {result['skill']} v{result['version']} installed for "
+            f"{get_target(result['target']).display_name}.",
+            fg=typer.colors.GREEN,
+        )
+        typer.echo(
+            "Now open the trial page in AutoSkill and ask your agent to run the skill; every step will "
+            "wait for your decision there."
+        )
+        return
+    # The legacy form, kept for a bundle URL nobody has: it downloads the package from the trial
+    # itself rather than from a manifest.
+    if not from_url:
         if not skill or not target or not session:
             _fail("give --from <install.json url>, or skill@version with --target and --session")
         client = _client(cfg, trial_token=token)

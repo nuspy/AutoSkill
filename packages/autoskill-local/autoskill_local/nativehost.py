@@ -63,6 +63,35 @@ def origin_allowed(origin: str | None) -> bool:
     return bool(origin) and origin.rstrip("/") + "/" in permitted
 
 
+class LocalRefusal(Exception):
+    """A request this host will not carry out, named so the page can say why."""
+
+    def __init__(self, code: str, message: str) -> None:
+        self.code = code
+        self.details: dict[str, Any] = {}
+        super().__init__(message)
+
+
+def _url(params: dict[str, Any], field: str) -> str:
+    """A download address, accepted only if it belongs to the server this machine is connected to.
+
+    The page names the manifest, and the page is not the authority on where this machine may fetch
+    from: a compromised or merely wrong page could otherwise have the host install from anywhere. The
+    configured `server_url` is the authority, because a person put it there with `autoskill login`.
+    """
+    from autoskill_local.cli import _cfg
+
+    value = params.get(field)
+    if not isinstance(value, str) or not value:
+        raise LocalRefusal("url_required", f"{field} is missing")
+    server = (_cfg().server_url or "").rstrip("/")
+    if not server:
+        raise LocalRefusal("not_logged_in", "this machine is not connected to an AutoSkill server")
+    if not value.startswith(server + "/"):
+        raise LocalRefusal("foreign_url", f"{field} is not on {server}")
+    return value
+
+
 # --- framing ------------------------------------------------------------------------------------
 
 
@@ -105,11 +134,125 @@ def op_state(_params: dict[str, Any], _say: Callable[[str], None]) -> dict[str, 
     return machine_state()
 
 
-# Read-only for now, deliberately. The operations that write land once this round trip is proven on a
-# real machine, and each one arrives with the person able to see what it will do first.
+def op_needs(params: dict[str, Any], _say: Callable[[str], None]) -> dict[str, Any]:
+    """Which environment values an install will ask for, before it starts.
+
+    A terminal can be prompted halfway through an installation. A page cannot: it has to ask while the
+    person is still looking at it, which means reading the manifest rather than finding out by
+    starting something that then stops with nowhere to put the question.
+    """
+    from autoskill_local.cli import fetch_json, required_env
+
+    manifest = fetch_json(_url(params, "manifest_url"))
+    return {"env": required_env(manifest), "skill": (manifest.get("skill") or {}).get("name")}
+
+
+def op_trial_install(params: dict[str, Any], say: Callable[[str], None]) -> dict[str, Any]:
+    from autoskill_local.cli import _cfg, env_from, install_trial_bundle
+
+    token = params.get("token")
+    if not token:
+        raise LocalRefusal("token_required", "a trial install needs the trial token from the page")
+    return install_trial_bundle(
+        _cfg(),
+        _url(params, "manifest_url"),
+        token,
+        target=params.get("target"),
+        session=params.get("session"),
+        env_provider=env_from(params.get("env") or {}),
+        progress=say,
+    )
+
+
+def op_install(params: dict[str, Any], say: Callable[[str], None]) -> dict[str, Any]:
+    """A permanent installation, from the same manifest the page is showing."""
+    from autoskill_local.cli import (
+        _cfg,
+        _install_from_manifest,
+        _register_installation,
+        env_from,
+        fetch_json,
+    )
+
+    cfg = _cfg()
+    manifest = fetch_json(_url(params, "manifest_url"))
+    target = params.get("target") or manifest.get("default_target")
+    if not target:
+        raise LocalRefusal("target_required", "this bundle names no agent, so one has to be chosen")
+    folder, _meta, record = _install_from_manifest(
+        cfg, manifest, target, None, env_provider=env_from(params.get("env") or {}), progress=say
+    )
+    version_id = (manifest.get("skill") or {}).get("version_id")
+    key = f"{target}:{folder}"
+    cfg.installs[key] = {**record, "version_id": version_id}
+    if cfg.api_key and version_id:
+        cfg.installs[key]["installation_id"] = _register_installation(cfg, version_id, target, "extension", say)
+    cfg.save()
+    return {"skill": folder, "target": target, "version": (manifest.get("skill") or {}).get("version")}
+
+
+def op_trial_settle(params: dict[str, Any], say: Callable[[str], None]) -> dict[str, Any]:
+    """Accept or remove a trial: report the outcome, then settle the copy on this machine."""
+    from autoskill_local.cli import _cfg, _finish_trial, _report_outcome, _trial_record
+
+    session = params.get("session")
+    outcome = params.get("outcome")
+    if not session or outcome not in ("accepted", "removed", "changes_requested", "major_rework"):
+        raise LocalRefusal("bad_outcome", "give a session and one of accepted/removed/changes_requested/major_rework")
+    cfg = _cfg()
+    info = _trial_record(cfg, session, params.get("token"))
+    keep = bool(params.get("keep")) and outcome == "accepted"
+    keep = _report_outcome(cfg, session, info["token"], outcome, keep)
+    _finish_trial(cfg, session, keep, say)
+    return {"session": session, "outcome": outcome, "kept": keep}
+
+
+def op_remove(params: dict[str, Any], say: Callable[[str], None]) -> dict[str, Any]:
+    """Remove a permanently installed skill, and tell the server it is gone."""
+    from autoskill_local.cli import _cfg, _remove_bundle_parts, _report_removal, get_target
+
+    skill, target = params.get("skill"), params.get("target")
+    if not skill or not target:
+        raise LocalRefusal("skill_and_target_required", "say which skill, on which agent")
+    cfg = _cfg()
+    manifest = cfg.installs.pop(f"{target}:{skill}", None) or {}
+    t = get_target(target)
+    t.remove_skill(skill, manifest)
+    _remove_bundle_parts(t, manifest)
+    _report_removal(cfg, manifest, target, say)
+    cfg.save()
+    say(f"{skill} removed from {t.display_name}")
+    return {"skill": skill, "target": target}
+
+
+def op_assistant(params: dict[str, Any], say: Callable[[str], None]) -> dict[str, Any]:
+    """Install the `autoskill` skill, which teaches an agent what to do with AutoSkill at all."""
+    from autoskill_local.cli import _cfg, _extract_zip, _single_root, detect_targets, fetch_url, get_target
+
+    cfg = _cfg()
+    if not cfg.server_url:
+        raise LocalRefusal("not_logged_in", "this machine is not connected to an AutoSkill server")
+    root = _single_root(_extract_zip(fetch_url(f"{cfg.server_url.rstrip('/')}/dl/skill/autoskill.zip")))
+    installed = []
+    for target in [params["target"]] if params.get("target") else detect_targets():
+        info = get_target(target).install_skill(root, root.name)
+        say(f"autoskill installed for {target}")
+        installed.append({"target": target, "skill_dir": info["skill_dir"]})
+    return {"installed": installed}
+
+
+# Each one writes to the person's machine, so each is named here and nowhere else: there is no
+# operation that takes a command to run, a path to write or an address to fetch from outside the
+# server this machine is connected to.
 OPS: dict[str, Callable[[dict[str, Any], Callable[[str], None]], dict[str, Any]]] = {
     "hello": op_hello,
     "state": op_state,
+    "needs": op_needs,
+    "install": op_install,
+    "trial_install": op_trial_install,
+    "trial_settle": op_trial_settle,
+    "remove": op_remove,
+    "assistant": op_assistant,
 }
 
 

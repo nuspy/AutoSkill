@@ -31,7 +31,14 @@ export default function DevicesPage() {
             {companion.isSuccess && !install && <p className="text-sm text-muted">{t("me:devices.noWheel")}</p>}
             {install && (
               <>
-                <CopyRow label={t("me:devices.setupCommands")} value={`${install}\nautoskill login ${serverUrl}\nautoskill skill assistant`} />
+                {/* The action covers the third line only. The first two install and connect the CLI
+                    that the helper itself runs on, so it cannot bootstrap itself — and that is why
+                    the whole block stays visible even when the button is offered. */}
+                <CopyRow
+                  label={t("me:devices.setupCommands")}
+                  value={`${install}\nautoskill login ${serverUrl}\nautoskill skill assistant`}
+                  action={{ op: "assistant" }}
+                />
                 <p className="text-xs text-muted">{t("me:devices.assistantSkill")}</p>
                 <p className="text-xs text-muted">
                   {t("me:devices.notOnPypi")}

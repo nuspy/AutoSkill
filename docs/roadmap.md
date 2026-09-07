@@ -5,11 +5,11 @@ from the code rather than from the idea.
 
 ## A browser extension that does the installing — **in progress**
 
-> **Built so far**: the native messaging host (`autoskill_local/nativehost.py`) with its read-only
-> operations, host registration (`autoskill_local/browserhost.py`, `autoskill browser install`), the
-> extension skeleton in `extension/`, the page side (`frontend/src/lib/localAgent.ts`), and the setup
-> package the application hands over (`/dl/installer/<platform>`, `/dl/extension.zip`, and the
-> download on My devices). Still ahead: the operations that write, and driving the agent.
+> **Built so far**: the native messaging host (`autoskill_local/nativehost.py`) and its eight
+> operations — `hello`, `state`, `needs`, `install`, `trial_install`, `trial_settle`, `remove`,
+> `assistant` — host registration (`autoskill browser install`), the extension in `extension/`, the
+> page side (`frontend/src/lib/localAgent.ts`), the **Do it for me** button on `CopyRow`, and the
+> setup package the application hands over. Still ahead: driving the agent (§B of the plan).
 >
 > One manual step survives and cannot be removed: Chrome has not allowed an extension to be installed
 > from a local file since version 33, so the person loads the unpacked folder themselves. The setup
