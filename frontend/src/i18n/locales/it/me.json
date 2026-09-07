@@ -19,7 +19,12 @@
     "assistantSkill": "La terza riga installa la skill che insegna al tuo agente a lavorare con AutoSkill: senza, non saprà cosa fare quando gli chiedi di automatizzare qualcosa.",
     "setupCommands": "Esegui questi tre comandi",
     "thisMachine": "Su questa macchina",
-    "thisMachineHelp": "Letto dal helper del browser ({{version}}): ciò che c'è sul disco adesso, non ciò che era stato riferito l'ultima volta."
+    "thisMachineHelp": "Letto dal helper del browser ({{version}}): ciò che c'è sul disco adesso, non ciò che era stato riferito l'ultima volta.",
+    "helper": "Installa senza terminale",
+    "helperHelp": "Una configurazione una tantum che permette a questa pagina di installare skill ed eseguire trial sulla tua macchina, così non devi più copiare un comando.",
+    "helperWindows": "Scarica per Windows",
+    "helperUnix": "Scarica per macOS / Linux",
+    "helperLastStep": "Lo script installa tutto e non richiede privilegi di amministratore. Resta un passo a te, e solo il browser può farlo: apri chrome://extensions, attiva la Modalità sviluppatore e usa «Carica estensione non pacchettizzata» sulla cartella che lo script indica. Chrome non permette più di installare un'estensione da un file locale dalla versione 33."
   },
   "notifications": {
     "title": "Notifiche",

@@ -19,7 +19,12 @@
     "assistantSkill": "Die dritte Zeile installiert die Skill, die Ihrem Agenten den Umgang mit AutoSkill beibringt — ohne sie weiß er nicht, was zu tun ist.",
     "setupCommands": "Führe diese drei Befehle aus",
     "thisMachine": "Auf diesem Rechner",
-    "thisMachineHelp": "Vom AutoSkill-Browser-Helfer gelesen ({{version}}) — was jetzt auf der Platte liegt, nicht was zuletzt gemeldet wurde."
+    "thisMachineHelp": "Vom AutoSkill-Browser-Helfer gelesen ({{version}}) — was jetzt auf der Platte liegt, nicht was zuletzt gemeldet wurde.",
+    "helper": "Ohne Terminal installieren",
+    "helperHelp": "Eine einmalige Einrichtung, damit diese Seite Skills installieren und Tests auf deinem Rechner ausführen kann — nie wieder einen Befehl kopieren.",
+    "helperWindows": "Für Windows herunterladen",
+    "helperUnix": "Für macOS / Linux herunterladen",
+    "helperLastStep": "Das Skript installiert alles und braucht keine Administratorrechte. Ein Schritt bleibt dir, und nur der Browser kann ihn tun: öffne chrome://extensions, schalte den Entwicklermodus ein und wähle „Entpackte Erweiterung laden“ für den Ordner, den das Skript nennt. Chrome erlaubt seit Version 33 keine Installation aus einer lokalen Datei mehr."
   },
   "notifications": {
     "title": "Benachrichtigungen",

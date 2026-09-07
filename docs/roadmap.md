@@ -7,8 +7,13 @@ from the code rather than from the idea.
 
 > **Built so far**: the native messaging host (`autoskill_local/nativehost.py`) with its read-only
 > operations, host registration (`autoskill_local/browserhost.py`, `autoskill browser install`), the
-> extension skeleton in `extension/`, and the page side (`frontend/src/lib/localAgent.ts`). The
-> operations that write, the installer package and driving the agent are still ahead.
+> extension skeleton in `extension/`, the page side (`frontend/src/lib/localAgent.ts`), and the setup
+> package the application hands over (`/dl/installer/<platform>`, `/dl/extension.zip`, and the
+> download on My devices). Still ahead: the operations that write, and driving the agent.
+>
+> One manual step survives and cannot be removed: Chrome has not allowed an extension to be installed
+> from a local file since version 33, so the person loads the unpacked folder themselves. The setup
+> script does everything up to that point and says so before they start.
 
 Today every act that touches the person's machine is a command they type. `autoskill login`,
 `autoskill skill assistant`, `autoskill trial install --from <url> --target hermes --token <token>`,

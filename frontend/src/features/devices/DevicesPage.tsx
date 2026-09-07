@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
-import { MonitorSmartphone, Trash2 } from "lucide-react";
+import { Download, MonitorSmartphone, Trash2 } from "lucide-react";
 import { useCompanion, useDevices, useRemoveDevice } from "@/api/hooks/me";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
@@ -23,6 +23,7 @@ export default function DevicesPage() {
       <PageHeader title={t("me:devices.title")} subtitle={t("me:devices.subtitle")} actions={<Link to="/device" className="inline-flex h-10 items-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-fg">{t("me:devices.connect")}</Link>} />
       <div className="space-y-6">
         <ThisMachine />
+        <BrowserHelper />
         <Card>
           <CardHeader title={t("me:devices.connect")} description={t("me:devices.howto")} />
           <CardBody className="space-y-3">
@@ -97,6 +98,45 @@ function ThisMachine() {
             ))}
           </ul>
         )}
+      </CardBody>
+    </Card>
+  );
+}
+
+
+/** The one manual step, offered rather than described.
+ *
+ * Shown only while there is no helper on this machine: once the extension answers, `ThisMachine`
+ * above says so and this would be an invitation to do something already done.
+ */
+function BrowserHelper() {
+  const { t } = useTranslation(["me", "common"]);
+  const { available } = useLocalAgent();
+  if (available) return null;
+  const base = window.location.origin;
+  const windows = navigator.userAgent.includes("Windows");
+  return (
+    <Card>
+      <CardHeader title={t("me:devices.helper")} description={t("me:devices.helperHelp")} />
+      <CardBody className="space-y-3">
+        <div className="flex flex-wrap gap-2">
+          <a
+            className="inline-flex h-10 items-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-fg"
+            href={`${base}/dl/installer/${windows ? "windows" : "unix"}`}
+          >
+            <Download className="mr-2 h-4 w-4" aria-hidden />
+            {t(windows ? "me:devices.helperWindows" : "me:devices.helperUnix")}
+          </a>
+          <a
+            className="inline-flex h-10 items-center rounded-lg border border-border px-4 text-sm"
+            href={`${base}/dl/installer/${windows ? "unix" : "windows"}`}
+          >
+            {t(windows ? "me:devices.helperUnix" : "me:devices.helperWindows")}
+          </a>
+        </div>
+        {/* Said before the download, not discovered after it: the script cannot do this last part,
+            and a person who expected it to would reasonably think it had failed. */}
+        <p className="text-xs text-muted">{t("me:devices.helperLastStep")}</p>
       </CardBody>
     </Card>
   );

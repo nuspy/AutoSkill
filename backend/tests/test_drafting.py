@@ -91,11 +91,14 @@ async def test_interview_completion_triggers_draft_and_versions_api(app_client):
         assert missing.status_code == 404
 
         install = (await app_client.get(f"/api/v1/versions/{v['id']}/install/hermes", headers=headers)).json()
-        assert (
-            "~/.hermes/skills/invoice-check/" in install["markdown"]
-            and "Email MCP" in install["markdown"]
-            and "SMTP_PASSWORD" in install["markdown"]
-        )
+        # The guide shown inside the application is the short one: the person is logged in, already has
+        # the CLI, and the download links are controls on the same page. What it must still carry is
+        # what the CLI will ask them for.
+        assert "Email MCP" in install["markdown"] and "SMTP_PASSWORD" in install["markdown"]
+        assert "## Manual installation" not in install["markdown"]
+        assert f"--version-id {v['id']}" in install["markdown"] or "--from" in install["markdown"]
+        # The public document keeps all of it, for an agent following the URL alone; that side is
+        # covered by test_the_in_app_guide_is_short_and_the_public_one_is_complete in test_packaging.
         bad_target = await app_client.get(f"/api/v1/versions/{v['id']}/install/vim", headers=headers)
         assert bad_target.status_code == 422
 

@@ -19,7 +19,12 @@
     "assistantSkill": "La troisième ligne installe la skill qui apprend à votre agent à utiliser AutoSkill ; sans elle, il ne saura pas quoi faire.",
     "setupCommands": "Exécutez ces trois commandes",
     "thisMachine": "Sur cette machine",
-    "thisMachineHelp": "Lu par l'assistant de navigateur AutoSkill ({{version}}) — ce qui est sur le disque maintenant, pas ce qui a été signalé la dernière fois."
+    "thisMachineHelp": "Lu par l'assistant de navigateur AutoSkill ({{version}}) — ce qui est sur le disque maintenant, pas ce qui a été signalé la dernière fois.",
+    "helper": "Installer sans terminal",
+    "helperHelp": "Une configuration unique pour que cette page installe des compétences et lance des essais sur votre machine, sans jamais recopier une commande.",
+    "helperWindows": "Télécharger pour Windows",
+    "helperUnix": "Télécharger pour macOS / Linux",
+    "helperLastStep": "Le script installe tout et ne demande aucun droit d'administrateur. Une étape reste la vôtre, et seul le navigateur peut la faire : ouvrez chrome://extensions, activez le mode développeur et utilisez « Charger l'extension non empaquetée » sur le dossier indiqué. Chrome n'autorise plus l'installation depuis un fichier local depuis la version 33."
   },
   "notifications": {
     "title": "Notifications",

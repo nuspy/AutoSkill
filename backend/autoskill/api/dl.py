@@ -71,6 +71,64 @@ async def assistant_skill_zip():
     )
 
 
+# --- setting the machine up ---------------------------------------------------------------
+#
+# The extension cannot install itself and the native messaging host cannot be registered from inside
+# a browser, so exactly one manual step survives. These two routes are what make it one step instead
+# of five: a script that already knows this server's address, its wheel and its extension.
+
+
+@router.get("/installer/{platform}")
+async def setup_script(platform: str, request: Request):
+    from autoskill.services.distribution import setup_package
+
+    await _rate_limit("ip:" + (request.client.host if request.client else "-"))
+    if platform not in setup_package.PLATFORMS:
+        raise NotFound("unknown_platform", platforms=sorted(setup_package.PLATFORMS))
+    wheel = bundles.companion_wheel()
+    if wheel is None:
+        raise NotFound("wheel_not_found", message="no autoskill-local wheel is published on this server")
+    # Refused here rather than three steps into running it. A script with no extension id registers a
+    # native messaging host that nothing is allowed to call, which is a setup that looks like it
+    # worked — and the person finds out later, from the one part that was supposed to remove doubt.
+    extension_id = get_settings().extension_id
+    if not extension_id:
+        raise NotFound(
+            "extension_id_not_set",
+            message=(
+                "this server has no browser extension id configured: set AUTOSKILL_EXTENSION_ID to the "
+                "id Chrome shows for the extension on chrome://extensions"
+            ),
+        )
+    filename, body = setup_package.setup_script(
+        platform,
+        server_url=bundles.public_url(),
+        wheel_url=f"{bundles.public_url()}/dl/autoskill-local/{wheel.name}",
+        extension_id=extension_id,
+    )
+    return Response(
+        content=body,
+        media_type="text/plain; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get("/extension.zip")
+async def extension_zip(request: Request):
+    from autoskill.services.distribution import setup_package
+
+    await _rate_limit("ip:" + (request.client.host if request.client else "-"))
+    try:
+        data = setup_package.extension_zip()
+    except FileNotFoundError:
+        raise NotFound("extension_not_found", message="this server ships no browser extension") from None
+    return Response(
+        content=data,
+        media_type="application/zip",
+        headers={"Content-Disposition": 'attachment; filename="autoskill-extension.zip"'},
+    )
+
+
 @router.get("/autoskill-local/latest")
 async def companion_latest():
     wheel = bundles.companion_wheel()

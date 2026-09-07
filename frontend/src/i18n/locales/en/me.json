@@ -19,7 +19,12 @@
     "assistantSkill": "The third line installs the skill that teaches your agent to work with AutoSkill — without it, it will not know what to do when you ask it to automate something.",
     "setupCommands": "Run these three commands",
     "thisMachine": "On this machine",
-    "thisMachineHelp": "Read by the AutoSkill browser helper ({{version}}) — what is on disk right now, not what was last reported."
+    "thisMachineHelp": "Read by the AutoSkill browser helper ({{version}}) — what is on disk right now, not what was last reported.",
+    "helper": "Install without a terminal",
+    "helperHelp": "A one-off setup that lets this page install skills and run trials on your machine, so you never have to copy a command again.",
+    "helperWindows": "Download for Windows",
+    "helperUnix": "Download for macOS / Linux",
+    "helperLastStep": "The script installs everything and needs no administrator. One step is left to you and only the browser can do it: open chrome://extensions, turn on Developer mode, and choose Load unpacked on the folder the script names. Chrome has not allowed an extension to be installed from a local file since version 33."
   },
   "notifications": {
     "title": "Notifications",

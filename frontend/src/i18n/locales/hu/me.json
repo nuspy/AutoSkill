@@ -19,7 +19,12 @@
     "assistantSkill": "A harmadik sor telepíti azt a skillt, amely megtanítja az ügynökének az AutoSkill használatát; enélkül nem tudja, mit tegyen.",
     "setupCommands": "Futtasd ezt a három parancsot",
     "thisMachine": "Ezen a gépen",
-    "thisMachineHelp": "Az AutoSkill böngészősegéd olvasta ({{version}}) — ami most a lemezen van, nem az, amit utoljára jelentettek."
+    "thisMachineHelp": "Az AutoSkill böngészősegéd olvasta ({{version}}) — ami most a lemezen van, nem az, amit utoljára jelentettek.",
+    "helper": "Telepítés terminál nélkül",
+    "helperHelp": "Egyszeri beállítás, hogy ez az oldal képességeket telepíthessen és próbákat futtathasson a gépeden — soha többé parancsmásolás.",
+    "helperWindows": "Letöltés Windowsra",
+    "helperUnix": "Letöltés macOS / Linux rendszerre",
+    "helperLastStep": "A szkript mindent telepít, és nem kér rendszergazdai jogot. Egy lépés marad rád, és csak a böngésző tudja megtenni: nyisd meg a chrome://extensions oldalt, kapcsold be a Fejlesztői módot, és válaszd a „Kicsomagolt bővítmény betöltése” lehetőséget a szkript által megnevezett mappára. A Chrome a 33-as verzió óta nem engedi a helyi fájlból való telepítést."
   },
   "notifications": {
     "title": "Értesítések",

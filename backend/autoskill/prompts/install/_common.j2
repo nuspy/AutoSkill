@@ -81,6 +81,7 @@ only in your agent's configuration.
 {% endif %}
 {% endfor %}
 {% endif %}
+{% endif %}
 {% set cli_servers = ctx.mcp_servers | selectattr("kind", "equalto", "generated_cli") | list %}
 {% if cli_servers %}
 
@@ -131,8 +132,7 @@ effects only describe them unless `--apply` is given.
 {% endif %}
 {% endfor %}
 {% endif %}
-{% endif %}
-{% if skill_config and not ctx.concise %}
+{% if skill_config %}
 
 Optional skill configuration for {{ adapter.display_name }}:
 
