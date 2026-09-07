@@ -332,12 +332,49 @@ browser_app = typer.Typer(help="The browser extension that installs skills witho
 app.add_typer(browser_app, name="browser")
 
 
+@browser_app.command("list")
+def browser_list() -> None:
+    """Show the Chromium-family browsers found on this machine."""
+    from autoskill_local import browserhost
+
+    found = browserhost.installed_browsers()
+    if not found:
+        typer.echo("no Chromium-family browser found here")
+        return
+    for bid in found:
+        typer.echo(f"  {bid:10} {browserhost.BROWSERS[bid]['name']}")
+
+
+def _choose_browsers(found: list[str]) -> list[str]:
+    """Ask which of the found browsers to register with — all, by default.
+
+    A person may have several and want the host in only some. The prompt runs only on a real
+    terminal; piped (as the setup script runs it) it takes them all, because there is nobody to ask
+    and a browser that is present is a browser they might open the page in.
+    """
+    from autoskill_local import browserhost
+
+    if len(found) == 1 or not sys.stdin.isatty():
+        return found
+    typer.echo("Browsers found here:")
+    for i, bid in enumerate(found, 1):
+        typer.echo(f"  {i}. {browserhost.BROWSERS[bid]['name']}")
+    answer = typer.prompt("Which to set up? Numbers separated by spaces, or Enter for all", default="")
+    if not answer.strip():
+        return found
+    picked = [found[int(n) - 1] for n in answer.split() if n.strip().isdigit() and 1 <= int(n) <= len(found)]
+    return picked or found
+
+
 @browser_app.command("install")
 def browser_install(
     extension_id: list[str] = typer.Option(  # noqa: B008 - typer declares options this way
         [], "--extension-id", help="ids permitted to drive this machine; the shipped one by default"
     ),
-    browser: list[str] = typer.Option([], "--browser", help="chrome, chromium, opera, edge; all by default"),  # noqa: B008
+    browser: list[str] = typer.Option(  # noqa: B008
+        [], "--browser", help="chrome, edge, brave, vivaldi, opera, chromium; the installed ones by default"
+    ),
+    all_browsers: bool = typer.Option(False, "--all", help="every installed browser, without asking"),
 ) -> None:
     """Tell this machine's browsers about the AutoSkill native messaging host.
 
@@ -353,13 +390,28 @@ def browser_install(
             "no extension id: pass --extension-id <id> (Chrome shows it on chrome://extensions with "
             "Developer mode on). Registering a host that nothing is allowed to call would do nothing."
         )
-    written = browserhost.install(ids, browsers=list(browser) or None)
+    found = browserhost.installed_browsers()
+    if browser:
+        chosen = [b for b in browser if b in browserhost.BROWSERS]
+    elif not found:
+        _fail("no Chromium-family browser found here; open the page in the browser you use, then retry")
+    else:
+        chosen = found if all_browsers else _choose_browsers(found)
+    written = browserhost.install(ids, browsers=chosen)
     if not written:
-        _fail("no browser on this machine has a place to register the host")
+        _fail("none of the chosen browsers has a place to register the host")
     for where in written:
         typer.echo(f"registered in {where}")
     typer.secho(f"{browserhost.HOST_NAME} -> {browserhost.host_executable()}", fg=typer.colors.GREEN)
     typer.echo(f"allowed to call it: {', '.join(ids)}")
+    # The extension has to be loaded by hand, and the one thing people miss is the switch that lets
+    # them: without Developer mode, chrome://extensions shows no "Load unpacked" button at all.
+    typer.secho(
+        "\nNext, in each browser you chose: open its extensions page (chrome://extensions, "
+        "edge://extensions, brave://extensions, …), turn ON \"Developer mode\", then \"Load unpacked\" "
+        "and choose the extension folder. Without Developer mode there is no Load-unpacked button.",
+        fg=typer.colors.YELLOW,
+    )
 
 
 def _download_package(client: Client, path: str) -> tuple[Path, dict[str, Any], str]:

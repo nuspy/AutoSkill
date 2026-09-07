@@ -75,3 +75,35 @@ def test_the_console_script_is_preferred_when_there_is_one(tmp_path: Path, monke
     monkeypatch.setattr(bh.shutil, "which", lambda _name: "/usr/local/bin/autoskill-native-host")
     assert bh.host_executable(shim_dir=tmp_path) == "/usr/local/bin/autoskill-native-host"
     assert not list(tmp_path.iterdir()), "and nothing is written when nothing is needed"
+
+
+def test_detection_is_by_profile_because_that_is_what_says_it_is_used(tmp_path: Path, monkeypatch):
+    """A browser with a profile is one the person opens; an executable alone has no host to hold."""
+    monkeypatch.setattr(bh.sys, "platform", "linux")
+    (tmp_path / ".config/google-chrome").mkdir(parents=True)
+    (tmp_path / ".config/BraveSoftware/Brave-Browser").mkdir(parents=True)
+    found = bh.installed_browsers(home=tmp_path)
+    assert set(found) == {"chrome", "brave"}
+    assert "edge" not in found, "no Edge profile here, so Edge is not offered"
+
+
+def test_install_defaults_to_the_browsers_that_are_actually_here(tmp_path: Path, monkeypatch):
+    monkeypatch.setattr(bh.sys, "platform", "linux")
+    (tmp_path / ".config/vivaldi").mkdir(parents=True)
+    written = bh.install([ID], home=tmp_path)  # no browsers given
+    assert written == [str(tmp_path / ".config/vivaldi/NativeMessagingHosts" / f"{bh.HOST_NAME}.json")]
+
+
+def test_forks_that_read_chromes_windows_key_are_written_once(monkeypatch):
+    """Opera reads Chrome's HKCU key. Registering both would write the same value twice."""
+    assert bh._win_key("opera") == bh.BROWSERS["chrome"]["win_key"]
+    assert bh._win_key("brave") != bh.BROWSERS["chrome"]["win_key"], "Brave has its own key"
+    assert bh._win_key("brave") and "BraveSoftware" in bh._win_key("brave")
+
+
+def test_brave_and_vivaldi_are_known_now():
+    """They were missing, and a machine with Brave installed got a host registered for browsers it
+    does not use while the one it does use was skipped."""
+    for bid in ("brave", "vivaldi"):
+        assert bid in bh.BROWSERS
+        assert bh.BROWSERS[bid]["name"] and bh.BROWSERS[bid]["linux"].endswith("NativeMessagingHosts")

@@ -24,7 +24,12 @@
     "helperHelp": "Eine einmalige Einrichtung, damit diese Seite Skills installieren und Tests auf deinem Rechner ausführen kann — nie wieder einen Befehl kopieren.",
     "helperWindows": "Für Windows herunterladen",
     "helperUnix": "Für macOS / Linux herunterladen",
-    "helperLastStep": "Das Skript installiert alles und braucht keine Administratorrechte. Ein Schritt bleibt dir, und nur der Browser kann ihn tun: öffne chrome://extensions, schalte den Entwicklermodus ein und wähle „Entpackte Erweiterung laden“ für den Ordner, den das Skript nennt. Chrome erlaubt seit Version 33 keine Installation aus einer lokalen Datei mehr."
+    "helperLastStep": "Das Skript installiert alles und fragt, welche Browser es einrichten soll. Ein Schritt bleibt dir, und nur der Browser kann ihn tun: Erweiterungsseite öffnen, Entwicklermodus EINschalten (ohne ihn gibt es keine Schaltfläche „Entpackte Erweiterung laden“) und den genannten Ordner wählen — in jedem eingerichteten Browser.",
+    "helperPasteWindows": "Füge dies in PowerShell ein — keine Administratorrechte nötig, und es wird nichts heruntergeladen, also markiert Windows es nicht:",
+    "helperPasteUnix": "Füge dies in ein Terminal ein — kein Root nötig, es wird nichts heruntergeladen:",
+    "helperOrDownload": "oder ein Skript zum Ausführen herunterladen",
+    "helperBat": "Windows-.bat (Doppelklick)",
+    "helperDownloadCaveat": "Ein heruntergeladenes Skript kann von SmartScreen oder Antivirus blockiert werden; der eingefügte Befehl oben umgeht das."
   },
   "notifications": {
     "title": "Benachrichtigungen",

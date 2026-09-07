@@ -24,7 +24,12 @@
     "helperHelp": "Une configuration unique pour que cette page installe des compétences et lance des essais sur votre machine, sans jamais recopier une commande.",
     "helperWindows": "Télécharger pour Windows",
     "helperUnix": "Télécharger pour macOS / Linux",
-    "helperLastStep": "Le script installe tout et ne demande aucun droit d'administrateur. Une étape reste la vôtre, et seul le navigateur peut la faire : ouvrez chrome://extensions, activez le mode développeur et utilisez « Charger l'extension non empaquetée » sur le dossier indiqué. Chrome n'autorise plus l'installation depuis un fichier local depuis la version 33."
+    "helperLastStep": "Le script installe tout et demande quels navigateurs configurer. Une étape reste la vôtre, et seul le navigateur peut la faire : ouvrez sa page d'extensions, activez le mode développeur (sans lui, pas de bouton « Charger l'extension non empaquetée ») et choisissez ce dossier — dans chaque navigateur configuré.",
+    "helperPasteWindows": "Collez ceci dans PowerShell — aucun droit d'administrateur, rien n'est téléchargé, donc Windows ne le signale pas :",
+    "helperPasteUnix": "Collez ceci dans un terminal — aucun root, rien n'est téléchargé :",
+    "helperOrDownload": "ou téléchargez un script à exécuter",
+    "helperBat": "Fichier .bat Windows (double-clic)",
+    "helperDownloadCaveat": "Un script téléchargé peut être bloqué par SmartScreen ou l'antivirus ; la commande collée ci-dessus l'évite."
   },
   "notifications": {
     "title": "Notifications",

@@ -24,7 +24,12 @@
     "helperHelp": "Egyszeri beállítás, hogy ez az oldal képességeket telepíthessen és próbákat futtathasson a gépeden — soha többé parancsmásolás.",
     "helperWindows": "Letöltés Windowsra",
     "helperUnix": "Letöltés macOS / Linux rendszerre",
-    "helperLastStep": "A szkript mindent telepít, és nem kér rendszergazdai jogot. Egy lépés marad rád, és csak a böngésző tudja megtenni: nyisd meg a chrome://extensions oldalt, kapcsold be a Fejlesztői módot, és válaszd a „Kicsomagolt bővítmény betöltése” lehetőséget a szkript által megnevezett mappára. A Chrome a 33-as verzió óta nem engedi a helyi fájlból való telepítést."
+    "helperLastStep": "A szkript mindent telepít, és megkérdezi, mely böngészőkhöz állítsa be. Egy lépés marad rád, és csak a böngésző tudja megtenni: nyisd meg a bővítmények oldalát, kapcsold BE a Fejlesztői módot (nélküle nincs „Kicsomagolt bővítmény betöltése” gomb), és válaszd a megnevezett mappát — minden beállított böngészőben.",
+    "helperPasteWindows": "Illeszd be ezt a PowerShellbe — nem kell rendszergazda, és semmi nem töltődik le, így a Windows nem jelöli meg:",
+    "helperPasteUnix": "Illeszd be ezt egy terminálba — nem kell root, semmi nem töltődik le:",
+    "helperOrDownload": "vagy tölts le egy futtatható szkriptet",
+    "helperBat": "Windows .bat (dupla kattintás)",
+    "helperDownloadCaveat": "A letöltött szkriptet a SmartScreen vagy a vírusirtó blokkolhatja; a fenti beillesztett parancs ezt elkerüli."
   },
   "notifications": {
     "title": "Értesítések",

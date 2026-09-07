@@ -78,6 +78,25 @@ async def assistant_skill_zip():
 # of five: a script that already knows this server's address, its wheel and its extension.
 
 
+@router.get("/installer/windows.bat")
+async def setup_bat(request: Request):
+    """A double-clickable wrapper, for the person who would rather not paste a command.
+
+    Declared before `/installer/{platform}` so the literal path wins. It only wraps the paste command,
+    so it needs neither the wheel nor the extension id at this point — those are checked when the
+    PowerShell it launches actually runs.
+    """
+    from autoskill.services.distribution import setup_package
+
+    await _rate_limit("ip:" + (request.client.host if request.client else "-"))
+    filename, body = setup_package.setup_bat(bundles.public_url())
+    return Response(
+        content=body,
+        media_type="application/octet-stream",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
 @router.get("/installer/{platform}")
 async def setup_script(platform: str, request: Request):
     from autoskill.services.distribution import setup_package

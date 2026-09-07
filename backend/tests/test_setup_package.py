@@ -110,3 +110,57 @@ def test_the_id_this_server_hands_out_is_the_extension_it_ships():
     digest = hashlib.sha256(base64.b64decode(key)).hexdigest()[:32]
     derived = "".join(chr(ord("a") + int(c, 16)) for c in digest)
     assert get_settings().extension_id == derived, "the default must name the extension this server serves"
+
+
+def test_a_step_that_fails_stops_the_script_instead_of_scrolling_past():
+    """`$ErrorActionPreference` does not cover an external program, and every step here is one.
+
+    Found the hard way: the CLI on the machine was an old build with no `browser` command, that step
+    failed, and the script went on to print "Done" and a list of things it had not done.
+    """
+    _name, body = setup_package.setup_script("windows", server_url="http://x", wheel_url="http://x/w.whl", extension_id="abc")
+    assert "$LASTEXITCODE -ne 0" in body, "an exit code has to be looked at for it to mean anything"
+    assert "Nothing after it has run" in body
+    for command in ("autoskill login", "autoskill browser install"):
+        assert "Step " in body and command in body
+        # each one inside a Step block, not bare
+        line = next(line for line in body.splitlines() if command in line)
+        assert line.strip().startswith("Step "), f"{command} is not guarded"
+
+
+def test_the_windows_script_carries_real_paths():
+    r"""A template full of Windows paths lived in a non-raw string, so `\b` had already silently
+    become a backspace and `$HOME\.local\bin` named a directory that does not exist."""
+    _name, body = setup_package.setup_script(
+        "windows", server_url="http://x", wheel_url="http://x/w.whl", extension_id="abc"
+    )
+    assert not any(c in body for c in "\b\f\v"), "no escape has been interpreted on its way here"
+    path_line = next(line for line in body.splitlines() if "$env:PATH" in line)
+    assert ".local" in path_line and "bin" in path_line and "localin" not in path_line
+    assert "extension" in next(line for line in body.splitlines() if "$dir = " in line)
+
+
+def test_the_paste_command_dodges_mark_of_the_web():
+    """The recommended way is a line pasted into a shell, not a downloaded file.
+
+    Smart App Control blocks a downloaded .bat outright on updated Windows machines, with no override.
+    A command reaches the shell as text — nothing for SmartScreen to flag — which is how command-line
+    tools are installed today.
+    """
+    assert setup_package.paste_command("windows", "https://x/") == "irm https://x/dl/installer/windows | iex"
+    assert setup_package.paste_command("unix", "https://x") == "curl -fsSL https://x/dl/installer/unix | sh"
+
+
+def test_the_bat_runs_the_paste_command_rather_than_carrying_the_script():
+    """So the .bat itself stays tiny and the logic lives in one place, the served script."""
+    name, body = setup_package.setup_bat("https://x/")
+    assert name == "autoskill-setup.bat"
+    assert "irm 'https://x/dl/installer/windows' | iex" in body
+    assert "no administrator" in body.lower()
+
+
+async def test_the_bat_route_is_served_and_wins_over_the_platform_route(app_client):
+    res = await app_client.get("/dl/installer/windows.bat")
+    assert res.status_code == 200
+    assert res.headers["content-disposition"].endswith('autoskill-setup.bat"')
+    assert b"| iex" in res.content, "not the PowerShell script served as a platform"

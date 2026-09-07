@@ -122,25 +122,38 @@ function BrowserHelper() {
   if (available) return null;
   const base = window.location.origin;
   const windows = navigator.userAgent.includes("Windows");
+  // The pasted command is the recommended way, because it dodges Mark-of-the-Web entirely: the script
+  // reaches the shell as text, never as a downloaded file, so nothing for SmartScreen to flag. A
+  // downloaded .bat or .sh is offered second, with the caveat that Windows may block it.
+  const command = windows ? `irm ${base}/dl/installer/windows | iex` : `curl -fsSL ${base}/dl/installer/unix | sh`;
   return (
     <Card>
       <CardHeader title={t("me:devices.helper")} description={t("me:devices.helperHelp")} />
       <CardBody className="space-y-3">
-        <div className="flex flex-wrap gap-2">
-          <a
-            className="inline-flex h-10 items-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-fg"
-            href={`${base}/dl/installer/${windows ? "windows" : "unix"}`}
-          >
-            <Download className="mr-2 h-4 w-4" aria-hidden />
-            {t(windows ? "me:devices.helperWindows" : "me:devices.helperUnix")}
-          </a>
-          <a
-            className="inline-flex h-10 items-center rounded-lg border border-border px-4 text-sm"
-            href={`${base}/dl/installer/${windows ? "unix" : "windows"}`}
-          >
-            {t(windows ? "me:devices.helperUnix" : "me:devices.helperWindows")}
-          </a>
-        </div>
+        <p className="text-sm">{t(windows ? "me:devices.helperPasteWindows" : "me:devices.helperPasteUnix")}</p>
+        <CopyRow value={command} />
+        <details className="text-sm">
+          <summary className="cursor-pointer text-muted">{t("me:devices.helperOrDownload")}</summary>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {windows && (
+              <a
+                className="inline-flex h-9 items-center rounded-lg border border-border px-3 text-sm"
+                href={`${base}/dl/installer/windows.bat`}
+              >
+                <Download className="mr-2 h-4 w-4" aria-hidden />
+                {t("me:devices.helperBat")}
+              </a>
+            )}
+            <a
+              className="inline-flex h-9 items-center rounded-lg border border-border px-3 text-sm"
+              href={`${base}/dl/installer/${windows ? "windows" : "unix"}`}
+            >
+              <Download className="mr-2 h-4 w-4" aria-hidden />
+              {t(windows ? "me:devices.helperWindows" : "me:devices.helperUnix")}
+            </a>
+            <p className="w-full text-xs text-muted">{t("me:devices.helperDownloadCaveat")}</p>
+          </div>
+        </details>
         {/* Said before the download, not discovered after it: the script cannot do this last part,
             and a person who expected it to would reasonably think it had failed. */}
         <p className="text-xs text-muted">{t("me:devices.helperLastStep")}</p>

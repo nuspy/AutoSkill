@@ -24,7 +24,12 @@
     "helperHelp": "Una configuración única para que esta página instale skills y ejecute pruebas en tu máquina, sin volver a copiar un comando.",
     "helperWindows": "Descargar para Windows",
     "helperUnix": "Descargar para macOS / Linux",
-    "helperLastStep": "El script lo instala todo y no necesita administrador. Queda un paso para ti, y solo el navegador puede darlo: abre chrome://extensions, activa el Modo de desarrollador y usa «Cargar descomprimida» en la carpeta que indica el script. Chrome no permite instalar una extensión desde un archivo local desde la versión 33."
+    "helperLastStep": "El script instala todo y pregunta qué navegadores configurar. Queda un paso para ti, y solo el navegador puede darlo: abre su página de extensiones, activa el Modo de desarrollador (sin él no hay botón «Cargar descomprimida») y elige esa carpeta — en cada navegador que configures.",
+    "helperPasteWindows": "Pega esto en PowerShell — no necesita administrador y no descarga nada, así que Windows no lo marca:",
+    "helperPasteUnix": "Pega esto en una terminal — no necesita root y no descarga nada:",
+    "helperOrDownload": "o descarga un script para ejecutar",
+    "helperBat": "Archivo .bat de Windows (doble clic)",
+    "helperDownloadCaveat": "Un script descargado puede ser bloqueado por SmartScreen o el antivirus; el comando pegado arriba lo evita."
   },
   "notifications": {
     "title": "Notificaciones",

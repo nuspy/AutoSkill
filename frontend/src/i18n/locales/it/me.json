@@ -24,7 +24,12 @@
     "helperHelp": "Una configurazione una tantum che permette a questa pagina di installare skill ed eseguire trial sulla tua macchina, così non devi più copiare un comando.",
     "helperWindows": "Scarica per Windows",
     "helperUnix": "Scarica per macOS / Linux",
-    "helperLastStep": "Lo script installa tutto e non richiede privilegi di amministratore. Resta un passo a te, e solo il browser può farlo: apri chrome://extensions, attiva la Modalità sviluppatore e usa «Carica estensione non pacchettizzata» sulla cartella che lo script indica. Chrome non permette più di installare un'estensione da un file locale dalla versione 33."
+    "helperLastStep": "Lo script installa tutto e ti chiede su quali browser configurarlo. Resta un passo a te, e solo il browser può farlo: apri la sua pagina delle estensioni, attiva la Modalità sviluppatore (senza non c'è il pulsante «Carica estensione non pacchettizzata») e scegli quella cartella — in ogni browser che hai configurato.",
+    "helperPasteWindows": "Incolla questo in PowerShell — non richiede amministratore e non scarica nulla, quindi Windows non lo segnala:",
+    "helperPasteUnix": "Incolla questo in un terminale — non richiede root e non scarica nulla:",
+    "helperOrDownload": "oppure scarica uno script da eseguire",
+    "helperBat": "File .bat per Windows (doppio clic)",
+    "helperDownloadCaveat": "Uno script scaricato può essere bloccato da SmartScreen o dall'antivirus; il comando da incollare qui sopra lo evita."
   },
   "notifications": {
     "title": "Notifiche",
