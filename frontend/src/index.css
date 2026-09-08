@@ -49,3 +49,12 @@
 
 html, body, #root { height: 100%; }
 body { @apply bg-bg text-fg font-sans antialiased; }
+
+/* Browser autofill writes the input's value straight into the DOM without firing the `input` event
+   React listens for, so a controlled field the browser filled stays empty in React state and the
+   form submits blank — which is why an autofilled login failed with "something went wrong". Chrome,
+   Edge, Opera, Brave and Safari all toggle the `:-webkit-autofill` pseudo-class when they fill a
+   field; binding an animation to it gives us an `animationstart` event to notice the fill and sync
+   React back up (see Input in components/ui/input.tsx). The keyframe does nothing visible. */
+@keyframes onAutoFillStart { from { opacity: 1; } to { opacity: 1; } }
+input:-webkit-autofill { animation-name: onAutoFillStart; animation-duration: 1ms; }

@@ -30,10 +30,10 @@ export default function LoginPage() {
         </div>
         <form className="space-y-4" onSubmit={submit}>
           <Field label={t("auth:fields.email")}>
-            <Input type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+            <Input type="email" name="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
           </Field>
           <Field label={t("auth:fields.password")}>
-            <Input type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+            <Input type="password" name="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
           </Field>
           {login.isError && <ErrorState message={errorMessage(login.error, t)} />}
           <Button type="submit" className="w-full" loading={login.isPending}>{t("auth:login.submit")}</Button>

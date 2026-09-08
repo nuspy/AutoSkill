@@ -1,11 +1,47 @@
-import { forwardRef, type InputHTMLAttributes, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
+import {
+  forwardRef,
+  useEffect,
+  useRef,
+  type AnimationEvent,
+  type InputHTMLAttributes,
+  type SelectHTMLAttributes,
+  type TextareaHTMLAttributes,
+} from "react";
 import { cn } from "@/lib/cn";
 
 const base =
   "w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-fg placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-60";
 
+// React tracks a controlled input's value with a private tracker whose stored value only updates when
+// JS sets `.value`. Browser autofill sets it at the engine level, bypassing that, so the tracker still
+// reads the old (empty) value and no `onChange` ever fires — the field looks filled but React state is
+// blank, and the form submits nothing. Dispatching a native `input` event makes React's change plugin
+// re-read the DOM, see the difference against its stale tracker, and fire `onChange` once, syncing the
+// controlled value to what the browser wrote. It is a no-op when the value already matches.
+function syncAutofill(el: HTMLInputElement | null): void {
+  if (el && el.value) el.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
 export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(
-  ({ className, ...props }, ref) => <input ref={ref} className={cn(base, className)} {...props} />,
+  ({ className, onAnimationStart, ...props }, ref) => {
+    const inner = useRef<HTMLInputElement | null>(null);
+    const setRef = (el: HTMLInputElement | null) => {
+      inner.current = el;
+      if (typeof ref === "function") ref(el);
+      else if (ref) ref.current = el;
+    };
+    // The `:-webkit-autofill` animation is the live signal; the mount check catches a browser that
+    // filled the field before this listener was attached (a hard reload with saved credentials).
+    useEffect(() => {
+      const id = window.setTimeout(() => syncAutofill(inner.current), 120);
+      return () => window.clearTimeout(id);
+    }, []);
+    const handleAnimationStart = (e: AnimationEvent<HTMLInputElement>) => {
+      if (e.animationName === "onAutoFillStart") syncAutofill(e.currentTarget);
+      onAnimationStart?.(e);
+    };
+    return <input ref={setRef} onAnimationStart={handleAnimationStart} className={cn(base, className)} {...props} />;
+  },
 );
 Input.displayName = "Input";
 
