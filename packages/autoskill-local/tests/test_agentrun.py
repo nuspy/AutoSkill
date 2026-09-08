@@ -274,6 +274,54 @@ def test_an_agent_that_a_nudge_never_moves_is_handed_back():
     it and return, so a person can step in rather than watch it loop."""
     stuck = {"run_open": True, "started": True, "waiting_on_human": False,
              "next_hint": "Send checkpoint phase='preview'", "last_checkpoint_id": "cp1"}
-    result, calls = _drive([{"run_open": False, "started": False}, stuck, stuck, stuck])
+    result, _ = _drive([{"run_open": False, "started": False}, stuck, stuck, stuck])
     assert result["status"] == "stuck" and result["nudges"] == 2
     assert result["next_hint"] == "Send checkpoint phase='preview'"
+
+
+# --- preferring the model already loaded in a local engine -------------------------------------
+
+
+def test_the_model_loaded_in_lm_studio_is_preferred_over_the_configured_default(monkeypatch):
+    """The person picks the model by loading it: a run should use what is in memory, not force a
+    reload of a smaller configured default."""
+    monkeypatch.setattr(LocalTarget, "local_providers", lambda _self: [("lmstudio", "http://127.0.0.1:1300/v1")])
+
+    class _Resp:
+        def __init__(self, data): self._data = data
+        def json(self): return {"data": self._data}
+
+    import httpx
+    monkeypatch.setattr(httpx, "get", lambda url, timeout=None: _Resp([{"id": "qwen-35b", "state": "loaded"}]))
+    assert agentrun._autodetect_loaded_model(get_target("hermes")) == ("lmstudio", "qwen-35b")
+
+
+def test_nothing_loaded_falls_back_to_the_configured_default(monkeypatch):
+    monkeypatch.setattr(LocalTarget, "local_providers", lambda _self: [("lmstudio", "http://127.0.0.1:1300/v1")])
+    import httpx
+
+    def down(*a, **k):
+        raise httpx.ConnectError("engine is down")
+
+    monkeypatch.setattr(httpx, "get", down)
+    assert agentrun._autodetect_loaded_model(get_target("hermes")) is None
+
+
+def test_run_uses_the_loaded_model_when_none_was_asked_for(monkeypatch):
+    monkeypatch.setattr(LocalTarget, "run_modes", lambda _self: ["oneshot"])
+    monkeypatch.setattr(agentrun, "_autodetect_loaded_model", lambda _t: ("lmstudio", "qwen-35b"))
+    seen = {}
+    monkeypatch.setattr(agentrun, "run_oneshot",
+                        lambda tid, prompt, **kw: seen.update(kw) or {"mode": "oneshot", "status": "ok"})
+    agentrun.run("hermes", "do it")
+    assert seen.get("model") == "qwen-35b" and seen.get("provider") == "lmstudio"
+
+
+def test_an_explicit_model_is_not_overridden_by_autodetection(monkeypatch):
+    monkeypatch.setattr(LocalTarget, "run_modes", lambda _self: ["oneshot"])
+    called = {"auto": False}
+    monkeypatch.setattr(agentrun, "_autodetect_loaded_model",
+                        lambda _t: called.update(auto=True) or ("lmstudio", "qwen-35b"))
+    monkeypatch.setattr(agentrun, "run_oneshot", lambda tid, prompt, **kw: {"model": kw.get("model")})
+    res = agentrun.run("hermes", "do it", model="gpt-5", provider="openai")
+    assert res["model"] == "gpt-5" and called["auto"] is False, "an explicit choice wins, and autodetect is skipped"

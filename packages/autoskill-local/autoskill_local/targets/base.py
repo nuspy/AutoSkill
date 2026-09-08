@@ -137,6 +137,12 @@ class LocalTarget:
             return []
         return [m for m, args in (("acp", self.acp_args), ("oneshot", self.oneshot_args)) if args]
 
+    def local_providers(self) -> list[tuple[str, str]]:
+        """`(provider name, base_url)` for each local OpenAI-compatible engine this agent is configured
+        with — the endpoints worth asking which model is already loaded. Empty unless the agent stores
+        such a thing in a shape this adapter knows how to read (Hermes does)."""
+        return []
+
     def resolve_install_path(self, dest: str | Path) -> Path:
         """Re-root a catalog path written against a *presumed* agent directory onto the real one.
 

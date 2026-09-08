@@ -178,6 +178,38 @@ def _await_reply(state: dict[str, Any], request_id: int, *, timeout_s: int) -> d
     return None
 
 
+def _loaded_local_model(base_url: str, timeout_s: float = 3.0) -> str | None:
+    """The model already loaded at a local OpenAI-compatible engine, or None if nothing is loaded.
+
+    LM Studio's native `/api/v0/models` marks each model's `state`, and its `/v1/models` lists only
+    what is loaded; either answers the one question here — what is in memory right now. Preferring it
+    means a run uses the model the person already loaded, however large, instead of forcing the engine
+    to unload it and load a smaller configured default (slow, and often the weaker choice).
+    """
+    import httpx
+
+    base = base_url.rstrip("/")
+    root = base.removesuffix("/v1")
+    for url, native in ((f"{root}/api/v0/models", True), (f"{base}/models", False)):
+        try:
+            data = httpx.get(url, timeout=timeout_s).json().get("data") or []
+        except Exception:  # noqa: BLE001, S112 - the engine may be down; that is just "nothing loaded"
+            continue
+        for entry in data:
+            if (not native or entry.get("state") == "loaded") and entry.get("id"):
+                return str(entry["id"])
+    return None
+
+
+def _autodetect_loaded_model(target) -> tuple[str, str] | None:
+    """`(provider, model)` of a model already loaded in one of the agent's local engines, or None."""
+    for name, base in target.local_providers():
+        loaded = _loaded_local_model(base)
+        if loaded:
+            return name, loaded
+    return None
+
+
 def run(target_id: str, prompt: str, *, mode: str | None = None, timeout_s: int = 900, say: Progress | None = None,
         model: str = "", provider: str = ""):
     """Start the agent the best way it supports, and say plainly when it supports none.
@@ -185,9 +217,18 @@ def run(target_id: str, prompt: str, *, mode: str | None = None, timeout_s: int 
     `{"mode": "manual"}` is a real answer, not an error: the page then shows the instruction to paste,
     which is what it did for every agent before any of this existed. `model`/`provider` override the
     agent's default for this run when it supports it — a trial can then use a model that is actually
-    reachable without changing the agent's own configuration.
+    reachable without changing the agent's own configuration. With neither given, a model already
+    loaded in one of the agent's local engines is preferred over its configured default, so the person
+    picks the model simply by loading it (and the run does not stall waiting for a slow reload).
     """
-    modes = get_target(target_id).run_modes()
+    target = get_target(target_id)
+    if not model and not provider:
+        auto = _autodetect_loaded_model(target)
+        if auto:
+            provider, model = auto
+            if say:
+                say(f"using the model already loaded in {provider}: {model}")
+    modes = target.run_modes()
     for candidate in [mode] if mode else modes:
         if candidate not in modes:
             continue

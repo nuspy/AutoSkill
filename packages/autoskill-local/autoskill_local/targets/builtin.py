@@ -39,6 +39,19 @@ class Hermes(LocalTarget):
     def _parse(self, text: str) -> dict[str, Any]:
         return yaml.safe_load(text) or {}
 
+    def local_providers(self) -> list[tuple[str, str]]:
+        """Hermes lists its providers in config.yaml; the local ones are those on a loopback host."""
+        try:
+            cfg = self._parse(self.mcp_config.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return []
+        out: list[tuple[str, str]] = []
+        for name, spec in (cfg.get("providers") or {}).items():
+            base = str((spec or {}).get("base_url") or "").strip()
+            if base and ("127.0.0.1" in base or "localhost" in base):
+                out.append((name, base))
+        return out
+
     def _dump(self, data: dict[str, Any]) -> str:
         return yaml.safe_dump(data, sort_keys=False, allow_unicode=True)
 
