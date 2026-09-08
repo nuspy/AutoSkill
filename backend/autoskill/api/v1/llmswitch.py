@@ -34,6 +34,20 @@ async def get_state(user: AdminUser):
     return await _state()
 
 
+@router.post("/probe-models", response_model=LlmSwitchModels)
+async def probe_models(body: LlmSwitchProviderCreate, user: AdminUser):
+    """The models a provider offers, from the fields typed into the add form, before it is saved.
+
+    So the person can pick a model from a list instead of being asked to type an id they do not know.
+    An unreachable provider or a wrong key is a normal state of a half-filled form — the reason comes
+    back with an empty list, not as a failed request.
+    """
+    try:
+        return LlmSwitchModels(models=await switch.probe_models(body.model_dump(exclude_none=True)))
+    except Exception as exc:  # noqa: BLE001 - the form is mid-edit; a bad address is an answer
+        return LlmSwitchModels(error=str(exc)[:300])
+
+
 @router.post("/providers", response_model=LlmSwitchState, status_code=201)
 async def add_provider(body: LlmSwitchProviderCreate, session: SessionDep, user: AdminUser):
     try:

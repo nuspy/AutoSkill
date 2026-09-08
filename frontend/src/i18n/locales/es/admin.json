@@ -71,7 +71,7 @@
     "model": "Modelo",
     "modelHint": "Pregunta al proveedor qué puede servir, o escribe el id exacto.",
     "modelHintNew": "Escribe el id exacto; una vez guardado podrás elegirlo de la lista del proveedor.",
-    "loadModels": "Listar modelos",
+    "loadModels": "Obtener lista de modelos",
     "pickModel": "Elegir de la lista…",
     "inMemory": "ya en memoria",
     "noModels": "Este proveedor no devolvió ningún modelo.",
@@ -104,6 +104,7 @@
       "expiring": "por renovar",
       "blocked": "no utilizable",
       "disconnected": "no conectado"
-    }
+    },
+    "loadModelsNeedsUrl": "Introduce antes la dirección"
   }
 }

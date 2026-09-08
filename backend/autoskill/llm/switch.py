@@ -145,6 +145,32 @@ async def models(pid: str, force: bool = False) -> list[dict[str, Any]]:
     return await _off_thread(registry().models, pid, force)
 
 
+async def probe_models(fields: dict[str, Any]) -> list[dict[str, Any]]:
+    """Ask a provider for its model list before it is saved, from the fields typed into the form.
+
+    The person adding a provider is asked for a model id they usually do not know: it is a string the
+    provider decides, not something anybody memorises. So the form has to be able to fetch the list
+    the moment the address and key are entered, before there is a saved provider to point `models()`
+    at.
+
+    Done by adding the provider under a scratch id, asking, and removing it again — always, in a
+    finally — so the whole per-type endpoint and header logic is the library's, never a second copy of
+    it here that would drift. The scratch entry touches the registry file only for the length of the
+    call; it is the same file that holds the real provider a moment later.
+    """
+
+    def _probe() -> list[dict[str, Any]]:
+        reg = registry()
+        scratch = reg.add({**{k: v for k, v in fields.items() if v}, "name": "__probe__"})
+        pid = scratch["id"]
+        try:
+            return reg.models(pid, True)
+        finally:
+            reg.remove(pid)
+
+    return await _off_thread(_probe)
+
+
 async def test(pid: str) -> dict[str, Any]:
     return await _off_thread(registry().test, pid)
 

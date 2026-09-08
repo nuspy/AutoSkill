@@ -46,10 +46,16 @@ export function useLlmSwitchMutations() {
     mutationFn: ({ id, refresh }: { id: string; refresh?: boolean }) =>
       api<LlmSwitchModels>(`/llmswitch/providers/${id}/models${refresh ? "?refresh=true" : ""}`),
   });
+  // The same list, but from a provider that is not saved yet: the add form asks the address and key,
+  // then fetches the models so a person picks one instead of typing an id they do not know.
+  const probeModels = useMutation({
+    mutationFn: (fields: { type: string; base_url?: string; api_key?: string }) =>
+      api<LlmSwitchModels>("/llmswitch/probe-models", { method: "POST", body: JSON.stringify(fields) }),
+  });
   const reload = useMutation({
     mutationFn: () => api<{ ok: boolean }>("/llmswitch/reload", { method: "POST" }),
     onSuccess: () => qc.invalidateQueries({ queryKey: llmSwitchKey }),
   });
 
-  return { create, update, remove, assign, test, models, reload };
+  return { create, update, remove, assign, test, models, probeModels, reload };
 }

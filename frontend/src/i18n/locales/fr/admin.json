@@ -71,7 +71,7 @@
     "model": "Modèle",
     "modelHint": "Demandez au fournisseur ce qu'il sait servir, ou saisissez l'identifiant exact.",
     "modelHintNew": "Saisissez l'identifiant exact ; après l'enregistrement vous pourrez le choisir dans la liste du fournisseur.",
-    "loadModels": "Lister les modèles",
+    "loadModels": "Obtenir la liste des modèles",
     "pickModel": "Choisir dans la liste…",
     "inMemory": "déjà en mémoire",
     "noModels": "Ce fournisseur n'a renvoyé aucun modèle.",
@@ -104,6 +104,7 @@
       "expiring": "à renouveler",
       "blocked": "inutilisable",
       "disconnected": "non connecté"
-    }
+    },
+    "loadModelsNeedsUrl": "Entrez d'abord l'adresse"
   }
 }

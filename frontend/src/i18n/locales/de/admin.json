@@ -71,7 +71,7 @@
     "model": "Modell",
     "modelHint": "Den Anbieter fragen, was er anbieten kann, oder die genaue ID eintragen.",
     "modelHintNew": "Die genaue ID eintragen; nach dem Speichern lässt sie sich aus der Liste des Anbieters wählen.",
-    "loadModels": "Modelle auflisten",
+    "loadModels": "Modellliste abrufen",
     "pickModel": "Aus der Liste wählen…",
     "inMemory": "bereits im Speicher",
     "noModels": "Dieser Anbieter hat kein Modell zurückgegeben.",
@@ -104,6 +104,7 @@
       "expiring": "zu erneuern",
       "blocked": "nicht nutzbar",
       "disconnected": "nicht verbunden"
-    }
+    },
+    "loadModelsNeedsUrl": "Zuerst die Adresse eingeben"
   }
 }

@@ -71,7 +71,7 @@
     "model": "Model",
     "modelHint": "Ask the provider what it can serve, or type the exact id.",
     "modelHintNew": "Type the exact id; once saved you can pick it from the provider's own list.",
-    "loadModels": "List models",
+    "loadModels": "Get model list",
     "pickModel": "Pick from the list…",
     "inMemory": "already in memory",
     "noModels": "This provider returned no model.",
@@ -104,6 +104,7 @@
       "expiring": "to renew",
       "blocked": "not usable",
       "disconnected": "not connected"
-    }
+    },
+    "loadModelsNeedsUrl": "Enter the address first"
   }
 }

@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Cpu, Plug, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useLlmSwitch, useLlmSwitchMutations, type ProviderFields } from "@/api/hooks/llmswitch";
-import type { LlmSwitchModel, LlmSwitchProvider, LlmSwitchState, LlmSwitchSubscription, LlmSwitchType } from "@/api/types";
+import type { LlmSwitchModel, LlmSwitchModels, LlmSwitchProvider, LlmSwitchState, LlmSwitchSubscription, LlmSwitchType } from "@/api/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Dialog } from "@/components/ui/dialog";
@@ -33,7 +33,7 @@ export function LlmSwitchCard() {
   const { t } = useTranslation(["admin", "common"]);
   const { t: tc } = useTranslation("common");
   const state = useLlmSwitch();
-  const { create, update, remove, assign, test, models, reload } = useLlmSwitchMutations();
+  const { create, update, remove, assign, test, models, probeModels, reload } = useLlmSwitchMutations();
   const [form, setForm] = useState<Form | null>(null);
   const [choices, setChoices] = useState<LlmSwitchModel[]>([]);
   const [choicesError, setChoicesError] = useState("");
@@ -106,18 +106,19 @@ export function LlmSwitchCard() {
   };
 
   const loadModels = () => {
-    if (!form?.id) return;
+    if (!form) return;
     setChoicesError("");
-    models.mutate(
-      { id: form.id, refresh: true },
-      {
-        onSuccess: (res) => {
-          setChoices(res.models);
-          setChoicesError(res.error || (res.models.length === 0 ? t("admin:llmswitch.noModels") : ""));
-        },
-        onError: (err) => setChoicesError(errorMessage(err, tc)),
+    const onResult = {
+      onSuccess: (res: LlmSwitchModels) => {
+        setChoices(res.models);
+        setChoicesError(res.error || (res.models.length === 0 ? t("admin:llmswitch.noModels") : ""));
       },
-    );
+      onError: (err: unknown) => setChoicesError(errorMessage(err, tc)),
+    };
+    // A saved provider is asked by id; a new one is asked from the address and key just typed, so the
+    // list is there before the provider exists to point at.
+    if (form.id) models.mutate({ id: form.id, refresh: true }, onResult);
+    else probeModels.mutate({ type: form.type, base_url: form.base_url || undefined, api_key: form.api_key || undefined }, onResult);
   };
 
   const runTest = (id: string) =>
@@ -342,12 +343,19 @@ export function LlmSwitchCard() {
             <Field label={t("admin:llmswitch.model")} hint={t(form.id ? "admin:llmswitch.modelHint" : "admin:llmswitch.modelHintNew")}>
               <div className="flex flex-wrap gap-2">
                 <Input className="h-11 flex-1" value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} />
-                {form.id && (
-                  <Button type="button" variant="outline" className="h-11" loading={models.isPending} onClick={loadModels}>
-                    <Cpu className="h-4 w-4" />
-                    {t("admin:llmswitch.loadModels")}
-                  </Button>
-                )}
+                {/* Usable before Save: a new provider is probed from the address and key just
+                    typed. Never disabled — a provider that needs an address it does not have yet
+                    answers with the reason, which is more useful than a greyed-out button. */}
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-11"
+                  loading={models.isPending || probeModels.isPending}
+                  onClick={loadModels}
+                >
+                  <Cpu className="h-4 w-4" />
+                  {t("admin:llmswitch.loadModels")}
+                </Button>
               </div>
             </Field>
             {choices.length > 0 && (

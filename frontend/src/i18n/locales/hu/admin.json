@@ -71,7 +71,7 @@
     "model": "Modell",
     "modelHint": "Kérdezd meg a szolgáltatót, mit tud kiszolgálni, vagy írd be a pontos azonosítót.",
     "modelHintNew": "Írd be a pontos azonosítót; mentés után a szolgáltató saját listájából is választhatod.",
-    "loadModels": "Modellek listázása",
+    "loadModels": "Modellek lekérése",
     "pickModel": "Válassz a listából…",
     "inMemory": "már a memóriában",
     "noModels": "Ez a szolgáltató egyetlen modellt sem adott vissza.",
@@ -104,6 +104,7 @@
       "expiring": "megújítandó",
       "blocked": "nem használható",
       "disconnected": "nincs csatlakoztatva"
-    }
+    },
+    "loadModelsNeedsUrl": "Előbb add meg a címet"
   }
 }

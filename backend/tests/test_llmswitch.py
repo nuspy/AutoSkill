@@ -157,3 +157,55 @@ def test_cli_agent_folds_the_conversation_into_one_prompt():
         ]
     )
     assert prompt == "Be brief.\n\nUser: Hi\n\nAssistant: Hello"
+
+
+async def test_probing_models_before_saving_and_leaving_no_scratch_behind(app_client, registry_file, monkeypatch):
+    """The add form asks for a model id nobody memorises, so it must fetch the list from the fields
+    typed — before there is a saved provider to point at — and leave the registry as it found it."""
+    admin = await register(app_client, "admin@example.com")
+    headers = auth(admin["access_token"])
+
+    # The scratch provider is really added and removed by the production code; only the one network
+    # call the library would make is replaced, so what is exercised is the add/list/remove dance.
+    seen: dict = {}
+
+    def fake_models(self, pid, force=False):
+        seen["pid"] = pid
+        # the scratch entry exists here — the public listing shows it mid-probe
+        seen["present_during"] = pid in {p["id"] for p in self.public().get("providers", [])}
+        return [{"id": "great-model"}, {"id": "other-model"}]
+
+    monkeypatch.setattr(switch.registry().__class__, "models", fake_models, raising=True)
+
+    res = await app_client.post(
+        "/api/v1/llmswitch/probe-models",
+        json={"type": "lmstudio", "base_url": "http://127.0.0.1:1300/v1", "api_key": "k"},
+        headers=headers,
+    )
+    assert res.status_code == 200, res.text
+    body = res.json()
+    assert [m["id"] for m in body["models"]] == ["great-model", "other-model"]
+    assert seen["present_during"], "the scratch provider existed while it was asked"
+
+    # nothing saved: the providers list is still empty
+    state = (await app_client.get("/api/v1/llmswitch", headers=headers)).json()
+    assert state["providers"] == [], "the scratch provider was removed, not left behind"
+
+
+async def test_a_provider_that_cannot_be_reached_answers_with_the_reason(app_client, registry_file, monkeypatch):
+    """A half-filled form pointing nowhere is a normal state, not a failed request."""
+    admin = await register(app_client, "admin2@example.com")
+    headers = auth(admin["access_token"])
+
+    def boom(self, pid, force=False):
+        raise ConnectionError("connection refused")
+
+    monkeypatch.setattr(switch.registry().__class__, "models", boom, raising=True)
+    res = await app_client.post(
+        "/api/v1/llmswitch/probe-models",
+        json={"type": "lmstudio", "base_url": "http://127.0.0.1:9/v1"},
+        headers=headers,
+    )
+    assert res.status_code == 200
+    assert "connection refused" in res.json()["error"]
+    assert (await app_client.get("/api/v1/llmswitch", headers=headers)).json()["providers"] == []
