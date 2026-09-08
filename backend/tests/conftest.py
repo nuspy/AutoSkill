@@ -14,6 +14,17 @@ os.environ["AUTOSKILL_ENV"] = "test"
 os.environ["AUTOSKILL_JOBS"] = "inline"
 os.environ["AUTOSKILL_EVENTS"] = "memory"
 os.environ["AUTOSKILL_SECRET_KEY"] = "test-secret-key-for-tests-only-0123456789"
+# Pin the public URL to the default the tests are written against. Otherwise the developer's own
+# backend/.env (which points it at the dev frontend, e.g. localhost:5173) is loaded because pytest
+# runs from backend/, and every test that checks a generated link or email URL fails on a machine
+# that has one — the suite must not depend on the developer's .env.
+os.environ["AUTOSKILL_PUBLIC_URL"] = "http://localhost:8000"
+# An empty llmswitch registry, so a test never picks up the providers configured on the developer's
+# own machine. Without this the suite is not hermetic: `test_interview_requires_provider_when_no_fake`
+# expects "no provider" and passes only on a machine that happens to have none. The path points at a
+# file that does not exist, which llmswitch loads as an empty registry; test_llmswitch overrides it
+# per-test with its own.
+os.environ["AUTOSKILL_LLMSWITCH_REGISTRY"] = str(Path(tempfile.mkdtemp()) / "empty_llm_registry.json")
 
 from autoskill.config import get_settings  # noqa: E402
 from autoskill.core.events import reset_event_bus  # noqa: E402
