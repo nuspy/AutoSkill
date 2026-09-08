@@ -305,6 +305,7 @@
     "waitingInstall": "En attente de l'installation",
     "waitingInstallHelp": "Lancez la commande CLI ou installez manuellement avec le guide ci-dessous, puis démarrez la tâche dans votre agent.",
     "waitingAgent": "En attente que l'agent atteigne l'étape suivante… démarrez la tâche dans votre agent.",
+    "resumeAgent": "Reprendre avec l'agent",
     "notStartedTitle": "Votre agent n'a pas encore démarré cet essai",
     "notStartedBody": "Rien n'est parvenu à AutoSkill : l'agent n'a pas appelé start_run. Si vous avez décrit la tâche avec vos propres mots, il a pu choisir une autre compétence, ou faire le travail à la main sans les vérifications pas à pas. Nommez plutôt explicitement la compétence de l'essai.",
     "tellAgentSkill": "Dites ceci à votre agent",

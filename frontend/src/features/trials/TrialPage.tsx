@@ -1,10 +1,12 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { AlertTriangle, Archive, Check, MessageSquare, PauseCircle, PlayCircle, RotateCcw, SkipForward, Square, Undo2 } from "lucide-react";
+import { AlertTriangle, Archive, Check, MessageSquare, PauseCircle, Play, PlayCircle, RotateCcw, SkipForward, Square, Undo2 } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTrial, useTrialActions } from "@/api/hooks/trials";
+import { useLocalAgent } from "@/api/hooks/localAgent";
+import { runLocal } from "@/lib/localAgent";
 import type { Checkpoint, Discussion, Run, StepDefinition, TrialCreated, TrialSnapshot } from "@/api/types";
 import { Button } from "@/components/ui/button";
 import { CopyRow } from "@/components/ui/copy-row";
@@ -178,6 +180,47 @@ function InstallInstructions({
   );
 }
 
+/** Hand a stalled trial back to the local helper to drive on, when the helper is here.
+ *
+ * The agent started the run and then its own loop stopped between steps. This asks the helper to
+ * resume: it does not re-explain the task, it reads where the server says the trial stands and nudges
+ * the agent from exactly there through to `end_run`. It is the same `agent_run` the start button
+ * calls, told which trial — the driver skips the start when a run is already open. */
+function ResumeAgentButton({ target, trialId, prompt }: { target: string; trialId: string; prompt: string }) {
+  const { t } = useTranslation(["skills", "common"]);
+  const { available } = useLocalAgent();
+  const [running, setRunning] = useState(false);
+  const [progress, setProgress] = useState<string | null>(null);
+  if (!available) return null;
+  const run = async () => {
+    setRunning(true);
+    setProgress(null);
+    try {
+      await runLocal("agent_run", { target, prompt, trial_id: trialId }, setProgress);
+      toast.success(t("common:localAgent.done"));
+    } catch (err) {
+      toast.error(`${(err as Error).message}`);
+    } finally {
+      setRunning(false);
+      setProgress(null);
+    }
+  };
+  return (
+    <div className="space-y-1">
+      <Button variant="primary" loading={running} onClick={run}>
+        <Play className="h-4 w-4" />
+        {t("skills:trials.resumeAgent")}
+      </Button>
+      {progress && (
+        <p className="flex items-center gap-1 text-xs text-muted">
+          <Check className="h-3 w-3 text-success" aria-hidden />
+          {progress}
+        </p>
+      )}
+    </div>
+  );
+}
+
 /** What the page shows while nothing is pending — which is two different situations, not one.
  *
  * It used to show a single spinner and "start the task in your agent" for both. But a trial that the
@@ -190,7 +233,7 @@ function InstallInstructions({
  * `runs` is what separates them: it is empty until the agent calls `start_run`. So when it is empty
  * the page stops implying the agent is busy and says the one thing that actually unblocks the
  * person — name the skill instead of describing the task. */
-function WaitingCard({ detail }: { detail: { runs: Run[]; steps: StepDefinition[]; checkpoints: Checkpoint[]; skill_name: string; trial: { updated_at: string; target_agent: string } } }) {
+function WaitingCard({ detail }: { detail: { runs: Run[]; steps: StepDefinition[]; checkpoints: Checkpoint[]; skill_name: string; trial: { id: string; updated_at: string; target_agent: string } } }) {
   const { t, i18n } = useTranslation(["skills", "common"]);
   const instruction = t("skills:trials.tellAgentSkillText", { skill: detail.skill_name });
   const started = detail.runs.length > 0;
@@ -229,9 +272,16 @@ function WaitingCard({ detail }: { detail: { runs: Run[]; steps: StepDefinition[
   if (started) {
     return (
       <Card>
-        <CardBody className="flex items-center gap-3 text-sm text-muted">
-          <Spinner className="h-4 w-4" />
-          {t("skills:trials.waitingAgent")}
+        <CardBody className="space-y-3 text-sm">
+          <p className="flex items-center gap-3 text-muted">
+            <Spinner className="h-4 w-4" />
+            {t("skills:trials.waitingAgent")}
+          </p>
+          {/* When the agent's own loop has stopped between steps, this hands the walkthrough back to
+              the helper to drive on — it reads where the server says the trial is and nudges the
+              agent from there. Shown only when the helper is present; otherwise the person re-prompts
+              their agent themselves. */}
+          <ResumeAgentButton target={detail.trial.target_agent} trialId={detail.trial.id} prompt={instruction} />
         </CardBody>
       </Card>
     );
@@ -247,7 +297,10 @@ function WaitingCard({ detail }: { detail: { runs: Run[]; steps: StepDefinition[
         <CopyRow
           label={t("skills:trials.tellAgentSkill")}
           value={instruction}
-          action={{ op: "agent_run", params: { target: detail.trial.target_agent, prompt: instruction } }}
+          // With `trial_id`, the helper does not just start the agent — it drives the whole trial,
+          // re-nudging it past each decision until `end_run`, so a turn that ends early does not
+          // strand the walkthrough. Without the helper the sentence is still there to paste.
+          action={{ op: "agent_run", params: { target: detail.trial.target_agent, prompt: instruction, trial_id: detail.trial.id } }}
         />
         <p className="text-xs text-muted">
           {t("skills:trials.notStartedSince", { since: timeAgo(detail.trial.updated_at, i18n.language) })}

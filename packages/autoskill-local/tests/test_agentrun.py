@@ -196,3 +196,84 @@ def test_a_request_from_the_agent_is_refused_rather_than_ignored(monkeypatch):
 
     refusals = [m for m in agent.written if m.get("id") == 99 and "error" in m]
     assert refusals, "the agent's request was answered, and answered no"
+
+
+# --- driving a trial past an agent that stops between steps ------------------------------------
+
+
+def _drive(states, *, prompt="use the skill and follow the protocol", **kw):
+    """Run drive_trial over a scripted sequence of `/sync` agent-blocks, recording each agent call."""
+    seq = iter(states)
+    calls: list[str] = []
+    result = agentrun.drive_trial(
+        "hermes",
+        prompt,
+        poll=lambda: next(seq),
+        invoke=lambda text: calls.append(text) or {"mode": "fake"},
+        poll_interval_s=0.0,
+        human_wait_s=1.0,
+        **kw,
+    )
+    return result, calls
+
+
+def test_a_fresh_trial_is_started_then_nudged_to_the_end():
+    """The agent stops after each decision; the driver starts it, then hands it the next step until
+    the run closes."""
+    result, calls = _drive(
+        [
+            {"run_open": False, "started": False},  # first look: nothing has started
+            {"run_open": True, "started": True, "waiting_on_human": False,
+             "next_hint": "Send checkpoint phase='preview'", "next_phase": "preview",
+             "next_step_key": "s1", "last_checkpoint_id": "cp1"},
+            {"run_open": True, "started": True, "waiting_on_human": False,
+             "next_hint": "Send checkpoint phase='execute'", "next_phase": "execute",
+             "next_step_key": "s1", "last_checkpoint_id": "cp2"},
+            {"run_open": False, "started": True, "run_status": "succeeded"},
+        ]
+    )
+    assert result["status"] == "completed" and result["nudges"] == 2
+    assert calls[0] == "use the skill and follow the protocol", "the first turn is the start instruction"
+    assert "Send checkpoint phase='preview'" in calls[1], "then the server's own next hint"
+    assert "do not end your turn until you have called `end_run`" in calls[1]
+
+
+def test_a_trial_already_running_is_resumed_without_being_restarted():
+    """A run is already open: the driver must not send `start_run` again, only nudge on."""
+    result, calls = _drive(
+        [
+            {"run_open": True, "started": True, "waiting_on_human": False,
+             "next_hint": "Send checkpoint phase='preview'", "last_checkpoint_id": "cp1"},
+            {"run_open": False, "started": True, "run_status": "succeeded"},
+        ]
+    )
+    assert result["status"] == "completed" and result["nudges"] == 1
+    assert all("use the skill" not in c for c in calls), "the start instruction is never sent"
+    assert len(calls) == 1 and "phase='preview'" in calls[0]
+
+
+def test_a_checkpoint_awaiting_the_person_is_left_alone():
+    """A pending checkpoint is the person's to decide; nudging would only raise it twice."""
+    result, calls = _drive(
+        [
+            {"run_open": False, "started": False},
+            {"run_open": True, "started": True, "waiting_on_human": True, "last_checkpoint_id": "cp1"},
+            {"run_open": True, "started": True, "waiting_on_human": False,
+             "next_hint": "Send checkpoint phase='execute'", "last_checkpoint_id": "cp1"},
+            {"run_open": False, "started": True, "run_status": "succeeded"},
+        ]
+    )
+    assert result["status"] == "completed"
+    assert result["nudges"] == 1, "no nudge while it was the person's turn, one after they decided"
+    assert calls[0].startswith("use the skill"), "start"
+    assert "phase='execute'" in calls[1]
+
+
+def test_an_agent_that_a_nudge_never_moves_is_handed_back():
+    """When a nudge produces no new checkpoint twice over, the agent is genuinely stuck: stop prodding
+    it and return, so a person can step in rather than watch it loop."""
+    stuck = {"run_open": True, "started": True, "waiting_on_human": False,
+             "next_hint": "Send checkpoint phase='preview'", "last_checkpoint_id": "cp1"}
+    result, calls = _drive([{"run_open": False, "started": False}, stuck, stuck, stuck])
+    assert result["status"] == "stuck" and result["nudges"] == 2
+    assert result["next_hint"] == "Send checkpoint phase='preview'"

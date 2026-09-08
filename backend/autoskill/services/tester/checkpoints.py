@@ -505,3 +505,51 @@ async def next_action(session: AsyncSession, cp: Checkpoint) -> dict[str, Any]:
 async def decision_reply(session: AsyncSession, cp: Checkpoint) -> dict[str, Any]:
     """`decision_payload` plus what to do next — the shape every checkpoint answer returns."""
     return {**decision_payload(cp), **await next_action(session, cp)}
+
+
+async def agent_progress(session: AsyncSession, trial: TrialSession) -> dict[str, Any]:
+    """Where the agent stands in this trial and what it should do next — for the local driver.
+
+    An agent's own loop can end after a single checkpoint (it did `explain`, was told `continue`, and
+    stopped instead of moving to `preview`), and then the person's page waits for a step that is never
+    coming. The companion polls this to decide, without guessing, whether to nudge the agent on or to
+    leave it be:
+
+    * `waiting_on_human` — the last checkpoint is still `pending`. The agent is right to wait; nudging
+      it would only make it raise the same checkpoint twice. The driver waits too.
+    * `next_hint` set — the last checkpoint is `decided` and the agent has not acted on the decision.
+      This is the case to nudge: the hint is the very sentence `await_decision` already returned.
+    * `run_open` false — the run ended (`end_run`) or never started. Nothing to drive.
+
+    `last_checkpoint_id` lets the driver tell a nudge that worked (a new checkpoint appeared) from one
+    that did nothing, so it can give up instead of prodding a genuinely stuck agent for ever.
+    """
+    run = (
+        await session.execute(
+            select(Run).where(Run.trial_session_id == trial.id).order_by(Run.started_at.desc()).limit(1)
+        )
+    ).scalar_one_or_none()
+    base = {"run_id": None, "run_status": None, "run_open": False, "started": run is not None,
+            "waiting_on_human": False, "next_call": None, "next_hint": None, "next_phase": None,
+            "next_step_key": None, "last_checkpoint_id": None}
+    if run is None:
+        return {**base, "next_call": "start_run",
+                "next_hint": "No run has started for this trial. Call `start_run`, then send the first "
+                             "`explain` checkpoint for the first step."}
+    base.update(run_id=run.id, run_status=run.status)
+    if run.ended_at is not None or run.status != "running":
+        return base  # the run is closed; there is nothing to drive
+    base["run_open"] = True
+    cp = (
+        await session.execute(
+            select(Checkpoint).where(Checkpoint.run_id == run.id).order_by(Checkpoint.created_at.desc()).limit(1)
+        )
+    ).scalar_one_or_none()
+    if cp is None:
+        return {**base, "next_call": "checkpoint", "next_phase": "explain",
+                "next_hint": "The run has started but no checkpoint has been sent yet. Send the first "
+                             "`explain` checkpoint for the first step."}
+    base["last_checkpoint_id"] = cp.id
+    if cp.state == "pending":
+        return {**base, "waiting_on_human": True}
+    return {**base, **await next_action(session, cp)}

@@ -250,6 +250,8 @@ def op_agent_run(params: dict[str, Any], say: Callable[[str], None]) -> dict[str
     page — which is the difference between this and a remote shell.
     """
     from autoskill_local import agentrun
+    from autoskill_local.cli import _cfg
+    from autoskill_local.client import Client
 
     prompt = params.get("prompt")
     target = params.get("target")
@@ -257,7 +259,37 @@ def op_agent_run(params: dict[str, Any], say: Callable[[str], None]) -> dict[str
         raise LocalRefusal("prompt_required", "there is nothing to ask the agent")
     if not target:
         raise LocalRefusal("target_required", "say which agent should do it")
-    return agentrun.run(target, prompt, mode=params.get("mode"), timeout_s=int(params.get("timeout_s") or 900), say=say)
+    # Optional per-run model override, so a trial can name a model that is actually reachable (a local
+    # one) without changing the agent's own default. The page passes an id, never a program to run.
+    model = str(params.get("agent_model") or "")
+    provider = str(params.get("agent_provider") or "")
+
+    # A trial is not one instruction but a walkthrough with pauses, and some agents stop at the first
+    # pause. When the page names the trial, drive it: start it, then re-nudge the agent past each
+    # decision until `end_run`. The trial token is not taken from the page — it is the one this machine
+    # already holds from installing the trial, so a page cannot borrow another trial's authority.
+    trial_id = params.get("trial_id")
+    if trial_id:
+        cfg = _cfg()
+        if not cfg.server_url:
+            raise LocalRefusal("not_logged_in", "this machine is not connected to an AutoSkill server")
+        token = ((cfg.trials or {}).get(trial_id) or {}).get("token")
+        if not token:
+            raise LocalRefusal("unknown_trial", "this machine has no token for that trial — install the trial first")
+        client = Client(cfg.server_url, trial_token=token)
+
+        def poll() -> dict[str, Any]:
+            return (client.get(f"/trials/{trial_id}/sync") or {}).get("agent") or {}
+
+        return agentrun.drive_trial(
+            target, prompt, poll=poll, say=say,
+            max_nudges=int(params.get("max_nudges") or 12), model=model, provider=provider,
+        )
+
+    return agentrun.run(
+        target, prompt, mode=params.get("mode"), timeout_s=int(params.get("timeout_s") or 900),
+        say=say, model=model, provider=provider,
+    )
 
 
 def op_agents(_params: dict[str, Any], _say: Callable[[str], None]) -> dict[str, Any]:

@@ -964,6 +964,85 @@ async def test_a_decision_says_what_to_do_next(app_client):
         set_fake_provider(None)
 
 
+async def test_sync_tells_the_local_driver_where_the_agent_is(app_client):
+    """The `agent` block of /sync is what the companion's driver reads to keep a stalled trial moving.
+
+    It has to tell three situations apart: no run yet, the person's turn (a `pending` checkpoint —
+    leave it be), and the agent's turn (a `decided` checkpoint the agent has not acted on — nudge it,
+    with the same hint the checkpoint reply would have carried). It answers to the trial token alone,
+    because the driver holds that and no user session.
+    """
+    user, headers, project = await setup_project(app_client)
+    fake = FakeLlmProvider()
+    set_fake_provider(fake)
+    try:
+        _skill_id, version = await make_draft(app_client, headers, project, fake)
+        trial = (
+            await app_client.post(
+                "/api/v1/trials",
+                json={"skill_version_id": version["id"], "target_agent": "hermes", "purpose": "develop"},
+                headers=headers,
+            )
+        ).json()
+        token = trial["session_token"]
+        await app_client.post(
+            f"/api/v1/trials/{trial['id']}/installed", json={"install_manifest": {}, "build": 1}, headers=headers
+        )
+
+        async def sync_agent() -> dict:
+            res = await app_client.get(f"/api/v1/trials/{trial['id']}/sync", headers=trial_headers(token))
+            return res.json()["agent"]
+
+        # 1. nothing has started: the driver should launch the trial
+        first = await sync_agent()
+        assert first["run_open"] is False and first["started"] is False
+        assert first["next_call"] == "start_run"
+
+        run_id = (
+            await app_client.post(
+                "/api/v1/telemetry/runs",
+                json={"skill_name": "invoice-check", "agent_target": "hermes"},
+                headers=trial_headers(token),
+            )
+        ).json()["run_id"]
+
+        # 2. run open, no checkpoint yet: the agent's turn — send the first explain
+        started = await sync_agent()
+        assert started["run_open"] is True and started["waiting_on_human"] is False
+        assert started["next_phase"] == "explain"
+
+        # 3. an explain checkpoint raised but not decided: the person's turn — the driver waits
+        cp = (
+            await app_client.post(
+                "/api/v1/checkpoints",
+                json={"run_id": run_id, "step_key": "open-sheet", "phase": "explain"},
+                headers=trial_headers(token),
+            )
+        ).json()
+        waiting = await sync_agent()
+        assert waiting["waiting_on_human"] is True
+        assert waiting["last_checkpoint_id"] == cp["checkpoint_id"]
+        assert waiting["next_hint"] is None, "nothing for the agent to do while the person decides"
+
+        # 4. decided `continue`: the agent's turn again, with the next step named
+        await app_client.post(
+            f"/api/v1/checkpoints/{cp['checkpoint_id']}/decision", json={"decision": "continue"}, headers=headers
+        )
+        resumed = await sync_agent()
+        assert resumed["waiting_on_human"] is False
+        assert resumed["next_phase"] == "preview" and resumed["next_step_key"] == "open-sheet"
+        assert "preview" in resumed["next_hint"]
+
+        # 5. the run ends: there is nothing left to drive
+        await app_client.post(
+            f"/api/v1/telemetry/runs/{run_id}/end", json={"status": "succeeded"}, headers=trial_headers(token)
+        )
+        ended = await sync_agent()
+        assert ended["run_open"] is False and ended["started"] is True
+    finally:
+        set_fake_provider(None)
+
+
 async def test_the_install_command_shows_your_own_token_and_never_somebody_elses(app_client):
     """The command is printed ready to run, and the token in it belongs to whoever is reading.
 

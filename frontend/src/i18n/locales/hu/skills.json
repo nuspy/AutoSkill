@@ -305,6 +305,7 @@
     "waitingInstall": "Várakozás a telepítésre",
     "waitingInstallHelp": "Futtasd a CLI-parancsot vagy telepítsd kézzel az alábbi útmutatóval, majd indítsd el a feladatot az ügynöködben.",
     "waitingAgent": "Várakozás, hogy az ügynök a következő lépéshez érjen… indítsd el a feladatot az ügynöködben.",
+    "resumeAgent": "Folytatás az ügynökkel",
     "notStartedTitle": "Az ügynököd még nem indította el ezt a próbát",
     "notStartedBody": "Az AutoSkillhez semmi nem érkezett: az ügynök nem hívta meg a start_run-t. Ha a feladatot a saját szavaiddal írtad le, lehet, hogy másik képességet választott, vagy kézzel végezte el a munkát a lépésenkénti ellenőrzések nélkül. Ehelyett nevezd meg kifejezetten a próba képességét.",
     "tellAgentSkill": "Ezt mondd az ügynöködnek",

@@ -60,6 +60,12 @@ class LocalTarget:
     exe_rel: tuple[str, ...] = ()  # paths inside `base` worth trying, best first
     acp_args: tuple[str, ...] = ()  # a JSON-RPC session over stdio: the turns can be watched
     oneshot_args: tuple[str, ...] = ()  # "{prompt}" is replaced; one answer, no session to watch
+    # Flags that override the model/provider for one invocation, when the agent supports it. They let a
+    # trial run on a model the page names — a local one that is actually reachable — without touching
+    # the agent's own default config. Empty means "this agent takes no such override": the request is
+    # then ignored rather than passed as an argument the agent would reject.
+    model_flag: str = ""
+    provider_flag: str = ""
 
     def __init__(self, home: Path | None = None, home_dir: str | Path | None = None) -> None:
         self.home = Path(home) if home else Path.home()
@@ -161,13 +167,26 @@ class LocalTarget:
         return path
 
     # --- skills ------------------------------------------------------------------------
+    @property
+    def _backup_root(self) -> Path:
+        """Where a replaced skill is kept, OUTSIDE the skills directory the agent scans.
+
+        A backup used to live beside the skill as `.<name>.autoskill-backup`, and the leading dot was
+        meant to hide it. It did not: an agent indexes skills by the `name` in each `SKILL.md`, not by
+        the folder name, so the backup — carrying the same `name` — showed up as a second skill with
+        that name and the agent refused to load either ("two skills named X, give me a full path").
+        Keeping the backup one level up, out of the scanned tree, restores it without being seen.
+        """
+        return self.base / ".autoskill-skill-backups"
+
     def install_skill(self, package_dir: Path, skill_name: str) -> dict[str, Any]:
         dest = self.skill_dir / skill_name
         backup = None
         if dest.exists():
-            backup = dest.with_name(f".{skill_name}.autoskill-backup")
+            backup = self._backup_root / skill_name
             if backup.exists():
                 shutil.rmtree(backup)
+            backup.parent.mkdir(parents=True, exist_ok=True)
             dest.rename(backup)
         dest.parent.mkdir(parents=True, exist_ok=True)
         shutil.copytree(package_dir, dest)

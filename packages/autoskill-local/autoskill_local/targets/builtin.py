@@ -31,6 +31,10 @@ class Hermes(LocalTarget):
     exe_rel = ("hermes-agent/venv/Scripts/hermes.exe", "hermes-agent/venv/bin/hermes")
     acp_args = ("acp",)
     oneshot_args = ("-z", "{prompt}")
+    # `hermes -m MODEL --provider PROVIDER` overrides the model for one run (verified in `hermes --help`:
+    # "Model override for this invocation"). They are global flags, so they go before the subcommand.
+    model_flag = "-m"
+    provider_flag = "--provider"
 
     def _parse(self, text: str) -> dict[str, Any]:
         return yaml.safe_load(text) or {}

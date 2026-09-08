@@ -1,6 +1,6 @@
 [project]
 name = "autoskill-local"
-version = "0.6.0"
+version = "0.8.0"
 description = "AutoSkill user-side CLI and companion MCP server: install, trial and report skills on your own agent"
 requires-python = ">=3.11"
 dependencies = [

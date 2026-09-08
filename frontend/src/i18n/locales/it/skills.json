@@ -305,6 +305,7 @@
     "waitingInstall": "In attesa dell'installazione",
     "waitingInstallHelp": "Esegui il comando CLI o installa manualmente con la guida qui sotto, poi avvia il task nel tuo agente.",
     "waitingAgent": "In attesa che l'agente arrivi al passo successivo… avvia il task nel tuo agente.",
+    "resumeAgent": "Riprendi con l'agente",
     "notStartedTitle": "Il tuo agente non ha ancora avviato questo trial",
     "notStartedBody": "Ad AutoSkill non è arrivato nulla: l'agente non ha chiamato start_run. Se hai descritto il compito a parole tue, può aver scelto un'altra skill, o averlo svolto a mano senza le verifiche passo per passo. Nomina invece la skill del trial in modo esplicito.",
     "tellAgentSkill": "Di' questo al tuo agente",

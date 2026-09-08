@@ -31,6 +31,7 @@ from autoskill.schemas.trial import (
 )
 from autoskill.services.distribution import bundle as bundles
 from autoskill.services.targets import get_adapter
+from autoskill.services.tester import checkpoints
 from autoskill.services.trials import service
 
 router = APIRouter(prefix="/trials", tags=["trials"])
@@ -250,7 +251,12 @@ async def sync_state(
     user: Annotated[User | None, Depends(get_optional_user)],
     x_autoskill_trial: Annotated[str | None, Header()] = None,
 ) -> dict:
-    """Polled by the CLI: tells whether the installed build is stale and what state the trial is in."""
+    """Polled by the CLI: build staleness, trial state, and where the agent is in the walkthrough.
+
+    The `agent` block is what the local driver reads to keep a stalled trial moving: whether a run is
+    open, whether it is the person's turn or the agent's, and — when it is the agent's — the exact next
+    call. See `checkpoints.agent_progress`.
+    """
     trial = await _trial_for_client(request, session, trial_id, x_autoskill_trial, user)
     version = await session.get(SkillVersion, trial.skill_version_id)
     installed_build = int((trial.install_manifest or {}).get("build") or 0)
@@ -261,6 +267,7 @@ async def sync_state(
         "stale": bool(version and version.build != installed_build),
         "keep_installed": trial.keep_installed,
         "outcome": trial.outcome,
+        "agent": await checkpoints.agent_progress(session, trial),
     }
 
 
