@@ -16,9 +16,22 @@ def partial_doc() -> dict:
 
 
 def filled_doc() -> dict:
+    """A complete knowledge document. Other suites (drafting, bundle, ...) seed one with this."""
     doc = complete_doc()
     doc.human_confirmed = False
     return doc.model_dump()
+
+
+def filled_patch() -> dict:
+    """What ingest returns now: a patch of only what the answer changed, not the whole document.
+
+    Merged over the intake doc it fills the one data source's `access` and resolves the open question —
+    the two things `partial_doc` left open — so every gate then passes except G8 (human confirmation).
+    """
+    return {
+        "data_sources": [complete_doc().data_sources[0].model_dump()],
+        "resolved_open_questions": ["Which folder holds the invoices?"],
+    }
 
 
 async def setup_project(app_client):
@@ -85,7 +98,7 @@ async def test_interview_full_flow_with_supervisor_and_confirmation(app_client):
         assert bad.status_code == 409
 
         fake.script(
-            Scripted(purpose="interviewer", json=filled_doc()),  # ingest -> all gates pass except G8
+            Scripted(purpose="interviewer", json=filled_patch()),  # ingest patch -> all gates pass except G8
             Scripted(
                 purpose="interviewer", text="Here is what I understood: you check invoices every Monday."
             ),  # summary
@@ -101,9 +114,14 @@ async def test_interview_full_flow_with_supervisor_and_confirmation(app_client):
         assert detail["knowledge"]["revision"] == 2
         assert "understood" in detail["session"]["pending_question"]["question"]
 
-        # reject the summary with a correction -> back to the loop
+        # reject the summary with a correction -> back to the loop. On rejection the code appends the
+        # correction as an open question; the ingest patch folds it in and resolves it (a full-doc
+        # ingest used to wipe it by replacing everything — the patch has to say so explicitly).
         fake.script(
-            Scripted(purpose="interviewer", json=filled_doc()),  # ingest correction
+            Scripted(
+                purpose="interviewer",
+                json={"resolved_open_questions": ["Correction from the person: The limit is 1000 not 500"]},
+            ),  # ingest correction patch
             Scripted(purpose="interviewer", text="Updated summary: invoices on Monday, flag over 1000."),
         )
         rejected = await app_client.post(

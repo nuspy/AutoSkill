@@ -90,6 +90,37 @@ class KnowledgeDocModel(BaseModel):
     human_confirmed: bool = False
 
 
+class KnowledgeDocPatch(BaseModel):
+    """Only what the latest answer changed, not the whole document rewritten.
+
+    The interview used to ask the model to return the COMPLETE knowledge document every turn. That
+    made each turn cost as much as the document was long, and the document only grows: by the
+    fourteenth turn it was ~28k characters, the model re-emitted all of it to fold in one answer, and
+    a single turn took over a minute — three of them per question, worse every turn. This is the fix:
+    the model returns only the changes, and code merges them into the stored document.
+
+    Every list here is an **upsert by the item's natural key** — `steps` by `key`, `edge_cases` by
+    `condition`, `data_sources` by `ref`, `acceptance_criteria` by `id`, `integrations` by `system`,
+    `inputs`/`outputs`/`glossary` by `name`. An item whose key already exists replaces that one (this
+    is how a field gets refined or an edge case confirmed); a new key is appended; anything not
+    mentioned is left exactly as it was. `task` and `constraints` merge field by field. Open questions
+    the answer resolved go in `resolved_open_questions`; genuinely new ones in `new_open_questions`.
+    """
+
+    task: TaskInfo | None = None
+    constraints: Constraints | None = None
+    data_sources: list[SourceRef] = Field(default_factory=list)
+    inputs: list[IOItem] = Field(default_factory=list)
+    outputs: list[IOItem] = Field(default_factory=list)
+    steps: list[Step] = Field(default_factory=list)
+    edge_cases: list[EdgeCase] = Field(default_factory=list)
+    acceptance_criteria: list[AcceptanceCriterion] = Field(default_factory=list)
+    integrations: list[Integration] = Field(default_factory=list)
+    glossary: list[IOItem] = Field(default_factory=list)
+    new_open_questions: list[str] = Field(default_factory=list)
+    resolved_open_questions: list[str] = Field(default_factory=list)
+
+
 class GateResult(BaseModel):
     id: str
     title: str

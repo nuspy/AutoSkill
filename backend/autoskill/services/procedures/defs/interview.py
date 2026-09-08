@@ -24,10 +24,13 @@ from autoskill.models.skill import Skill
 from autoskill.prompts import render
 from autoskill.schemas.knowledge import (
     KnowledgeDocModel,
+    KnowledgeDocPatch,
     QuestionSpec,
     SupervisorDecision,
 )
 from autoskill.services.interview.gates import all_passed, completeness, compute_gates, first_failing
+from autoskill.services.interview.merge import merge_patch
+from autoskill.services.interview.view import compact_view
 from autoskill.services.library.catalog import library_catalog
 from autoskill.services.memory.extract import extract_memory
 from autoskill.services.procedures.engine import (
@@ -200,7 +203,9 @@ async def supervise(ctx: ProcedureContext):
     prompt = render(
         "interview_supervisor",
         gates=gates,
-        knowledge_json=json.dumps(knowledge.doc, ensure_ascii=False),
+        # A compact view, not the whole document: the supervisor reads it to decide what is missing,
+        # and the gate results above are already authoritative, so it never needs the long prose.
+        knowledge_json=json.dumps(compact_view(knowledge.doc), ensure_ascii=False),
         turn_count=interview.turn_count,
         max_turns=max_turns,
         library=await library_catalog(ctx.session),
@@ -293,7 +298,9 @@ async def ask(ctx: ProcedureContext):
                 target_gate=ctx.state.get("target_gate", "G1"),
                 guidance=ctx.state.get("guidance", ""),
                 suggested=ctx.state.get("suggested"),
-                knowledge_json=json.dumps(knowledge.doc, ensure_ascii=False),
+                # A compact view: asking the next question needs the keys, titles, open questions and
+                # gate state, not the full step descriptions or edge-case narratives.
+                knowledge_json=json.dumps(compact_view(knowledge.doc), ensure_ascii=False),
                 library=await library_catalog(ctx.session),
                 executor=executor,
             )
@@ -334,8 +341,12 @@ async def ingest(ctx: ProcedureContext):
         knowledge_json=json.dumps(knowledge.doc, ensure_ascii=False),
         answered_by=ctx.state.get("answered_by", "person"),
     )
-    result = await _llm(ctx, interview, "interviewer", prompt, KnowledgeDocModel)
-    doc: KnowledgeDocModel = result.value
+    # The model returns only what the answer changed; code folds it into the stored document. It used
+    # to return the whole document every turn, which cost as much as the document was long and only
+    # got slower as the interview went on — the reason a late turn took minutes.
+    result = await _llm(ctx, interview, "interviewer", prompt, KnowledgeDocPatch)
+    patch: KnowledgeDocPatch = result.value
+    doc = merge_patch(KnowledgeDocModel.model_validate(knowledge.doc), patch)
     doc.human_confirmed = False
     await _save_knowledge(ctx, interview, doc)
     interview.pending_question = None

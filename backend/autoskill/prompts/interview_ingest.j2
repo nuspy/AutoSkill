@@ -17,16 +17,26 @@ sheet names, column headers, versions and reachability as verified facts: record
 `edge_cases`, rather than leaving them as prose. Do not ask the person to confirm what was observed.
 {% endif %}
 
-Update the knowledge document accordingly. Return the COMPLETE updated document (all fields), keeping
-everything that is still valid, changing only what the answer clarifies, and removing resolved entries
-from open_questions. Never drop steps or sources unless the person said they are wrong. Add or refine
-edge cases, decision rules, acceptance criteria, integrations (systems, credentials names, authorizations)
-and side effects when the answer reveals them.
+Return ONLY what this answer changed — a patch, not the whole document. Anything you do not mention is
+kept exactly as it is, so do NOT repeat unchanged items.
+
+How the patch is applied:
+- Every list (`steps`, `edge_cases`, `data_sources`, `acceptance_criteria`, `integrations`, `inputs`,
+  `outputs`, `glossary`) is merged by each item's natural key: `steps` by `key`, `edge_cases` by
+  `condition`, `data_sources` by `ref`, `acceptance_criteria` by `id`, `integrations` by `system`,
+  `inputs`/`outputs`/`glossary` by `name`.
+- To ADD something new, include it with a new key. To CHANGE or CONFIRM an existing item, include it
+  with the SAME key spelled exactly as below, carrying its full corrected content. Include only the
+  items that actually change — never the ones that stay the same.
+- `task` and `constraints`: include only the fields the answer clarifies; omitted fields are kept.
+- Put every open question this answer resolves in `resolved_open_questions` (copy their text exactly
+  from the list below). Put genuinely new open questions in `new_open_questions`. Do not restate the
+  open questions that remain unresolved.
 
 When an edge case concerns one particular data source, set its `source_ref` to that source's `ref`,
 exactly as spelled in `data_sources`, and set `confirmed` to true once the person has answered what
 should happen. An edge case left with an empty `source_ref` counts for no source at all, so the same
 question gets asked again however clearly it was answered.
 
-Current knowledge document:
+Current knowledge document (for reference — do not echo it back):
 {{ knowledge_json }}
