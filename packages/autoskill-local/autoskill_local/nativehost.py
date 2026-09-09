@@ -202,7 +202,9 @@ def op_trial_settle(params: dict[str, Any], say: Callable[[str], None]) -> dict[
     cfg = _cfg()
     info = _trial_record(cfg, session, params.get("token"))
     keep = bool(params.get("keep")) and outcome == "accepted"
-    keep = _report_outcome(cfg, session, info["token"], outcome, keep)
+    # `say` everywhere: this path must never write to stdout, which the browser uses as the protocol
+    # channel — a stray print there breaks the native messaging stream.
+    keep = _report_outcome(cfg, session, info["token"], outcome, keep, say)
     _finish_trial(cfg, session, keep, say)
     return {"session": session, "outcome": outcome, "kept": keep}
 
@@ -366,7 +368,14 @@ def serve(stdin: BinaryIO, stdout: BinaryIO, origin: str | None) -> int:
 def main() -> None:
     # Binary, unbuffered: the framing is bytes, and on Windows a text-mode stdout would translate
     # newlines inside a length-prefixed body and corrupt every message that contained one.
-    raise SystemExit(serve(sys.stdin.buffer, sys.stdout.buffer, sys.argv[1] if len(sys.argv) > 1 else None))
+    channel = sys.stdout.buffer
+    # Capture the real stdout as the protocol channel, then point `sys.stdout` at stderr for the rest
+    # of the process. The CLI code these ops share is full of `typer.echo`/`print`, and a single stray
+    # line written to stdout would corrupt the length-prefixed stream — the extension then only says
+    # "Error communicating with the native messaging host". Redirecting means no accidental print can
+    # break the protocol; the deliberate protocol writes go through `channel`, captured above.
+    sys.stdout = sys.stderr
+    raise SystemExit(serve(sys.stdin.buffer, channel, sys.argv[1] if len(sys.argv) > 1 else None))
 
 
 if __name__ == "__main__":  # `python -m autoskill_local.nativehost`, which is how the tests drive it

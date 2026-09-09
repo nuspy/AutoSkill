@@ -988,7 +988,9 @@ def _promote_to_permanent(
         say(f"{name}: kept the trial copy with its trial instructions removed.")
 
 
-def _report_outcome(cfg: LocalConfig, sid: str, token: str, outcome: str, keep: bool) -> bool:
+def _report_outcome(
+    cfg: LocalConfig, sid: str, token: str, outcome: str, keep: bool, say: Progress = typer.echo
+) -> bool:
     """Tell the server the outcome, and cope with it already knowing. Returns the keep to act on.
 
     The outcome is normally decided in the browser, and the page then asks the person to run this
@@ -1007,13 +1009,18 @@ def _report_outcome(cfg: LocalConfig, sid: str, token: str, outcome: str, keep: 
     except ServerError as exc:
         if exc.code not in ("trial_not_open", "trial_closed"):
             raise
+        # `say`, not typer: this runs from the browser's native messaging host too, whose stdout is the
+        # length-prefixed protocol channel. A `typer.echo`/`secho` here writes plain text onto it and
+        # corrupts the stream — the extension then reports "Error communicating with the native
+        # messaging host", which is exactly what happened on every "keep installed" (the browser had
+        # already decided the trial, so this path — the 409 branch — always ran).
         try:
             trial = _client(cfg).get(f"/trials/{sid}")["trial"]
         except (ServerError, OSError):
-            typer.secho("This trial is already closed on the server; settling the local copy.", fg=typer.colors.YELLOW)
+            say("This trial is already closed on the server; settling the local copy.")
             return keep
         decided, kept = trial.get("outcome"), trial.get("keep_installed")
-        typer.secho(f"Already decided in AutoSkill as {decided!r}; settling the local copy to match.", fg=typer.colors.YELLOW)
+        say(f"Already decided in AutoSkill as {decided!r}; settling the local copy to match.")
         return keep if kept is None else bool(kept)
 
 
