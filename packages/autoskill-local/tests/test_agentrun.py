@@ -325,3 +325,21 @@ def test_an_explicit_model_is_not_overridden_by_autodetection(monkeypatch):
     monkeypatch.setattr(agentrun, "run_oneshot", lambda tid, prompt, **kw: {"model": kw.get("model")})
     res = agentrun.run("hermes", "do it", model="gpt-5", provider="openai")
     assert res["model"] == "gpt-5" and called["auto"] is False, "an explicit choice wins, and autodetect is skipped"
+
+
+def test_a_closed_run_with_a_gap_starts_a_fresh_run_to_retry():
+    """A previous run ended with a step unconfirmed (`needs_new_run`): the driver launches a new run
+    that resumes at the gap, rather than reporting the trial complete."""
+    result, calls = _drive([
+        {"run_open": False, "started": True, "needs_new_run": True, "next_step_key": "step2"},  # retry needed
+        {"run_open": True, "started": True, "waiting_on_human": False,
+         "next_hint": "Send checkpoint phase='preview'", "next_step_key": "step2", "last_checkpoint_id": "cp1"},
+        {"run_open": False, "started": True, "run_status": "succeeded"},  # gap closed
+    ])
+    assert result["status"] == "completed"
+    assert len(calls) >= 1 and calls[0].startswith("use the skill"), "it launched the agent to retry"
+
+
+def test_a_closed_run_with_no_gap_is_complete_not_retried():
+    result, calls = _drive([{"run_open": False, "started": True, "run_status": "succeeded"}])
+    assert result["status"] == "completed" and calls == [], "nothing to retry: no agent launched"

@@ -322,18 +322,19 @@ def drive_trial(
     while True:
         state = poll()
         if not state.get("run_open"):
-            if not state.get("started"):
-                # No run yet. Launch the trial once; if the next look still shows nothing started, the
-                # agent never called `start_run` and re-launching would only repeat that.
+            # No open run. Launch the agent when nothing has started yet, or when a previous run ended
+            # with a step still unconfirmed (`needs_new_run`) — a retry that resumes at the gap.
+            if not state.get("started") or state.get("needs_new_run"):
+                # Launch once; if the next look still shows no open run, the agent never called
+                # `start_run` (most often it could not reach its own model), and re-launching would
+                # only repeat that. Hand back the reason it printed rather than a bare "not started".
                 if started_agent:
-                    # The agent ran but never called `start_run`. That is almost always the agent
-                    # failing before it could — most often it could not reach its own model — so the
-                    # reason it printed is the useful thing to hand back, not a bare "not started".
                     return {"mode": "trial_driver", "status": "not_started", "nudges": nudges,
                             "agent": _agent_reason(last_agent)}
                 started_agent = True
                 if say:
-                    say("starting the trial in your agent")
+                    say("resuming the trial in your agent" if state.get("needs_new_run")
+                        else "starting the trial in your agent")
                 drive(prompt)
                 continue
             return {"mode": "trial_driver", "status": "completed", "nudges": nudges,

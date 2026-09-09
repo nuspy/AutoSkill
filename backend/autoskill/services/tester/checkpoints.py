@@ -575,7 +575,16 @@ async def agent_progress(session: AsyncSession, trial: TrialSession) -> dict[str
                              "`explain` checkpoint for the first step."}
     base.update(run_id=run.id, run_status=run.status)
     if run.ended_at is not None or run.status != "running":
-        return base  # the run is closed; there is nothing to drive
+        # The latest run is closed. That is "done" only if every step is confirmed; if a step failed
+        # or was skipped, the trial is not finished — it needs a fresh run that resumes at the gap.
+        # `needs_new_run` tells the driver to start one rather than report the trial complete.
+        gap = await first_unconfirmed_step(session, run)
+        if gap is None:
+            return base
+        return {**base, "needs_new_run": True, "next_call": "start_run", "next_phase": "explain",
+                "next_step_key": gap,
+                "next_hint": f"The previous run ended with step {gap!r} still unconfirmed. Call "
+                             f"`start_run`, then send an 'explain' checkpoint for {gap!r}."}
     base["run_open"] = True
     cp = (
         await session.execute(
