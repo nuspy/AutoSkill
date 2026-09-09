@@ -212,38 +212,33 @@ async def create_checkpoint(
             snap.restored_at = utcnow()
             snap.restore_result = cap_payload(redact(proposal))
     elif phase == "explain" and trial is not None:
-        # explain of a new step requires the previous step to be authorized (unless first / redo)
-        if trial.current_step_key and trial.current_step_key != step_key:
-            last_verify = await _last_checkpoint(
-                session, run.id, trial.current_step_key, trial.current_iteration, "verify"
-            )
-            if last_verify is None or last_verify.decision not in ("approve_and_authorize_next",):
-                if not await _skipped(session, run.id, trial.current_step_key, trial.current_iteration):
-                    # Name the phase that is actually missing, not just the step: after an approved
-                    # `explain` the agent owes a `preview`, after an approved `preview` a `verify`.
-                    done = {
-                        p
-                        for p in ("explain", "preview", "execute")
-                        if (
-                            cp := await _last_checkpoint(
-                                session, run.id, trial.current_step_key, trial.current_iteration, p
-                            )
-                        )
-                        is not None
-                        and cp.decision in ("continue", "authorize_execute")
-                    }
-                    missing = "verify" if "preview" in done or "execute" in done else "preview"
-                    raise Conflict(
-                        "previous_step_not_authorized",
-                        message=(
-                            f"Step {trial.current_step_key!r} is not finished: it ends with a 'verify' "
-                            f"decided 'approve_and_authorize_next'. Send phase {missing!r} for "
-                            f"{trial.current_step_key!r} and close it, or ask the person to skip it. "
-                            "Do not carry on without checkpoints."
-                        ),
-                        expected_phase=missing,
-                        expected_step_key=trial.current_step_key,
-                    )
+        # A step may be explained only when every earlier step in the skill's own order is already
+        # witnessed (confirmed/corrected, in any run) or skipped. This does two things at once: it
+        # stops an agent from jumping past a step — the gap that let step 2 be skipped and then blocked
+        # acceptance — and it lets a fresh re-run start at the first step still missing, since steps
+        # confirmed in an earlier run count as done. Re-explaining the current in-run step (a redo) or
+        # a step already confirmed is always allowed.
+        current = await _last_checkpoint(session, run.id, step_key, it, "explain")
+        already_here = current is not None or (step is not None and step.test_status in ("confirmed", "corrected"))
+        if not already_here:
+            for earlier in await _ordered_steps(session, run.skill_version_id or ""):
+                if earlier.key == step_key:
+                    break
+                if earlier.test_status in ("confirmed", "corrected"):
+                    continue
+                if await _skipped(session, run.id, earlier.key, trial.current_iteration):
+                    continue
+                owed = await _owed_phase(session, run.id, earlier.key, trial.current_iteration)
+                raise Conflict(
+                    "previous_step_not_authorized",
+                    message=(
+                        f"Step {earlier.key!r} comes before {step_key!r} and is not finished yet. "
+                        f"Send phase {owed!r} for {earlier.key!r} and walk it to a 'verify' decided "
+                        "'approve_and_authorize_next', or ask the person to skip it. Do not jump ahead."
+                    ),
+                    expected_phase=owed,
+                    expected_step_key=earlier.key,
+                )
         if trial.current_step_key != step_key:
             trial.current_step_key = step_key
             trial.current_iteration = 1
@@ -312,6 +307,48 @@ async def _skipped(session: AsyncSession, run_id: str, step_key: str, iteration:
         )
     )
     return res.scalars().first() is not None
+
+
+async def _ordered_steps(session: AsyncSession, version_id: str) -> list[StepDefinition]:
+    res = await session.execute(
+        select(StepDefinition).where(StepDefinition.skill_version_id == version_id).order_by(StepDefinition.ordinal)
+    )
+    return list(res.scalars().all())
+
+
+async def _owed_phase(session: AsyncSession, run_id: str, step_key: str, iteration: int) -> str:
+    """The phase a step still owes, given how far it got in this run: the next one it should send.
+
+    After an approved `preview` (or `execute`) the step owes a `verify`; after an approved `explain`
+    it owes a `preview`; with nothing done it owes an `explain`. Naming the phase actually owed, rather
+    than just the step, is what turns a refusal into a correction an agent can act on."""
+    done = {
+        p
+        for p in ("explain", "preview", "execute")
+        if (cp := await _last_checkpoint(session, run_id, step_key, iteration, p)) is not None
+        and cp.decision in ("continue", "authorize_execute")
+    }
+    if "preview" in done or "execute" in done:
+        return "verify"
+    if "explain" in done:
+        return "preview"
+    return "explain"
+
+
+async def first_unconfirmed_step(session: AsyncSession, run: Run) -> str | None:
+    """The earliest step (in the skill's own order) not yet witnessed, or None when all are.
+
+    `test_status` lives on the step definition and accumulates across every run of the trial, so a
+    step confirmed in an earlier run counts as done here. This is what lets a re-run pick up exactly
+    where the walkthrough fell short — the first step still `untested` (or `failed`) — instead of
+    starting the whole trial over, and what a fresh run is pointed at when it opens.
+    """
+    if not run.skill_version_id:
+        return None
+    for step in await _ordered_steps(session, run.skill_version_id):
+        if step.test_status not in ("confirmed", "corrected"):
+            return step.key
+    return None
 
 
 async def decide(
@@ -546,9 +583,16 @@ async def agent_progress(session: AsyncSession, trial: TrialSession) -> dict[str
         )
     ).scalar_one_or_none()
     if cp is None:
-        return {**base, "next_call": "checkpoint", "next_phase": "explain",
-                "next_hint": "The run has started but no checkpoint has been sent yet. Send the first "
-                             "`explain` checkpoint for the first step."}
+        # A fresh run with no checkpoint yet: point it at the first step still unwitnessed, not at the
+        # first step overall. On a re-run the early steps are already confirmed, so this is what makes
+        # the agent resume at the step that actually failed or was skipped instead of redoing the lot.
+        nxt = await first_unconfirmed_step(session, run)
+        if nxt is None:
+            return {**base, "next_call": "end_run",
+                    "next_hint": "Every step is already confirmed. Call `end_run`."}
+        return {**base, "next_call": "checkpoint", "next_phase": "explain", "next_step_key": nxt,
+                "next_hint": f"The run has started but no checkpoint has been sent yet. Send an 'explain' "
+                             f"checkpoint for step {nxt!r} (the first one still to confirm)."}
     base["last_checkpoint_id"] = cp.id
     if cp.state == "pending":
         return {**base, "waiting_on_human": True}

@@ -306,6 +306,8 @@
     "waitingInstallHelp": "Ejecuta el comando de la CLI o instala manualmente con la guía de abajo y luego inicia la tarea en tu agente.",
     "waitingAgent": "Esperando a que el agente llegue al siguiente paso… inicia la tarea en tu agente.",
     "resumeAgent": "Reanudar con el agente",
+    "retryStep": "Reintentar desde aquí",
+    "stepUnconfirmed": "sin confirmar",
     "notStartedTitle": "Tu agente aún no ha iniciado esta prueba",
     "notStartedBody": "A AutoSkill no ha llegado nada: el agente no ha llamado a start_run. Si describiste la tarea con tus palabras, puede haber elegido otra skill, o haberla hecho a mano sin las comprobaciones paso a paso. Nombra en su lugar la skill de la prueba de forma explícita.",
     "tellAgentSkill": "Dile esto a tu agente",

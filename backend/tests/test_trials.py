@@ -381,15 +381,18 @@ async def test_async_trial_auto_decides_and_changes_requested_spawns_patch(app_c
         run_id = (await app_client.post("/api/v1/telemetry/runs", json={}, headers=trial_headers(token))).json()[
             "run_id"
         ]
-        for phase in ("explain", "preview", "verify"):
-            c = (
-                await app_client.post(
-                    "/api/v1/checkpoints",
-                    json={"run_id": run_id, "step_key": "open-sheet", "phase": phase},
-                    headers=trial_headers(token),
-                )
-            ).json()
-            assert c["status"] == "decided"
+        # Every step must be walked in order: `send` cannot be reached without closing `flag` first,
+        # now that skipping a step is refused. Async auto-decides each phase, so this just walks them.
+        for step_key in ("open-sheet", "flag"):
+            for phase in ("explain", "preview", "verify"):
+                c = (
+                    await app_client.post(
+                        "/api/v1/checkpoints",
+                        json={"run_id": run_id, "step_key": step_key, "phase": phase},
+                        headers=trial_headers(token),
+                    )
+                ).json()
+                assert c["status"] == "decided"
         assert c["decision"] == "approve_and_authorize_next"
         # irreversible step: the preview is auto-continued but execute still needs the human
         for phase in ("explain", "preview"):
@@ -420,7 +423,8 @@ async def test_async_trial_auto_decides_and_changes_requested_spawns_patch(app_c
         refused = await app_client.post(
             f"/api/v1/trials/{trial['id']}/outcome", json={"outcome": "accepted"}, headers=headers
         )
-        assert refused.status_code == 422 and "flag" in refused.json()["error"]["details"]["steps"]
+        # `send` was walked to preview but its execute needs the human, so it stays unconfirmed
+        assert refused.status_code == 422 and "send" in refused.json()["error"]["details"]["steps"]
 
         fake.script(Scripted(purpose="author", json={**sample_spec().model_dump(), "changelog": "v2 after trial"}))
         changed = await app_client.post(
@@ -1131,5 +1135,81 @@ async def test_the_install_command_shows_your_own_token_and_never_somebody_elses
         ).json()["markdown"]
         assert "autoskill remove invoice-check --target hermes" in after
         assert token not in after
+    finally:
+        set_fake_provider(None)
+
+
+async def test_a_step_cannot_be_skipped_and_a_re_run_resumes_at_the_first_gap(app_client):
+    """Steps must be walked in order, and a re-run picks up at the first one still unconfirmed.
+
+    An agent used to be able to jump from step 1 to step 3, leaving step 2 untested — which then
+    blocked acceptance with no way back short of redoing the whole trial. Now the jump is refused
+    (pointing at the skipped step), and because `test_status` accumulates across runs, a second run
+    that does the missing step confirms it and the trial can be accepted.
+    """
+    user, headers, project = await setup_project(app_client)
+    fake = FakeLlmProvider()
+    set_fake_provider(fake)
+    try:
+        _skill_id, version = await make_draft(app_client, headers, project, fake)
+        trial = (
+            await app_client.post(
+                "/api/v1/trials",
+                json={"skill_version_id": version["id"], "target_agent": "hermes", "purpose": "develop"},
+                headers=headers,
+            )
+        ).json()
+        token = trial["session_token"]
+        await app_client.post(
+            f"/api/v1/trials/{trial['id']}/installed", json={"install_manifest": {}, "build": 1}, headers=headers
+        )
+
+        async def run() -> str:
+            return (
+                await app_client.post(
+                    "/api/v1/telemetry/runs",
+                    json={"skill_name": "invoice-check", "agent_target": "hermes"},
+                    headers=trial_headers(token),
+                )
+            ).json()["run_id"]
+
+        async def walk(run_id: str, step_key: str) -> None:
+            for phase in ("explain", "preview", "verify"):
+                cp = (
+                    await app_client.post(
+                        "/api/v1/checkpoints",
+                        json={"run_id": run_id, "step_key": step_key, "phase": phase},
+                        headers=trial_headers(token),
+                    )
+                ).json()
+                decision = "approve_and_authorize_next" if phase == "verify" else "continue"
+                await app_client.post(
+                    f"/api/v1/checkpoints/{cp['checkpoint_id']}/decision", json={"decision": decision}, headers=headers
+                )
+
+        # Run 1: do step 1, then try to jump to step 3 (skipping 'flag') -> refused, pointing at 'flag'
+        run1 = await run()
+        await walk(run1, "open-sheet")
+        jumped = await app_client.post(
+            "/api/v1/checkpoints",
+            json={"run_id": run1, "step_key": "send", "phase": "explain"},
+            headers=trial_headers(token),
+        )
+        assert jumped.status_code == 409
+        assert jumped.json()["error"]["details"]["expected_step_key"] == "flag"
+
+        # The sync `agent` block a re-run reads points at the first gap: 'flag'
+        run2 = await run()
+        sync = (await app_client.get(f"/api/v1/trials/{trial['id']}/sync", headers=trial_headers(token))).json()
+        assert sync["agent"]["next_step_key"] == "flag"
+
+        # Run 2 resumes at 'flag' and 'send' (step 1 stays confirmed from run 1); trial can be accepted
+        await walk(run2, "flag")
+        await walk(run2, "send")
+        accepted = await app_client.post(
+            f"/api/v1/trials/{trial['id']}/outcome", json={"outcome": "accepted", "keep_installed": True}, headers=headers
+        )
+        assert accepted.status_code == 200, accepted.text
+        assert accepted.json()["state"] == "decided"
     finally:
         set_fake_provider(None)

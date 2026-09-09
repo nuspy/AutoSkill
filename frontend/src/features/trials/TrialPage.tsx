@@ -83,7 +83,7 @@ export default function TrialPage() {
           {(tr.state === "reviewing" || done || tr.state === "testing" || tr.state === "suspended") && <ReviewCard detail={d} actions={actions} done={done} />}
           <HistoryCard checkpoints={d.checkpoints} />
         </div>
-        <StepsSidebar steps={d.steps} current={tr.current_step_key} iteration={tr.current_iteration} corrections={tr.corrections} />
+        <StepsSidebar steps={d.steps} current={tr.current_step_key} iteration={tr.current_iteration} corrections={tr.corrections} trial={tr} skillName={d.skill_name} />
       </div>
     </div>
   );
@@ -186,7 +186,7 @@ function InstallInstructions({
  * resume: it does not re-explain the task, it reads where the server says the trial stands and nudges
  * the agent from exactly there through to `end_run`. It is the same `agent_run` the start button
  * calls, told which trial — the driver skips the start when a run is already open. */
-function ResumeAgentButton({ target, trialId, prompt }: { target: string; trialId: string; prompt: string }) {
+function ResumeAgentButton({ target, trialId, prompt, label, size }: { target: string; trialId: string; prompt: string; label?: string; size?: "sm" }) {
   const { t } = useTranslation(["skills", "common"]);
   const { available } = useLocalAgent();
   const [running, setRunning] = useState(false);
@@ -207,9 +207,9 @@ function ResumeAgentButton({ target, trialId, prompt }: { target: string; trialI
   };
   return (
     <div className="space-y-1">
-      <Button variant="primary" loading={running} onClick={run}>
+      <Button variant="primary" size={size} loading={running} onClick={run}>
         <Play className="h-4 w-4" />
-        {t("skills:trials.resumeAgent")}
+        {label ?? t("skills:trials.resumeAgent")}
       </Button>
       {progress && (
         <p className="flex items-center gap-1 text-xs text-muted">
@@ -494,9 +494,15 @@ function HistoryCard({ checkpoints }: { checkpoints: Checkpoint[] }) {
   );
 }
 
-function StepsSidebar({ steps, current, iteration, corrections }: { steps: StepDefinition[]; current: string | null; iteration: number; corrections: { step_key: string; text: string }[] }) {
-  const { t } = useTranslation(["skills"]);
+function StepsSidebar({ steps, current, iteration, corrections, trial, skillName }: { steps: StepDefinition[]; current: string | null; iteration: number; corrections: { step_key: string; text: string }[]; trial: { id: string; target_agent: string }; skillName: string }) {
+  const { t } = useTranslation(["skills", "common"]);
   if (!steps.length) return <EmptyState title={t("skills:versions.empty")} />;
+  const confirmed = (s: StepDefinition) => s.test_status === "confirmed" || s.test_status === "corrected";
+  // The step a re-run would resume at: the first one not yet witnessed. The retry affordance sits on
+  // that one step, because the driver picks up there and walks every remaining step in order — a
+  // separate button on each unconfirmed step would all do the same thing.
+  const firstUnconfirmed = steps.find((s) => !confirmed(s));
+  const retryPrompt = t("skills:trials.tellAgentSkillText", { skill: skillName });
   return (
     <Card className="bg-accent">
       <CardHeader title={t("skills:trials.steps")} />
@@ -508,7 +514,14 @@ function StepsSidebar({ steps, current, iteration, corrections }: { steps: StepD
               <span className="flex-1 truncate font-medium">{s.title}</span>
               {s.side_effects === "irreversible" && <AlertTriangle className="h-3.5 w-3.5 text-danger" />}
             </div>
-            <p className="ml-7 text-xs text-muted">{t(`skills:versions.trialMode.${s.trial_mode}`)}{current === s.key ? ` · ${t("skills:trials.iteration", { n: iteration })}` : ""}{corrections.some((c) => c.step_key === s.key) ? ` · ${t("skills:trials.corrected")}` : ""}</p>
+            <p className="ml-7 text-xs text-muted">{t(`skills:versions.trialMode.${s.trial_mode}`)}{current === s.key ? ` · ${t("skills:trials.iteration", { n: iteration })}` : ""}{corrections.some((c) => c.step_key === s.key) ? ` · ${t("skills:trials.corrected")}` : ""}{!confirmed(s) && current !== s.key ? ` · ${t("skills:trials.stepUnconfirmed")}` : ""}</p>
+            {/* Retry sits on the first unwitnessed step: a step that failed or was skipped no longer
+                loses the whole trial, because test status accumulates and a re-run resumes right here. */}
+            {firstUnconfirmed?.id === s.id && (
+              <div className="ml-7 mt-1.5">
+                <ResumeAgentButton target={trial.target_agent} trialId={trial.id} prompt={retryPrompt} label={t("skills:trials.retryStep")} size="sm" />
+              </div>
+            )}
           </li>
         ))}
       </ol>
