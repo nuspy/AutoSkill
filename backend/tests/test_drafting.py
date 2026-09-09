@@ -72,7 +72,7 @@ async def test_interview_completion_triggers_draft_and_versions_api(app_client):
             v["version"] == "0.1.0" and v["state"] == "draft" and v["origin"] == "interview" and v["is_current_draft"]
         )
         assert v["validation_report"]["ok"] is True and v["signature"]
-        assert {f["path"] for f in v["manifest"]["files"]} == {"SKILL.md", "references/columns.md"}
+        assert {f["path"] for f in v["manifest"]["files"]} == {"SKILL.md", "references/columns.md", "scripts/check.py"}
 
         vd = (await app_client.get(f"/api/v1/versions/{v['id']}", headers=headers)).json()
         assert [s["key"] for s in vd["steps"]] == ["open-sheet", "flag", "send"]
@@ -276,8 +276,8 @@ def test_the_protocol_shipped_is_the_one_the_server_enforces():
         "If the `autoskill-companion` MCP tools are available, follow this protocol; "
         "otherwise skip it silently.\n\n1. Call `start_run` the old way.\n"
     )
-    out = with_current_protocol(stale, name="excel-lists", version="0.1.0")
-
+    # A trial delivery gets the current protocol in place of the stale one.
+    out = with_current_protocol(stale, name="excel-lists", version="0.1.0", trial=True)
     assert "skip it silently" not in out, "the superseded wording must not survive delivery"
     assert "two checkpoints" in out, "the current two-gate wording must be the one shipped"
     assert 'skill_name="excel-lists"' in out and 'skill_version="0.1.0"' in out
@@ -285,9 +285,16 @@ def test_the_protocol_shipped_is_the_one_the_server_enforces():
     assert "# Fill the list" in out and "do the thing" in out
     assert out.count("## AutoSkill companion") == 1
 
+    # A permanent (non-trial) delivery carries no companion protocol at all — it is simply run.
+    base = with_current_protocol(stale, name="excel-lists", version="0.1.0", trial=False)
+    assert "## AutoSkill companion" not in base and "start_run" not in base
+    assert "# Fill the list" in base and "do the thing" in base
 
-def test_a_package_without_the_section_gains_it():
+
+def test_a_trial_package_without_the_section_gains_it_and_a_base_one_does_not():
     from autoskill.services.drafting.assemble import with_current_protocol
 
-    out = with_current_protocol("# Title\n\nJust steps.\n", name="s", version="1")
-    assert "## AutoSkill companion" in out and out.startswith("# Title")
+    trial_out = with_current_protocol("# Title\n\nJust steps.\n", name="s", version="1", trial=True)
+    assert "## AutoSkill companion" in trial_out and trial_out.startswith("# Title")
+    base_out = with_current_protocol("# Title\n\nJust steps.\n", name="s", version="1", trial=False)
+    assert "## AutoSkill companion" not in base_out and base_out.startswith("# Title")

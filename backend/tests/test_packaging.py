@@ -96,6 +96,7 @@ def sample_spec() -> DraftSpec:
                 side_effects="read_only",
                 restore_strategy="none",
                 data_source_refs=["invoices"],
+                run="python scripts/check.py",
             ),
             DraftStep(
                 key="flag",
@@ -118,7 +119,10 @@ def sample_spec() -> DraftSpec:
             ),
         ],
         edge_cases_markdown="If the sheet is empty, stop.",
-        files=[DraftFile(path="references/columns.md", content="| number | amount |")],
+        files=[
+            DraftFile(path="references/columns.md", content="| number | amount |"),
+            DraftFile(path="scripts/check.py", content="print('ok')"),
+        ],
         changelog="first draft",
     )
 
@@ -141,9 +145,12 @@ def test_assemble_package_is_deterministic_and_valid():
     )
     assert "<!-- step:open-sheet -->" in body and "<!-- step:send -->" in body
     assert "IRREVERSIBLE" in body and "### 3. Email accounting ⚠" in body
-    assert "autoskill-companion" in body and "start_run" in body and "approve_and_authorize_next" in body
+    # a deterministic step with a script tells the agent to run it, not re-implement it
+    assert "Run this exact command" in body and "`python scripts/check.py`" in body
+    # the companion (trial) protocol is NOT baked into the permanent package; it is added at delivery
+    assert "autoskill-companion" not in body and "start_run" not in body
     assert "Component: email-mcp" in body
-    assert "references/columns.md" in pkg.files
+    assert "references/columns.md" in pkg.files and "scripts/check.py" in pkg.files
     assert trial_mode_for(sample_spec().steps[0]) == "real"
     assert trial_mode_for(sample_spec().steps[1]) == "sandbox_copy"
     assert trial_mode_for(sample_spec().steps[2]) == "simulate"

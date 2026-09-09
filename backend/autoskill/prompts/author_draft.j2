@@ -29,8 +29,17 @@ Return the structured draft:
 - description: what the skill does AND when to use it (max 1024 chars, mention keywords a user would say)
 - overview: markdown for the top of SKILL.md (purpose, when to use, inputs, outputs, data sources with
   where they are and which fields matter). Do NOT include the steps here; they are rendered from `steps`.
-- steps: ordered, keys stable and lowercase-hyphenated, matching the knowledge steps
+- steps: ordered, keys stable and lowercase-hyphenated, matching the knowledge steps. For a step whose
+  work is deterministic (find a file, transform data, call an API in a fixed way), write a real script
+  under `files` and set that step's `run` to the exact command that executes it (e.g.
+  `python scripts/process.py`). The agent must RUN the script, not re-implement its logic from the
+  prose — an ad-hoc re-write drifts from the tested behaviour. When several consecutive steps are one
+  deterministic pipeline, prefer ONE script that does the whole thing, with `run` set on the step that
+  invokes it and left empty on the others (their prose then documents what the script does). Leave
+  `run` empty only for a genuine judgement call or a generative step. A script must be self-contained,
+  read its inputs itself, print a clear result, and exit non-zero on failure.
 - edge_cases_markdown: how to handle exceptions and what to do when unsure
-- files: optional references/*.md, scripts/*.py, assets/* (only when genuinely useful)
+- files: scripts/*.py for the deterministic work (see `steps.run` above), plus optional references/*.md
+  and assets/*. A deterministic skill should ship the script that does its job, not only a description.
 - dependencies: library components used
 - changelog: one paragraph describing this version

@@ -14,6 +14,11 @@ class DraftStep(BaseModel):
     key: str = Field(pattern=r"^[a-z0-9]+(-[a-z0-9]+)*$", max_length=64)
     title: str = Field(max_length=200)
     instruction: str  # what the agent must do, plain language, imperative
+    # The command that carries the step out, when a bundled script does. A deterministic step should
+    # run its script (`python scripts/process.py`), not be re-implemented by the agent from the prose:
+    # the script is tested and exact, an agent's ad-hoc re-write is neither. Empty for a step the agent
+    # performs itself (a judgement call, a generative step).
+    run: str = Field(default="", max_length=500)
     kind: Literal["deterministic", "generative", "human_gate"] = "generative"
     side_effects: Literal["read_only", "reversible", "irreversible", "unknown"] = "unknown"
     restore_strategy: Literal["none", "backup_file", "db_transaction", "sandbox_copy", "manual", "unknown"] = "unknown"

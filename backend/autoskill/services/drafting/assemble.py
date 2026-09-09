@@ -71,29 +71,29 @@ TRIAL_PREAMBLE = """> ## ⚠ This copy is a trial — walk it, do not just run i
 COMPANION_HEADING = "## AutoSkill companion (checkpoints and telemetry)"
 
 
-def with_current_protocol(body: str, *, name: str, version: str) -> str:
-    """Replace the stored protocol section with the one this server actually enforces.
+def with_current_protocol(body: str, *, name: str, version: str, trial: bool) -> str:
+    """The body carrying the companion protocol only when it is a trial that is being delivered.
 
-    The section describes the server's rules — which phases exist, in what order, what a decision
-    means — and it was written into SKILL.md when the skill was drafted, then never touched again. So
-    the description and the rules drift apart, silently and in the worst possible direction: the
-    server changes, every skill already drafted keeps instructing agents in the old terms, and the
-    mismatch surfaces as a refusal the agent cannot make sense of.
+    The companion section describes the checkpoint-and-telemetry protocol, and it exists for one
+    reason: a trial, where the person watches each step. A permanent, accepted copy of the skill is
+    just run — it needs no checkpoints, and it must not carry a section that tells the agent "in a
+    trial these tools are mandatory; if they are missing, stop". An agent read exactly that on a
+    non-trial copy, decided it was in a trial, and refused to run at all. So the section is stripped
+    from every delivery and re-added only for a trial.
 
-    That is not hypothetical. The wording was corrected after a trial in which an agent read
-    "`continue` proceeds" as "move to the next step" and abandoned the walkthrough at the first
-    refusal. Re-drafting the skill fixed nothing, because the correction lived in code the stored
-    package no longer consulted. The protocol belongs to the server version, so it is written at
-    delivery, every time.
-
-    The section is the last thing `assemble_package` appends, so it runs to the end of the document.
-    A body that has none — hand-written, or from a build before the section existed — gets it added.
+    Re-adding it at delivery (rather than baking it at draft time) is also what keeps the wording
+    current: the protocol belongs to the server version, and a copy frozen at drafting time would ship
+    rules that may no longer exist. Correcting the text in code had no effect on already-drafted skills
+    until this was written at delivery, every time.
     """
+    head, sep, tail = body.partition(COMPANION_HEADING)
+    if sep:
+        # Drop the old section and anything a trial preamble may have referenced after it is rebuilt.
+        body = head.rstrip() + "\n"
+    if not trial:
+        return body.rstrip() + "\n"
     current = COMPANION_SECTION.format(name=name, version=version).strip()
-    head, sep, _ = body.partition(COMPANION_HEADING)
-    if not sep:
-        return body.rstrip() + "\n\n" + current + "\n"
-    return head.rstrip() + "\n\n" + current + "\n"
+    return body.rstrip() + "\n\n" + current + "\n"
 
 
 def with_trial_preamble(body: str, *, trial_id: str, name: str, version: str) -> str:
@@ -158,6 +158,10 @@ def render_steps(spec: DraftSpec) -> str:
         out.append("")
         out.append(step.instruction.strip())
         out.append("")
+        if step.run.strip():
+            # The one thing that must not be paraphrased: run the tested script, do not re-implement it.
+            out.append(f"**Run this exact command — do not re-implement it:** `{step.run.strip()}`")
+            out.append("")
         meta = [f"Kind: {step.kind}", f"Effects: {side_effect_label(step)}"]
         if step.data_source_refs:
             meta.append("Uses: " + ", ".join(step.data_source_refs))
@@ -221,7 +225,9 @@ def assemble_package(
         body_parts += [render_tools_section(server_name, tools), ""]
     if spec.edge_cases_markdown.strip():
         body_parts += ["## Exceptions and edge cases", "", spec.edge_cases_markdown.strip(), ""]
-    body_parts += [SAFETY_SECTION.strip(), "", COMPANION_SECTION.format(name=skill_name, version=version).strip(), ""]
+    # The companion (trial) protocol is NOT baked into the stored package: it is added at delivery,
+    # and only for a trial. A permanent copy carries no checkpoint protocol — it is simply run.
+    body_parts += [SAFETY_SECTION.strip(), ""]
     pkg = SkillPackage(name=skill_name)
     pkg.write("SKILL.md", render_frontmatter(frontmatter) + "\n".join(body_parts).strip() + "\n")
     for f in spec.files:

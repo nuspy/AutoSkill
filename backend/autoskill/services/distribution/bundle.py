@@ -517,7 +517,7 @@ async def skill_zip(
     # server enforces, so a copy frozen at drafting time is a description of rules that may no longer
     # exist. Correcting the wording in code had no effect on a single skill already drafted until this
     # line existed — the packages went on shipping the old text, and agents went on following it.
-    body = with_current_protocol(pkg.body(), name=skill.name, version=version.version)
+    body = with_current_protocol(pkg.body(), name=skill.name, version=version.version, trial=trial is not None)
     fm = pkg.frontmatter()
     if trial is not None:
         fm.setdefault("metadata", {})["autoskill_trial"] = trial.id
