@@ -64,6 +64,7 @@
     "review_not_open": "Questa revisione è già stata decisa o ritirata.",
     "not_found": "Non trovato.",
     "validation_failed": "Controlla i dati inseriti.",
+    "steps_not_confirmed": "Questo trial non può ancora essere accettato: questi passi non sono stati eseguiti e confermati durante la prova — {{steps}}. Rilancia il trial perché ogni passo sia verificato, oppure scegli \"Richiedi modifiche\".",
     "last_owner": "Un progetto deve avere almeno un proprietario.",
     "already_member": "Questo utente è già membro.",
     "user_not_found": "Nessun utente con questa email.",

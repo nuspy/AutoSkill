@@ -64,6 +64,7 @@
     "review_not_open": "This review has already been decided or withdrawn.",
     "not_found": "Not found.",
     "validation_failed": "Please check the form.",
+    "steps_not_confirmed": "This trial can't be accepted yet: these steps were never run and confirmed during the walkthrough — {{steps}}. Re-run the trial so every step is witnessed, or choose \"Request changes\".",
     "last_owner": "A project needs at least one owner.",
     "already_member": "This user is already a member.",
     "user_not_found": "No user with that email.",

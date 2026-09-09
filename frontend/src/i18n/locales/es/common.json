@@ -64,6 +64,7 @@
     "review_not_open": "Esta revisión ya se decidió o se retiró.",
     "not_found": "No encontrado.",
     "validation_failed": "Revisa el formulario.",
+    "steps_not_confirmed": "Esta prueba aún no se puede aceptar: estos pasos nunca se ejecutaron ni se confirmaron durante el recorrido — {{steps}}. Vuelve a ejecutar la prueba para que cada paso quede presenciado, o elige \"Solicitar cambios\".",
     "last_owner": "Un proyecto necesita al menos un propietario.",
     "already_member": "Este usuario ya es miembro.",
     "user_not_found": "No hay ningún usuario con ese correo.",

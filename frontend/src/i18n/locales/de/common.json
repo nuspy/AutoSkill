@@ -64,6 +64,7 @@
     "review_not_open": "Diese Prüfung wurde bereits entschieden oder zurückgezogen.",
     "not_found": "Nicht gefunden.",
     "validation_failed": "Bitte das Formular prüfen.",
+    "steps_not_confirmed": "Dieser Testlauf kann noch nicht angenommen werden: diese Schritte wurden im Durchlauf nie ausgeführt und bestätigt — {{steps}}. Starte den Testlauf neu, damit jeder Schritt bezeugt wird, oder wähle \"Änderungen anfordern\".",
     "last_owner": "Ein Projekt braucht mindestens einen Eigentümer.",
     "already_member": "Diese Person ist bereits Mitglied.",
     "user_not_found": "Kein Benutzer mit dieser E-Mail.",

@@ -13,7 +13,12 @@ import { ApiError } from "@/api/client";
  */
 export function errorMessage(error: unknown, t: TFunction): string {
   if (error instanceof ApiError) {
-    const translated = t(`common:errors.${error.code}`, { defaultValue: "" });
+    // The error's `details` become interpolation values, so a per-code message can name what went
+    // wrong ("these steps were not confirmed: {{steps}}") instead of a generic sentence that hides
+    // exactly the fact the server took the trouble to report. Arrays are joined for readability.
+    const values: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(error.details ?? {})) values[k] = Array.isArray(v) ? v.join(", ") : v;
+    const translated = t(`common:errors.${error.code}`, { defaultValue: "", ...values });
     if (translated) return translated;
     if (error.status === 403) return t("common:errors.forbidden");
     if (error.status === 404) return t("common:errors.not_found");

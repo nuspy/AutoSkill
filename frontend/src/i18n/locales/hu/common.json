@@ -64,6 +64,7 @@
     "review_not_open": "Ezt a bírálatot már eldöntötték vagy visszavonták.",
     "not_found": "Nem található.",
     "validation_failed": "Ellenőrizd az űrlapot.",
+    "steps_not_confirmed": "Ez a próba még nem fogadható el: ezek a lépések a végigjárás során nem futottak le és nem lettek megerősítve — {{steps}}. Indítsd újra a próbát, hogy minden lépés tanúsítva legyen, vagy válaszd a \"Módosítás kérése\" lehetőséget.",
     "last_owner": "Egy projektnek legalább egy tulajdonosra van szüksége.",
     "already_member": "Ez a felhasználó már tag.",
     "user_not_found": "Nincs felhasználó ezzel az e-mail-címmel.",
