@@ -12,9 +12,10 @@ data:
   AUTOSKILL_CORS_ORIGINS: '["https://skills.tadamoo.com"]'
   AUTOSKILL_COOKIE_SECURE: "true"
 
-  # One process: jobs run as asyncio tasks and events stay in memory. Moving to the cluster's
-  # Postgres and Redis is what makes a second replica possible.
-  AUTOSKILL_DATABASE_URL: "sqlite+aiosqlite:////data/autoskill.db"
+  # One process still: jobs run as asyncio tasks and events stay in memory (a second replica would
+  # need Redis for the event bus). The database, though, is the cluster's PostgreSQL — the connection
+  # string carries a password, so it is NOT here but in the `autoskill-db` secret, injected as
+  # AUTOSKILL_DATABASE_URL on both the api container and the migrate init container.
   AUTOSKILL_JOBS: "inline"
   AUTOSKILL_EVENTS: "memory"
 

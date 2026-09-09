@@ -1,13 +1,16 @@
 # AutoSkill on k3s. One API pod and one web pod in a namespace of their own; the outer reverse
 # proxy points at the `autoskill-web` service.
 #
-# The secret is NOT here: create it once with
+# Two secrets are NOT here, create them once:
 #   kubectl -n autoskill create secret generic autoskill-secrets \
 #       --from-literal=secret-key="$(openssl rand -base64 48 | tr -d '\n')"
+#   kubectl -n autoskill create secret generic autoskill-db \
+#       --from-literal=database-url="postgresql+asyncpg://autoskill:<pw>@postgresql.tadamoo.svc.cluster.local:5432/autoskill"
 #
-# Single replica on purpose. This configuration runs jobs inline and keeps the event bus in
-# memory, on SQLite: correct for one process, wrong for two. Postgres and Redis are already in
-# this cluster when it needs to grow - see deploy/README.md.
+# Single replica on purpose. The database is the cluster's PostgreSQL, but jobs still run inline and
+# the event bus is in memory: correct for one process, wrong for two. A second replica would need
+# Redis for the event bus (already in this cluster) - see deploy/README.md. The PVC still holds the
+# content store and the llmswitch registry (its API keys), so it stays ReadWriteOnce with Recreate.
 ---
 apiVersion: v1
 kind: Namespace
@@ -57,6 +60,9 @@ spec:
             - name: AUTOSKILL_SECRET_KEY
               valueFrom:
                 secretKeyRef: { name: autoskill-secrets, key: secret-key }
+            - name: AUTOSKILL_DATABASE_URL
+              valueFrom:
+                secretKeyRef: { name: autoskill-db, key: database-url }
           volumeMounts:
             - { name: data, mountPath: /data }
       containers:
@@ -71,6 +77,9 @@ spec:
             - name: AUTOSKILL_SECRET_KEY
               valueFrom:
                 secretKeyRef: { name: autoskill-secrets, key: secret-key }
+            - name: AUTOSKILL_DATABASE_URL
+              valueFrom:
+                secretKeyRef: { name: autoskill-db, key: database-url }
           volumeMounts:
             - { name: data, mountPath: /data }
           readinessProbe:
