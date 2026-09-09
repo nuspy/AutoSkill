@@ -16,37 +16,35 @@ means. A trial exists to be watched step by step; one that runs without checkpoi
 cannot be corrected while it is happening, and ends with the person believing a step was verified
 when in fact nobody ever saw it.
 
-**Each step is a cycle of its own, and you finish it before you name the next one.** A step ends only
-when a `verify` checkpoint comes back `approve_and_authorize_next`; that decision is what opens the
-following step. Sending `explain` for step N+1 while step N is unfinished is refused with
-`previous_step_not_authorized` — the fix is to go back and close step N (`preview`, then `verify`),
-never to abandon the protocol and carry on unwatched.
+**Each step has just two checkpoints — one before, one after — and you finish it before you name the
+next one.** A step ends only when its `verify` checkpoint comes back `approve_and_authorize_next`; that
+decision is what opens the following step. Sending `preview` for step N+1 while step N is unfinished is
+refused with `previous_step_not_authorized` — the fix is to go back and close step N (send its
+`verify`), never to abandon the protocol and carry on unwatched.
 
-    explain -> preview -> [snapshot -> execute] -> verify -> next step
-
-A decision of `continue` means **carry on inside the step you are in**, moving to its next phase. It
-never means "move to the next step".
+    preview -> [snapshot -> carry the step out] -> verify -> next step
 
 1. Call `start_run` with `skill_name="{name}"` and `skill_version="{version}"` before the first step.
-2. For every step in order, before acting call `checkpoint` with `phase="explain"` (what you will do,
-   with which data and tools, expected result). If the reply is `pending`, call `await_decision` with the
-   checkpoint id until a decision arrives, then obey it: `continue` moves you to this step's `preview`,
-   `change` means read the `updated_instructions` and redo the step, `skip` skips it, `stop` ends the
-   run with `end_run`.
-3. After the read-only part of a step, call `checkpoint` with `phase="preview"` showing the real data you
-   retrieved and the exact effect you plan (recipients, text, rows, commands). For steps marked
-   "simulate" in a trial, do NOT execute the effect: describe it and wait for the decision.
-4. Before executing a step for real that changes files, folders or data with a restore strategy, call
-   `snapshot` with the paths (or references) you back up; the server refuses a real `execute` without it.
-   Then call `checkpoint` with `phase="execute"` and obey the decision.
-5. After executing, call `checkpoint` with `phase="verify"` reporting the actual result against the
-   success criteria, then `log_step` with the outcome. Only proceed to the next step after
-   `approve_and_authorize_next`.
-6. If a decision is `restore`, call `restore_snapshot` for that step (it puts the backed-up files back and
-   reports a `restore` checkpoint), wait for the decision, then redo the step from `explain`.
-7. Steps already confirmed several times may come back decided immediately (`auto_confirmed`): proceed.
-8. Call `end_run` at the end. If a step cannot be completed as described, call `report_issue`.
-9. A checkpoint that comes back with an `error` is a refusal, not a reason to stop using the protocol.
+2. For every step in order, BEFORE doing anything that changes the person's machine, call `checkpoint`
+   with `phase="preview"`: say what the step will do, with which data and tools, and show the exact
+   effect you plan — the real files, rows, recipients, commands, the values you retrieved. This one
+   checkpoint is both the explanation and the preview. If the reply is `pending`, call `await_decision`
+   with the checkpoint id until a decision arrives, then obey it:
+     - `continue` (or `authorize_execute` for an irreversible step) authorizes you to carry the step out;
+     - `change` means read `updated_instructions` and redo this step from a fresh `preview`;
+     - `skip` skips the step; `stop` ends the run with `end_run`.
+3. Only after that authorization, carry the step out. If the step changes files, folders or data and has
+   a restore strategy, FIRST call `snapshot` with the paths (or references) you back up — the server
+   refuses the `verify` of a real step without it. For steps marked "simulate" in a trial, do NOT
+   perform the effect: report what would happen.
+4. Then call `checkpoint` with `phase="verify"` reporting the ACTUAL result against the success
+   criteria, and `log_step` with the outcome. Only proceed to the next step after
+   `approve_and_authorize_next`; `change`/`redo` there means redo the step from its `preview`.
+5. If a decision is `restore`, call `restore_snapshot` for that step (it puts the backed-up files back
+   and reports a `restore` checkpoint), wait for the decision, then redo the step from `preview`.
+6. Steps already confirmed several times may come back decided immediately (`auto_confirmed`): proceed.
+7. Call `end_run` at the end. If a step cannot be completed as described, call `report_issue`.
+8. A checkpoint that comes back with an `error` is a refusal, not a reason to stop using the protocol.
    The reply carries `expected_phase` and `expected_step_key`: send that checkpoint instead. Never
    answer a refusal by doing the work unwatched and calling `end_run` — the person is watching a page
    that will keep waiting, and everything you did after the refusal reaches them as nothing at all.
@@ -61,7 +59,8 @@ TRIAL_PREAMBLE = """> ## ⚠ This copy is a trial — walk it, do not just run i
 >
 > **First action, before anything else:** call `start_run` on the `autoskill-companion` MCP server
 > with `skill_name="{name}"` and `skill_version="{version}"`. Then run every step through the
-> protocol at the end of this document: `explain` -> `preview` -> `snapshot` -> `execute` -> `verify`.
+> protocol at the end of this document — two checkpoints per step: `preview` (before), then `verify`
+> (after you carry it out).
 >
 > **If the `autoskill-companion` tools are not available to you, stop and say so.** Do not do the work
 > another way and do not report the task as done: the person is watching a page that will wait for a

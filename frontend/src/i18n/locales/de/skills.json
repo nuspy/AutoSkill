@@ -352,7 +352,7 @@
     "stopConfirm": "Diesen Lauf stoppen?",
     "decisions": {
       "continue": "Sieht richtig aus, weiter",
-      "continuePreview": "Daten stimmen, weiter",
+      "continuePreview": "Freigeben — ausführen",
       "authorize_execute": "Echte Ausführung freigeben",
       "approve_and_authorize_next": "Freigeben und zum nächsten Schritt",
       "change": "Ändern",

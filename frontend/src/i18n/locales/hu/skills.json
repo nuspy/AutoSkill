@@ -352,7 +352,7 @@
     "stopConfirm": "Leállítod ezt a futást?",
     "decisions": {
       "continue": "Rendben van, tovább",
-      "continuePreview": "Az adatok jók, folytatás",
+      "continuePreview": "Jóváhagyás — végrehajtás",
       "authorize_execute": "Valós végrehajtás engedélyezése",
       "approve_and_authorize_next": "Jóváhagyás és tovább a következő lépésre",
       "change": "Módosítás",

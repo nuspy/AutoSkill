@@ -1,17 +1,19 @@
-"""Phased checkpoints for step-by-step trials.
+"""Phased checkpoints for step-by-step trials — two gates per step, not four.
 
 Deterministic rules enforced here (the agent can only *ask*; the server decides):
-  explain -> preview -> [execute] -> verify, per step and iteration
-  * a `preview` needs an accepted `explain` of the same step/iteration
-  * an `execute` needs a `continue` on the `preview`; irreversible steps additionally need the human's
-    `authorize_execute` decision, which mints the confirmation token the generated tools require
-  * a `verify` needs a preview (simulated steps) or an execute (real steps)
-  * moving to the next step needs `approve_and_authorize_next` on `verify`
-  * a real `execute` on a step with a restore strategy needs a snapshot (what the agent backed up); the
-    person may then decide `restore` on `execute`/`verify`, the agent restores and sends `restore`, and
-    `continue` there starts the next iteration from `explain`
+  preview -> [carry the step out] -> verify, per step and iteration
+  * `preview` is the "before" gate: the agent explains the step and shows the exact effect it will
+    have. It opens a step, so it may be sent only when every earlier step is already witnessed
+    (confirmed/corrected) or skipped — this is what stops a step being jumped over.
+  * `verify` is the "after" gate: the agent has carried the step out and reports the real result. It
+    needs an accepted `preview`; an irreversible step's preview must be `authorize_execute` (which
+    mints the confirmation token the generated tools require); and a real or sandbox step that can be
+    restored must have a snapshot, taken before it ran.
+  * moving to the next step needs `approve_and_authorize_next` on `verify`.
+  * the person may decide `restore` on `verify`; the agent restores, sends a `restore` checkpoint, and
+    `continue` there redoes the step from its `preview`.
   * deterministic steps confirmed N times (setting auto_confirm_after_confirmations) are auto-decided
-    when the trial allows it, never for `execute` nor irreversible steps
+    when the trial allows it, never for an irreversible step.
 Async mode auto-decides `continue` (and `approve_and_authorize_next`) so the agent never blocks; the
 human reviews afterwards.
 """
@@ -35,10 +37,13 @@ from autoskill.services.runs.redaction import cap_payload, redact
 from autoskill.services.settings import get_setting
 
 PHASE_ORDER = {p: i for i, p in enumerate(CHECKPOINT_PHASES)}
+# Two gates per step, not four. `preview` is the "before" gate — the agent explains the step and
+# shows the exact effect it will have, and the person accepts it or asks for something else. `verify`
+# is the "after" gate — the agent has executed and reports the real result. `explain` and `execute`
+# no longer exist as separate stops: the explanation rides in the preview, and execution happens
+# between the two gates without a checkpoint of its own. `restore` stays for the restore-and-redo path.
 ALLOWED_DECISIONS = {
-    "explain": {"continue", "change", "skip", "stop"},
     "preview": {"continue", "change", "redo", "skip", "stop", "authorize_execute"},
-    "execute": {"continue", "change", "stop", "restore"},
     "verify": {"approve_and_authorize_next", "change", "redo", "stop", "restore"},
     "restore": {"continue", "stop"},
 }
@@ -79,7 +84,7 @@ async def _auto_confirmable(
     session: AsyncSession, trial: TrialSession, step: StepDefinition | None, phase: str
 ) -> bool:
     """Deterministic steps the person already confirmed N times are not re-asked (unless corrections)."""
-    if step is None or not trial.auto_confirm or phase == "execute":
+    if step is None or not trial.auto_confirm:
         return False
     if step.kind != "deterministic" or step.test_status != "confirmed" or step.requires_explicit_auth:
         return False
@@ -134,6 +139,20 @@ async def create_checkpoint(
 ) -> Checkpoint:
     if phase not in CHECKPOINT_PHASES:
         raise ValidationFailed("unknown_phase", phases=list(CHECKPOINT_PHASES))
+    # The protocol has two gates now, not four. An agent still on the old four-phase flow is redirected
+    # rather than left with a checkpoint no decision fits: an `explain` is folded into the `preview`,
+    # and an `execute` no longer exists — the step is carried out between preview and verify.
+    if phase in ("explain", "execute"):
+        target = "preview" if phase == "explain" else "verify"
+        raise Conflict(
+            "phase_merged",
+            message=(
+                f"The trial protocol now has two checkpoints per step: 'preview' (before) and 'verify' "
+                f"(after). Send phase={target!r} instead of {phase!r}."
+            ),
+            expected_phase=target,
+            expected_step_key=step_key,
+        )
     if run.status != "running":
         raise Conflict("run_not_running", status=run.status)
     step = await _step_definition(session, run.skill_version_id, step_key) if run.skill_version_id else None
@@ -143,82 +162,18 @@ async def create_checkpoint(
     mode = _execution_mode(step, trial, requested_mode)
 
     # ---- ordering rules -------------------------------------------------------------
-    # Every refusal below carries `expected_phase` / `expected_step_key`: the call that would be
-    # accepted right now. A bare "no" is a dead end for an agent — the first real trial ended with one.
-    # After a step's `explain` was approved the agent named the next step, was refused, and read the
-    # refusal as "the protocol is not working here": it did the whole task unwatched and called
-    # `end_run`, while the person's page waited for a step that no longer existed. Being told what to
-    # send instead turns the same refusal into a correction.
-    if phase == "preview":
-        prev = await _last_checkpoint(session, run.id, step_key, it, "explain")
-        if prev is None or prev.decision not in ("continue",):
-            raise Conflict(
-                "explain_required",
-                message="Send an accepted 'explain' checkpoint before 'preview'.",
-                expected_phase="explain",
-                expected_step_key=step_key,
-            )
-    elif phase == "execute":
-        prev = await _last_checkpoint(session, run.id, step_key, it, "preview")
-        if prev is None or prev.decision not in ("continue", "authorize_execute"):
-            raise Conflict(
-                "preview_required",
-                message="An accepted 'preview' is required before 'execute'.",
-                expected_phase="preview",
-                expected_step_key=step_key,
-            )
-        if mode == "simulated":
-            raise Conflict(
-                "simulated_step",
-                message="This step is simulated in trials: describe the effect in 'preview' and go to 'verify'.",
-            )
-        if step is not None and step.requires_explicit_auth and prev.decision != "authorize_execute":
-            raise Conflict(
-                "explicit_authorization_required",
-                message="Irreversible step: the person must authorize execution from the preview.",
-            )
-        if (
-            mode in ("real", "sandbox_copy")
-            and step is not None
-            and step.restore_strategy in RESTORABLE_STRATEGIES
-            and await snapshot_for(session, run.id, step_key, it) is None
-        ):
-            raise Conflict(
-                "snapshot_required",
-                message="Back up what this step changes (companion tool `snapshot`) before executing it for real.",
-            )
-    elif phase == "verify":
-        prev = await _last_checkpoint(session, run.id, step_key, it, "execute")
-        if prev is None or prev.decision != "continue":
-            prev = await _last_checkpoint(session, run.id, step_key, it, "preview")
-            if prev is None or prev.decision not in ("continue", "authorize_execute"):
-                raise Conflict(
-                    "preview_required",
-                    message="'verify' needs an accepted 'preview' or 'execute'.",
-                    expected_phase="preview",
-                    expected_step_key=step_key,
-                )
-    elif phase == "restore":
-        ordered = None
-        for prev_phase in ("verify", "execute"):
-            prev = await _last_checkpoint(session, run.id, step_key, it, prev_phase)
-            if prev is not None and prev.decision == "restore":
-                ordered = prev
-                break
-        if ordered is None:
-            raise Conflict("restore_not_requested", message="Send 'restore' only after the person decided 'restore'.")
-        snap = await snapshot_for(session, run.id, step_key, it)
-        if snap is not None:
-            snap.restored_at = utcnow()
-            snap.restore_result = cap_payload(redact(proposal))
-    elif phase == "explain" and trial is not None:
-        # A step may be explained only when every earlier step in the skill's own order is already
-        # witnessed (confirmed/corrected, in any run) or skipped. This does two things at once: it
-        # stops an agent from jumping past a step — the gap that let step 2 be skipped and then blocked
-        # acceptance — and it lets a fresh re-run start at the first step still missing, since steps
-        # confirmed in an earlier run count as done. Re-explaining the current in-run step (a redo) or
-        # a step already confirmed is always allowed.
-        current = await _last_checkpoint(session, run.id, step_key, it, "explain")
+    # Two gates per step: `preview` before, `verify` after. Every refusal carries `expected_phase` /
+    # `expected_step_key` — the call that would be accepted right now. A bare "no" is a dead end for an
+    # agent: the first real trial ended when an agent read a refusal as "the protocol is not working
+    # here", did the task unwatched and called `end_run`. Being told what to send instead turns the
+    # refusal into a correction.
+    if phase == "preview" and trial is not None:
+        # `preview` opens a step, so this is where step order is enforced: a step may open only when
+        # every earlier step in the skill's own order is already witnessed (confirmed/corrected, in any
+        # run) or skipped. It stops an agent jumping past a step, and lets a fresh re-run start at the
+        # first step still missing. Re-opening the current in-run step (a redo) or one already confirmed
+        # is always allowed.
+        current = await _last_checkpoint(session, run.id, step_key, it, "preview")
         already_here = current is not None or (step is not None and step.test_status in ("confirmed", "corrected"))
         if not already_here:
             for earlier in await _ordered_steps(session, run.skill_version_id or ""):
@@ -243,6 +198,44 @@ async def create_checkpoint(
             trial.current_step_key = step_key
             trial.current_iteration = 1
             it = 1
+    elif phase == "verify":
+        # `verify` is sent after the step was carried out. It needs an accepted `preview`; for an
+        # irreversible step that acceptance must be the explicit `authorize_execute`; and a real or
+        # sandbox step that can be restored must have a snapshot, taken before it ran, to restore from.
+        prev = await _last_checkpoint(session, run.id, step_key, it, "preview")
+        if prev is None or prev.decision not in ("continue", "authorize_execute"):
+            raise Conflict(
+                "preview_required",
+                message="'verify' needs an accepted 'preview' first.",
+                expected_phase="preview",
+                expected_step_key=step_key,
+            )
+        needs_auth = mode != "simulated" and step is not None and step.requires_explicit_auth
+        if needs_auth and prev.decision != "authorize_execute":
+            raise Conflict(
+                "explicit_authorization_required",
+                message="Irreversible step: the person must authorize execution from the preview before it runs.",
+                expected_phase="preview",
+                expected_step_key=step_key,
+            )
+        if (
+            mode in ("real", "sandbox_copy")
+            and step is not None
+            and step.restore_strategy in RESTORABLE_STRATEGIES
+            and await snapshot_for(session, run.id, step_key, it) is None
+        ):
+            raise Conflict(
+                "snapshot_required",
+                message="Back up what this step changes (companion tool `snapshot`) before carrying it out.",
+            )
+    elif phase == "restore":
+        prev = await _last_checkpoint(session, run.id, step_key, it, "verify")
+        if prev is None or prev.decision != "restore":
+            raise Conflict("restore_not_requested", message="Send 'restore' only after the person decided 'restore'.")
+        snap = await snapshot_for(session, run.id, step_key, it)
+        if snap is not None:
+            snap.restored_at = utcnow()
+            snap.restore_result = cap_payload(redact(proposal))
 
     timeout = int(await get_setting(session, "checkpoint_timeout_minutes") or 120)
     cp = Checkpoint(
@@ -261,10 +254,19 @@ async def create_checkpoint(
     auto_confirmed = (
         trial is not None and trial.mode != "async" and await _auto_confirmable(session, trial, step, phase)
     )
-    if trial is None or trial.mode == "async" or auto_confirmed:
+    # An irreversible step that really runs must be authorized by a person, at its preview — the one
+    # gate before it executes. So even in async mode that preview is not auto-decided: it waits for the
+    # human's `authorize_execute`. (A simulated step performs no effect, so it may auto-continue; a
+    # production run has no human and auto-runs as before.)
+    needs_human_auth = (
+        trial is not None
+        and phase == "preview"
+        and step is not None
+        and step.requires_explicit_auth
+        and mode != "simulated"
+    )
+    if not needs_human_auth and (trial is None or trial.mode == "async" or auto_confirmed):
         auto = "approve_and_authorize_next" if phase == "verify" else "continue"
-        if phase == "preview" and step is not None and step.requires_explicit_auth:
-            auto = "continue"  # never auto-authorize an irreversible execute
         cp.state = "decided"
         cp.decision = auto
         cp.decided_by = None
@@ -319,20 +321,12 @@ async def _ordered_steps(session: AsyncSession, version_id: str) -> list[StepDef
 async def _owed_phase(session: AsyncSession, run_id: str, step_key: str, iteration: int) -> str:
     """The phase a step still owes, given how far it got in this run: the next one it should send.
 
-    After an approved `preview` (or `execute`) the step owes a `verify`; after an approved `explain`
-    it owes a `preview`; with nothing done it owes an `explain`. Naming the phase actually owed, rather
-    than just the step, is what turns a refusal into a correction an agent can act on."""
-    done = {
-        p
-        for p in ("explain", "preview", "execute")
-        if (cp := await _last_checkpoint(session, run_id, step_key, iteration, p)) is not None
-        and cp.decision in ("continue", "authorize_execute")
-    }
-    if "preview" in done or "execute" in done:
+    After an accepted `preview` the step owes a `verify`; with nothing accepted it owes a `preview`.
+    Naming the phase actually owed, not just the step, is what turns a refusal into a correction."""
+    prev = await _last_checkpoint(session, run_id, step_key, iteration, "preview")
+    if prev is not None and prev.decision in ("continue", "authorize_execute"):
         return "verify"
-    if "explain" in done:
-        return "preview"
-    return "explain"
+    return "preview"
 
 
 async def first_unconfirmed_step(session: AsyncSession, run: Run) -> str | None:
@@ -490,18 +484,22 @@ async def next_action(session: AsyncSession, cp: Checkpoint) -> dict[str, Any]:
             ),
         }
     if decision in ("change", "redo"):
-        return at("explain", "The person asked for a change: read `updated_instructions` and redo this step.")
-    if cp.phase == "explain" and decision == "continue":
-        return at("preview", "Do the read-only part of this step, then show what you found and what you plan.")
+        return at("preview", "The person asked for a change: read `updated_instructions` and redo this step "
+                             "from its preview.")
     if cp.phase == "preview" and decision in ("continue", "authorize_execute"):
         if cp.execution_mode == "simulated":
             return at(
                 "verify",
-                "This step is simulated in a trial: do not perform the effect, report what would happen.",
+                "This step is simulated in a trial: do not perform the effect, report what would happen in "
+                "the 'verify' checkpoint.",
             )
-        return at("execute", "You may carry the step out for real now.")
-    if cp.phase in ("execute", "restore") and decision == "continue":
-        return at("verify", "Report the actual result against this step's success criteria.")
+        return at(
+            "verify",
+            "You are authorized. Back up what you will change (`snapshot`) if the step is restorable, carry "
+            "the step out, then report the actual result in the 'verify' checkpoint.",
+        )
+    if cp.phase == "restore" and decision == "continue":
+        return at("preview", "The step was rolled back: redo it from its preview.")
 
     # The step is closed: `approve_and_authorize_next` on a verify, or a skip. What opens next is the
     # following step in the skill's own order — the one thing the agent cannot work out from the reply.
@@ -528,12 +526,12 @@ async def next_action(session: AsyncSession, cp: Checkpoint) -> dict[str, Any]:
             }
         nxt = following[0]
         return {
-            "next_phase": "explain",
+            "next_phase": "preview",
             "next_step_key": nxt,
             "steps_left": len(following),
             "next_hint": (
                 f"Step {step!r} is closed — call `log_step` for it. {len(following)} step(s) remain: "
-                f"send `checkpoint` with phase='explain' for step {nxt!r}. Do not call `end_run` yet."
+                f"send `checkpoint` with phase='preview' for step {nxt!r}. Do not call `end_run` yet."
             ),
         }
     return {}
@@ -572,7 +570,7 @@ async def agent_progress(session: AsyncSession, trial: TrialSession) -> dict[str
     if run is None:
         return {**base, "next_call": "start_run",
                 "next_hint": "No run has started for this trial. Call `start_run`, then send the first "
-                             "`explain` checkpoint for the first step."}
+                             "`preview` checkpoint for the first step."}
     base.update(run_id=run.id, run_status=run.status)
     if run.ended_at is not None or run.status != "running":
         # The latest run is closed. That is "done" only if every step is confirmed; if a step failed
@@ -581,10 +579,10 @@ async def agent_progress(session: AsyncSession, trial: TrialSession) -> dict[str
         gap = await first_unconfirmed_step(session, run)
         if gap is None:
             return base
-        return {**base, "needs_new_run": True, "next_call": "start_run", "next_phase": "explain",
+        return {**base, "needs_new_run": True, "next_call": "start_run", "next_phase": "preview",
                 "next_step_key": gap,
                 "next_hint": f"The previous run ended with step {gap!r} still unconfirmed. Call "
-                             f"`start_run`, then send an 'explain' checkpoint for {gap!r}."}
+                             f"`start_run`, then send a 'preview' checkpoint for {gap!r}."}
     base["run_open"] = True
     cp = (
         await session.execute(
@@ -599,8 +597,8 @@ async def agent_progress(session: AsyncSession, trial: TrialSession) -> dict[str
         if nxt is None:
             return {**base, "next_call": "end_run",
                     "next_hint": "Every step is already confirmed. Call `end_run`."}
-        return {**base, "next_call": "checkpoint", "next_phase": "explain", "next_step_key": nxt,
-                "next_hint": f"The run has started but no checkpoint has been sent yet. Send an 'explain' "
+        return {**base, "next_call": "checkpoint", "next_phase": "preview", "next_step_key": nxt,
+                "next_hint": f"The run has started but no checkpoint has been sent yet. Send a 'preview' "
                              f"checkpoint for step {nxt!r} (the first one still to confirm)."}
     base["last_checkpoint_id"] = cp.id
     if cp.state == "pending":

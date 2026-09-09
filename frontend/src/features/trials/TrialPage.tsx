@@ -371,17 +371,18 @@ function CheckpointCard({ checkpoint, step, actions, snapshot = null }: { checkp
         {irreversible && phase === "preview" && <p className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">{t("skills:trials.irreversibleWarning")}</p>}
         {mode === "idle" && (
           <div className="flex flex-wrap gap-2">
-            {phase === "explain" && <Button onClick={() => decide("continue")}><Check className="h-4 w-4" />{t("skills:trials.decisions.continue")}</Button>}
-            {phase === "preview" && <Button onClick={() => decide("continue")}><Check className="h-4 w-4" />{t("skills:trials.decisions.continuePreview")}</Button>}
+            {/* Two gates. `preview` (before): approve to carry the step out — an irreversible real step
+                asks for the stronger `authorize_execute`. `verify` (after): approve and open the next
+                step, or roll back. */}
+            {phase === "preview" && !(irreversible && checkpoint.execution_mode === "real") && <Button onClick={() => decide("continue")}><Check className="h-4 w-4" />{t("skills:trials.decisions.continuePreview")}</Button>}
             {phase === "preview" && irreversible && checkpoint.execution_mode === "real" && <Button variant="danger" onClick={() => { if (window.confirm(t("skills:trials.authorizeConfirm"))) decide("authorize_execute"); }}>{t("skills:trials.decisions.authorize_execute")}</Button>}
-            {phase === "execute" && <Button onClick={() => decide("continue")}><Check className="h-4 w-4" />{t("skills:trials.decisions.continue")}</Button>}
             {phase === "verify" && <Button onClick={() => decide("approve_and_authorize_next")}><Check className="h-4 w-4" />{t("skills:trials.decisions.approve_and_authorize_next")}</Button>}
             {phase === "restore" && <Button onClick={() => decide("continue")}><Check className="h-4 w-4" />{t("skills:trials.decisions.restoredContinue")}</Button>}
-            {(phase === "execute" || phase === "verify") && (checkpoint.execution_mode === "real" || checkpoint.execution_mode === "sandbox_copy") && snapshot && <Button variant="outline" onClick={() => { if (window.confirm(t("skills:trials.restoreConfirm"))) decide("restore"); }}><Undo2 className="h-4 w-4" />{t("skills:trials.decisions.restore")}</Button>}
+            {phase === "verify" && (checkpoint.execution_mode === "real" || checkpoint.execution_mode === "sandbox_copy") && snapshot && <Button variant="outline" onClick={() => { if (window.confirm(t("skills:trials.restoreConfirm"))) decide("restore"); }}><Undo2 className="h-4 w-4" />{t("skills:trials.decisions.restore")}</Button>}
             {phase !== "restore" && <Button variant="outline" onClick={() => setMode("change")}><RotateCcw className="h-4 w-4" />{t("skills:trials.decisions.change")}</Button>}
             {phase !== "restore" && <Button variant="outline" onClick={() => setMode("discuss")}><MessageSquare className="h-4 w-4" />{t("skills:trials.decisions.discuss")}</Button>}
-            {(phase === "preview" || phase === "verify") && <Button variant="ghost" onClick={() => decide("redo")}>{t("skills:trials.decisions.redo")}</Button>}
-            {(phase === "explain" || phase === "preview") && <Button variant="ghost" onClick={() => decide("skip")}><SkipForward className="h-4 w-4" />{t("skills:trials.decisions.skip")}</Button>}
+            {phase === "verify" && <Button variant="ghost" onClick={() => decide("redo")}>{t("skills:trials.decisions.redo")}</Button>}
+            {phase === "preview" && <Button variant="ghost" onClick={() => decide("skip")}><SkipForward className="h-4 w-4" />{t("skills:trials.decisions.skip")}</Button>}
             <Button variant="ghost" className="ml-auto text-danger" onClick={() => { if (window.confirm(t("skills:trials.stopConfirm"))) decide("stop"); }}><Square className="h-4 w-4" />{t("skills:trials.decisions.stop")}</Button>
           </div>
         )}

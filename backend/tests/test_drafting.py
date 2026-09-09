@@ -279,7 +279,7 @@ def test_the_protocol_shipped_is_the_one_the_server_enforces():
     out = with_current_protocol(stale, name="excel-lists", version="0.1.0")
 
     assert "skip it silently" not in out, "the superseded wording must not survive delivery"
-    assert "never means" in out, "the current wording must be the one shipped"
+    assert "two checkpoints" in out, "the current two-gate wording must be the one shipped"
     assert 'skill_name="excel-lists"' in out and 'skill_version="0.1.0"' in out
     # only the protocol is replaced; the skill's own content is not touched
     assert "# Fill the list" in out and "do the thing" in out

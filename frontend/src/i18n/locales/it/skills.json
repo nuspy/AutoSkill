@@ -352,7 +352,7 @@
     "stopConfirm": "Fermare questa esecuzione?",
     "decisions": {
       "continue": "Va bene, continua",
-      "continuePreview": "I dati sono giusti, prosegui",
+      "continuePreview": "Approva ed esegui",
       "authorize_execute": "Autorizza l'esecuzione reale",
       "approve_and_authorize_next": "Approva e passa al prossimo passo",
       "change": "Modifica",

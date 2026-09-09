@@ -26,7 +26,14 @@ async def accepted_trial(app_client, headers, version_id: str, fake: FakeLlmProv
     token = trial["session_token"]
     run_id = (await app_client.post("/api/v1/telemetry/runs", json={}, headers=trial_headers(token))).json()["run_id"]
     for step in ("open-sheet", "flag", "send"):
-        for phase in ("explain", "preview", "verify"):
+        for phase in ("preview", "verify"):
+            if phase == "verify":
+                # a restorable step needs a snapshot before verify; harmless for the others
+                await app_client.post(
+                    "/api/v1/telemetry/snapshots",
+                    json={"run_id": run_id, "step_key": step, "items": [], "note": "backup"},
+                    headers=trial_headers(token),
+                )
             r = await app_client.post(
                 "/api/v1/checkpoints",
                 json={"run_id": run_id, "step_key": step, "phase": phase},

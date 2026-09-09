@@ -84,16 +84,24 @@ async def test_interactive_trial_full_cycle(app_client):
         detail = (await app_client.get(f"/api/v1/trials/{trial['id']}", headers=headers)).json()
         assert detail["trial"]["state"] == "testing"
 
-        # phase ordering is enforced: preview before explain is rejected
+        # phase ordering is enforced: verify before an accepted preview is rejected
         early = await app_client.post(
             "/api/v1/checkpoints",
-            json={"run_id": run_id, "step_key": "open-sheet", "phase": "preview"},
+            json={"run_id": run_id, "step_key": "open-sheet", "phase": "verify"},
             headers=trial_headers(token),
         )
-        assert early.status_code == 409 and early.json()["error"]["code"] == "explain_required"
+        assert early.status_code == 409 and early.json()["error"]["code"] == "preview_required"
+        # the old four-phase 'explain'/'execute' calls are redirected to the two current gates
+        merged = await app_client.post(
+            "/api/v1/checkpoints",
+            json={"run_id": run_id, "step_key": "open-sheet", "phase": "explain"},
+            headers=trial_headers(token),
+        )
+        assert merged.status_code == 409 and merged.json()["error"]["code"] == "phase_merged"
+        assert merged.json()["error"]["details"]["expected_phase"] == "preview"
         unknown = await app_client.post(
             "/api/v1/checkpoints",
-            json={"run_id": run_id, "step_key": "nope", "phase": "explain"},
+            json={"run_id": run_id, "step_key": "nope", "phase": "preview"},
             headers=trial_headers(token),
         )
         assert unknown.status_code == 422
@@ -104,7 +112,7 @@ async def test_interactive_trial_full_cycle(app_client):
                 json={
                     "run_id": run_id,
                     "step_key": "open-sheet",
-                    "phase": "explain",
+                    "phase": "preview",
                     "proposal": {"explanation": "I will open Invoices.xlsx", "tools": ["read_file"]},
                 },
                 headers=trial_headers(token),
@@ -117,7 +125,7 @@ async def test_interactive_trial_full_cycle(app_client):
         assert pending["status"] == "pending"
         detail = (await app_client.get(f"/api/v1/trials/{trial['id']}", headers=headers)).json()
         assert (
-            detail["pending_checkpoint"]["phase"] == "explain" and detail["trial"]["current_step_key"] == "open-sheet"
+            detail["pending_checkpoint"]["phase"] == "preview" and detail["trial"]["current_step_key"] == "open-sheet"
         )
 
         # human decides from the web UI; a wrong decision for the phase is rejected
@@ -229,7 +237,6 @@ async def test_interactive_trial_full_cycle(app_client):
         detail = (await app_client.get(f"/api/v1/trials/{trial['id']}", headers=headers)).json()
         assert detail["trial"]["current_iteration"] == 2
         for phase, decision in (
-            ("explain", "continue"),
             ("preview", "continue"),
             ("verify", "approve_and_authorize_next"),
         ):
@@ -253,12 +260,17 @@ async def test_interactive_trial_full_cycle(app_client):
         )
         assert step["test_status"] == "corrected" and step["confirmations_count"] == 1
 
-        # step 2 (reversible, sandbox copy) - approve quickly; step 3 is irreversible: execute needs explicit authorization
+        # step 2 (reversible, sandbox copy): preview, back up, verify. Its verify needs a snapshot.
         for phase, decision in (
-            ("explain", "continue"),
             ("preview", "continue"),
             ("verify", "approve_and_authorize_next"),
         ):
+            if phase == "verify":
+                await app_client.post(
+                    "/api/v1/telemetry/snapshots",
+                    json={"run_id": run_id, "step_key": "flag", "items": [], "note": "backup"},
+                    headers=trial_headers(token),
+                )
             c = (
                 await app_client.post(
                     "/api/v1/checkpoints",
@@ -270,16 +282,8 @@ async def test_interactive_trial_full_cycle(app_client):
             await app_client.post(
                 f"/api/v1/checkpoints/{c['checkpoint_id']}/decision", json={"decision": decision}, headers=headers
             )
-        c = (
-            await app_client.post(
-                "/api/v1/checkpoints",
-                json={"run_id": run_id, "step_key": "send", "phase": "explain"},
-                headers=trial_headers(token),
-            )
-        ).json()
-        await app_client.post(
-            f"/api/v1/checkpoints/{c['checkpoint_id']}/decision", json={"decision": "continue"}, headers=headers
-        )
+        # step 3 'send' is irreversible but simulated in this trial: one preview (with the planned
+        # effect), then verify — there is no separate execute checkpoint any more.
         c = (
             await app_client.post(
                 "/api/v1/checkpoints",
@@ -295,12 +299,13 @@ async def test_interactive_trial_full_cycle(app_client):
         await app_client.post(
             f"/api/v1/checkpoints/{c['checkpoint_id']}/decision", json={"decision": "continue"}, headers=headers
         )
+        # the old 'execute' phase is gone: it is redirected to 'verify'
         execute = await app_client.post(
             "/api/v1/checkpoints",
             json={"run_id": run_id, "step_key": "send", "phase": "execute"},
             headers=trial_headers(token),
         )
-        assert execute.status_code == 409 and execute.json()["error"]["code"] == "simulated_step"
+        assert execute.status_code == 409 and execute.json()["error"]["code"] == "phase_merged"
         verify = (
             await app_client.post(
                 "/api/v1/checkpoints",
@@ -338,7 +343,7 @@ async def test_interactive_trial_full_cycle(app_client):
             and rd["steps"][0]["outputs"]["contact"] == "<email>"
             and rd["run"]["summary"].endswith("<email>")
         )
-        assert len(rd["checkpoints"]) >= 10
+        assert len(rd["checkpoints"]) >= 6
 
         fake.script(
             Scripted(purpose="coach", text="All three steps confirmed; step 'send' was simulated. Recommend: accept.")
@@ -384,7 +389,13 @@ async def test_async_trial_auto_decides_and_changes_requested_spawns_patch(app_c
         # Every step must be walked in order: `send` cannot be reached without closing `flag` first,
         # now that skipping a step is refused. Async auto-decides each phase, so this just walks them.
         for step_key in ("open-sheet", "flag"):
-            for phase in ("explain", "preview", "verify"):
+            for phase in ("preview", "verify"):
+                if phase == "verify":
+                    await app_client.post(
+                        "/api/v1/telemetry/snapshots",
+                        json={"run_id": run_id, "step_key": step_key, "items": [], "note": "backup"},
+                        headers=trial_headers(token),
+                    )
                 c = (
                     await app_client.post(
                         "/api/v1/checkpoints",
@@ -394,22 +405,22 @@ async def test_async_trial_auto_decides_and_changes_requested_spawns_patch(app_c
                 ).json()
                 assert c["status"] == "decided"
         assert c["decision"] == "approve_and_authorize_next"
-        # irreversible step: the preview is auto-continued but execute still needs the human
-        for phase in ("explain", "preview"):
-            c = (
-                await app_client.post(
-                    "/api/v1/checkpoints",
-                    json={"run_id": run_id, "step_key": "send", "phase": phase},
-                    headers=trial_headers(token),
-                )
-            ).json()
+        # 'send' is simulated here: its preview auto-continues. We stop before its verify so it stays
+        # unconfirmed (the accept below must then be refused). The old 'execute' phase is redirected.
+        c = (
+            await app_client.post(
+                "/api/v1/checkpoints",
+                json={"run_id": run_id, "step_key": "send", "phase": "preview"},
+                headers=trial_headers(token),
+            )
+        ).json()
         assert c["decision"] == "continue"
         execute = await app_client.post(
             "/api/v1/checkpoints",
             json={"run_id": run_id, "step_key": "send", "phase": "execute"},
             headers=trial_headers(token),
         )
-        assert execute.status_code == 409
+        assert execute.status_code == 409 and execute.json()["error"]["code"] == "phase_merged"
 
         # suspend / resume
         assert (await app_client.post(f"/api/v1/trials/{trial['id']}/suspend", headers=headers)).json()[
@@ -468,7 +479,7 @@ async def test_project_key_telemetry_and_issues(app_client):
     # production runs create auto-decided checkpoints (no trial): the agent never blocks
     c = (
         await app_client.post(
-            "/api/v1/checkpoints", json={"run_id": run_id, "step_key": "open-sheet", "phase": "explain"}, headers=kh
+            "/api/v1/checkpoints", json={"run_id": run_id, "step_key": "open-sheet", "phase": "preview"}, headers=kh
         )
     ).json()
     assert c["status"] == "decided" and c["decision"] == "continue"
@@ -544,13 +555,13 @@ async def test_snapshot_restore_auto_confirm_and_memory_after_trial(app_client):
             headers,
             run_id,
             "open-sheet",
-            [("explain", "continue"), ("preview", "continue"), ("verify", "approve_and_authorize_next")],
+            [("preview", "continue"), ("verify", "approve_and_authorize_next")],
         )
-        # step 'flag' changes data (reversible, backup_file -> sandbox copy): execute needs a snapshot first
-        await _phases(app_client, token, headers, run_id, "flag", [("explain", "continue"), ("preview", "continue")])
+        # step 'flag' changes data (reversible, sandbox copy): its verify needs a snapshot taken first
+        await _phases(app_client, token, headers, run_id, "flag", [("preview", "continue")])
         no_snap = await app_client.post(
             "/api/v1/checkpoints",
-            json={"run_id": run_id, "step_key": "flag", "phase": "execute"},
+            json={"run_id": run_id, "step_key": "flag", "phase": "verify"},
             headers=trial_headers(token),
         )
         assert no_snap.status_code == 409 and no_snap.json()["error"]["code"] == "snapshot_required"
@@ -572,15 +583,15 @@ async def test_snapshot_restore_auto_confirm_and_memory_after_trial(app_client):
             await app_client.get(f"/api/v1/telemetry/snapshots/{run_id}/flag", headers=trial_headers(token))
         ).json()
         assert latest["id"] == snap.json()["id"]
-        (execute,) = await _phases(app_client, token, headers, run_id, "flag", [("execute", None)])
-        assert execute["status"] == "pending"
-        # the person orders a restore from the execute card
+        (verify_cp,) = await _phases(app_client, token, headers, run_id, "flag", [("verify", None)])
+        assert verify_cp["status"] == "pending"
+        # the person orders a restore from the verify card
         r = await app_client.post(
-            f"/api/v1/checkpoints/{execute['checkpoint_id']}/decision", json={"decision": "restore"}, headers=headers
+            f"/api/v1/checkpoints/{verify_cp['checkpoint_id']}/decision", json={"decision": "restore"}, headers=headers
         )
         assert r.status_code == 200 and r.json()["decision"] == "restore"
         seen = (
-            await app_client.get(f"/api/v1/checkpoints/{execute['checkpoint_id']}?wait=0", headers=trial_headers(token))
+            await app_client.get(f"/api/v1/checkpoints/{verify_cp['checkpoint_id']}?wait=0", headers=trial_headers(token))
         ).json()
         assert seen["decision"] == "restore" and "restore_snapshot" in seen["restore_hint"]
         # a 'restore' phase is only accepted after that decision; then continue starts iteration 2
@@ -603,14 +614,21 @@ async def test_snapshot_restore_auto_confirm_and_memory_after_trial(app_client):
             headers=trial_headers(token),
         )
         assert premature.status_code == 409 and premature.json()["error"]["code"] == "restore_not_requested"
-        # iteration 2 of 'flag' and the simulated 'send' step are approved; the run ends
+        # iteration 2 of 'flag' and the simulated 'send' step are approved; the run ends. flag is
+        # restorable, so iteration 2 needs its own snapshot before verify.
+        await _phases(app_client, token, headers, run_id, "flag", [("preview", "continue")])
+        await app_client.post(
+            "/api/v1/telemetry/snapshots",
+            json={"run_id": run_id, "step_key": "flag", "items": [], "note": "backup i2"},
+            headers=trial_headers(token),
+        )
         await _phases(
             app_client,
             token,
             headers,
             run_id,
             "flag",
-            [("explain", "continue"), ("preview", "continue"), ("verify", "approve_and_authorize_next")],
+            [("verify", "approve_and_authorize_next")],
         )
         await _phases(
             app_client,
@@ -618,7 +636,7 @@ async def test_snapshot_restore_auto_confirm_and_memory_after_trial(app_client):
             headers,
             run_id,
             "send",
-            [("explain", "continue"), ("preview", "continue"), ("verify", "approve_and_authorize_next")],
+            [("preview", "continue"), ("verify", "approve_and_authorize_next")],
         )
         await app_client.post(
             f"/api/v1/telemetry/runs/{run_id}/end", json={"status": "succeeded"}, headers=trial_headers(token)
@@ -669,10 +687,10 @@ async def test_snapshot_restore_auto_confirm_and_memory_after_trial(app_client):
         tok2 = second["session_token"]
         run2 = (await app_client.post("/api/v1/telemetry/runs", json={}, headers=trial_headers(tok2))).json()["run_id"]
         auto = await _phases(
-            app_client, tok2, headers, run2, "open-sheet", [("explain", None), ("preview", None), ("verify", None)]
+            app_client, tok2, headers, run2, "open-sheet", [("preview", None), ("verify", None)]
         )
-        assert [c["status"] for c in auto] == ["decided"] * 3
-        assert [c["decision"] for c in auto] == ["continue", "continue", "approve_and_authorize_next"]
+        assert [c["status"] for c in auto] == ["decided"] * 2
+        assert [c["decision"] for c in auto] == ["continue", "approve_and_authorize_next"]
         assert all(c["auto_confirmed"] is True for c in auto)
         step = next(
             s
@@ -681,22 +699,22 @@ async def test_snapshot_restore_auto_confirm_and_memory_after_trial(app_client):
         )
         assert step["confirmations_count"] == 2
         # 'send' is deterministic too but irreversible: never auto-confirmed. Switching auto-confirm off re-asks.
-        await _phases(
-            app_client,
-            tok2,
-            headers,
-            run2,
-            "flag",
-            [("explain", "continue"), ("preview", "continue"), ("verify", "approve_and_authorize_next")],
+        await _phases(app_client, tok2, headers, run2, "flag", [("preview", "continue")])
+        await app_client.post(
+            "/api/v1/telemetry/snapshots",
+            json={"run_id": run2, "step_key": "flag", "items": [], "note": "backup"},
+            headers=trial_headers(tok2),
         )
-        (send_explain,) = await _phases(app_client, tok2, headers, run2, "send", [("explain", None)])
-        assert send_explain["status"] == "pending"
+        await _phases(app_client, tok2, headers, run2, "flag", [("verify", "approve_and_authorize_next")])
+        (send_preview,) = await _phases(app_client, tok2, headers, run2, "send", [("preview", None)])
+        assert send_preview["status"] == "pending"
         patched = await app_client.patch(
             f"/api/v1/trials/{second['id']}", json={"auto_confirm": False}, headers=headers
         )
         assert patched.status_code == 200 and patched.json()["auto_confirm"] is False
         history = (await app_client.get(f"/api/v1/trials/{second['id']}", headers=headers)).json()["checkpoints"]
-        assert sum(1 for c in history if c["proposal"].get("auto_confirmed")) == 3
+        # open-sheet's two gates auto-confirm (preview + verify); flag was corrected, so it is re-asked
+        assert sum(1 for c in history if c["proposal"].get("auto_confirmed")) == 2
     finally:
         set_fake_provider(None)
 
@@ -739,7 +757,7 @@ async def test_a_refused_checkpoint_says_what_to_send_instead(app_client):
         cp = (
             await app_client.post(
                 "/api/v1/checkpoints",
-                json={"run_id": run_id, "step_key": "open-sheet", "phase": "explain"},
+                json={"run_id": run_id, "step_key": "open-sheet", "phase": "preview"},
                 headers=trial_headers(token),
             )
         ).json()
@@ -750,21 +768,22 @@ async def test_a_refused_checkpoint_says_what_to_send_instead(app_client):
         # exactly what the agent did: jump to the next step with the current one still open
         refused = await app_client.post(
             "/api/v1/checkpoints",
-            json={"run_id": run_id, "step_key": "flag", "phase": "explain"},
+            json={"run_id": run_id, "step_key": "flag", "phase": "preview"},
             headers=trial_headers(token),
         )
         assert refused.status_code == 409
         err = refused.json()["error"]
         assert err["code"] == "previous_step_not_authorized"
-        # the recovery recipe: which phase, for which step
-        assert err["details"]["expected_phase"] == "preview"
+        # the recovery recipe: which phase, for which step. open-sheet's preview was accepted, so what
+        # it now owes is its verify.
+        assert err["details"]["expected_phase"] == "verify"
         assert err["details"]["expected_step_key"] == "open-sheet"
         assert "verify" in err["message"] and "open-sheet" in err["message"]
 
         # following the recipe unblocks the run instead of ending it
         accepted = await app_client.post(
             "/api/v1/checkpoints",
-            json={"run_id": run_id, "step_key": "open-sheet", "phase": "preview"},
+            json={"run_id": run_id, "step_key": "open-sheet", "phase": "verify"},
             headers=trial_headers(token),
         )
         assert accepted.status_code == 200, accepted.text
@@ -797,7 +816,7 @@ async def test_the_missing_phase_named_is_the_one_actually_owed(app_client):
                 headers=trial_headers(token),
             )
         ).json()["run_id"]
-        for phase in ("explain", "preview"):
+        for phase in ("preview",):
             cp = (
                 await app_client.post(
                     "/api/v1/checkpoints",
@@ -811,7 +830,7 @@ async def test_the_missing_phase_named_is_the_one_actually_owed(app_client):
 
         refused = await app_client.post(
             "/api/v1/checkpoints",
-            json={"run_id": run_id, "step_key": "flag", "phase": "explain"},
+            json={"run_id": run_id, "step_key": "flag", "phase": "preview"},
             headers=trial_headers(token),
         )
         assert refused.status_code == 409
@@ -848,7 +867,7 @@ async def test_a_closed_trial_can_be_erased_with_everything_it_recorded(app_clie
         cp = (
             await app_client.post(
                 "/api/v1/checkpoints",
-                json={"run_id": run_id, "step_key": "open-sheet", "phase": "explain"},
+                json={"run_id": run_id, "step_key": "open-sheet", "phase": "preview"},
                 headers=trial_headers(token),
             )
         ).json()
@@ -947,20 +966,16 @@ async def test_a_decision_says_what_to_do_next(app_client):
                 await app_client.get(f"/api/v1/checkpoints/{cp['checkpoint_id']}?wait=0", headers=trial_headers(token))
             ).json()
 
-        # `continue` on an explain points at this step's preview, never at the next step
-        after_explain = await decide("open-sheet", "explain", "continue")
-        assert after_explain["decision"] == "continue"
-        assert after_explain["next_phase"] == "preview"
-        assert after_explain["next_step_key"] == "open-sheet"
-        assert "preview" in after_explain["next_hint"]
-
+        # `continue` on a preview points at this step's verify, never at the next step
         after_preview = await decide("open-sheet", "preview", "continue")
+        assert after_preview["decision"] == "continue"
+        assert after_preview["next_phase"] == "verify"
         assert after_preview["next_step_key"] == "open-sheet"
-        assert after_preview["next_phase"] in ("execute", "verify")
+        assert "verify" in after_preview["next_hint"]
 
-        # closing the step is what names the following one, and says not to end the run
+        # closing the step (verify approved) is what names the following one, and says not to end the run
         after_verify = await decide("open-sheet", "verify", "approve_and_authorize_next")
-        assert after_verify["next_phase"] == "explain"
+        assert after_verify["next_phase"] == "preview"
         assert after_verify["next_step_key"] == "flag", "the next step in the skill's own order"
         assert after_verify["steps_left"] == 2
         assert "Do not call `end_run` yet" in after_verify["next_hint"]
@@ -1010,16 +1025,16 @@ async def test_sync_tells_the_local_driver_where_the_agent_is(app_client):
             )
         ).json()["run_id"]
 
-        # 2. run open, no checkpoint yet: the agent's turn — send the first explain
+        # 2. run open, no checkpoint yet: the agent's turn — send the first preview
         started = await sync_agent()
         assert started["run_open"] is True and started["waiting_on_human"] is False
-        assert started["next_phase"] == "explain"
+        assert started["next_phase"] == "preview"
 
-        # 3. an explain checkpoint raised but not decided: the person's turn — the driver waits
+        # 3. a preview checkpoint raised but not decided: the person's turn — the driver waits
         cp = (
             await app_client.post(
                 "/api/v1/checkpoints",
-                json={"run_id": run_id, "step_key": "open-sheet", "phase": "explain"},
+                json={"run_id": run_id, "step_key": "open-sheet", "phase": "preview"},
                 headers=trial_headers(token),
             )
         ).json()
@@ -1034,8 +1049,8 @@ async def test_sync_tells_the_local_driver_where_the_agent_is(app_client):
         )
         resumed = await sync_agent()
         assert resumed["waiting_on_human"] is False
-        assert resumed["next_phase"] == "preview" and resumed["next_step_key"] == "open-sheet"
-        assert "preview" in resumed["next_hint"]
+        assert resumed["next_phase"] == "verify" and resumed["next_step_key"] == "open-sheet"
+        assert "verify" in resumed["next_hint"]
 
         # 5. the run ends: there is nothing left to drive
         await app_client.post(
@@ -1174,7 +1189,14 @@ async def test_a_step_cannot_be_skipped_and_a_re_run_resumes_at_the_first_gap(ap
             ).json()["run_id"]
 
         async def walk(run_id: str, step_key: str) -> None:
-            for phase in ("explain", "preview", "verify"):
+            for phase in ("preview", "verify"):
+                if phase == "verify":
+                    # a restorable step needs a snapshot before its verify; harmless for the others
+                    await app_client.post(
+                        "/api/v1/telemetry/snapshots",
+                        json={"run_id": run_id, "step_key": step_key, "items": [], "note": "test"},
+                        headers=trial_headers(token),
+                    )
                 cp = (
                     await app_client.post(
                         "/api/v1/checkpoints",
@@ -1192,7 +1214,7 @@ async def test_a_step_cannot_be_skipped_and_a_re_run_resumes_at_the_first_gap(ap
         await walk(run1, "open-sheet")
         jumped = await app_client.post(
             "/api/v1/checkpoints",
-            json={"run_id": run1, "step_key": "send", "phase": "explain"},
+            json={"run_id": run1, "step_key": "send", "phase": "preview"},
             headers=trial_headers(token),
         )
         assert jumped.status_code == 409

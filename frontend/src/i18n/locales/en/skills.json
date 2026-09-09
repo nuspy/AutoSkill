@@ -352,7 +352,7 @@
     "stopConfirm": "Stop this run?",
     "decisions": {
       "continue": "Looks right, continue",
-      "continuePreview": "Data is right, go on",
+      "continuePreview": "Approve — carry it out",
       "authorize_execute": "Authorize real execution",
       "approve_and_authorize_next": "Approve and go to the next step",
       "change": "Change",
