@@ -430,7 +430,8 @@
     "commandLost": "Der Installationsbefehl wurde beim Anlegen des Tests nur einmal angezeigt. Solange Sie ihn nicht ausführen, geschieht auf dem Rechner nichts.",
     "showCommand": "Befehl erneut anzeigen",
     "showCommandHint": "Dies erzeugt ein neues Test-Token; das zuvor angezeigte wird ungültig.",
-    "targetNotDetected": "Noch keine Maschine hat diesen Agenten gemeldet. Die Liste wird beim Ausführen der CLI aktualisiert, ein später installierter Agent fehlt also womöglich nur — prüfen Sie, ob es der Agent ist, den Sie tatsächlich verwenden."
+    "targetNotDetected": "Noch keine Maschine hat diesen Agenten gemeldet. Die Liste wird beim Ausführen der CLI aktualisiert, ein später installierter Agent fehlt also womöglich nur — prüfen Sie, ob es der Agent ist, den Sie tatsächlich verwenden.",
+    "noProposalDetail": "Der Agent hat für diesen Schritt keine Details geliefert — du kannst nicht sehen, was er tut oder getan hat. Bitte ihn um eine Erklärung (Ändern oder Besprechen), bevor du zustimmst."
   },
   "runs": {
     "title": "Läufe",

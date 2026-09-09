@@ -430,7 +430,8 @@
     "commandLost": "Il comando di installazione è stato mostrato una sola volta, alla creazione del trial. Finché non lo esegui, sulla macchina non succede nulla.",
     "showCommand": "Mostra di nuovo il comando",
     "showCommandHint": "Genera un nuovo token del trial: quello mostrato prima smette di funzionare.",
-    "targetNotDetected": "Nessuna macchina ha ancora segnalato questo agente. L'elenco si aggiorna quando la CLI viene eseguita, quindi un agente installato dopo può semplicemente non comparire: verifica che sia davvero l'agente che usi."
+    "targetNotDetected": "Nessuna macchina ha ancora segnalato questo agente. L'elenco si aggiorna quando la CLI viene eseguita, quindi un agente installato dopo può semplicemente non comparire: verifica che sia davvero l'agente che usi.",
+    "noProposalDetail": "L'agente non ha fornito dettagli per questo passo — non puoi vedere cosa farà o ha fatto. Chiedigli di spiegare (Cambia o Discuti) prima di approvare."
   },
   "runs": {
     "title": "Esecuzioni",

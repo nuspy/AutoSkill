@@ -430,7 +430,8 @@
     "commandLost": "El comando de instalación se mostró una sola vez, al crear la prueba. Hasta que no lo ejecutes, en la máquina no ocurre nada.",
     "showCommand": "Mostrar el comando de nuevo",
     "showCommandHint": "Esto emite un token de prueba nuevo; el anterior deja de funcionar.",
-    "targetNotDetected": "Ninguna máquina ha informado todavía de este agente. La lista se actualiza cuando se ejecuta la CLI, así que un agente instalado después puede simplemente no aparecer: comprueba que sea el agente que usas de verdad."
+    "targetNotDetected": "Ninguna máquina ha informado todavía de este agente. La lista se actualiza cuando se ejecuta la CLI, así que un agente instalado después puede simplemente no aparecer: comprueba que sea el agente que usas de verdad.",
+    "noProposalDetail": "El agente no dio detalles de este paso — no puedes ver qué hará o hizo. Pídele que lo explique (Cambiar o Discutir) antes de aprobar."
   },
   "runs": {
     "title": "Ejecuciones",

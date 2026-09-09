@@ -430,7 +430,8 @@
     "commandLost": "La commande d'installation n'a été affichée qu'une fois, à la création de l'essai. Tant que vous ne l'exécutez pas, rien ne se passe sur la machine.",
     "showCommand": "Afficher à nouveau la commande",
     "showCommandHint": "Cela émet un nouveau jeton d'essai ; le précédent cesse de fonctionner.",
-    "targetNotDetected": "Aucune machine n'a encore signalé cet agent. La liste se met à jour quand la CLI s'exécute : un agent installé depuis peut simplement ne pas y figurer — vérifiez que c'est bien l'agent que vous utilisez."
+    "targetNotDetected": "Aucune machine n'a encore signalé cet agent. La liste se met à jour quand la CLI s'exécute : un agent installé depuis peut simplement ne pas y figurer — vérifiez que c'est bien l'agent que vous utilisez.",
+    "noProposalDetail": "L'agent n'a donné aucun détail sur cette étape — vous ne pouvez pas voir ce qu'il va faire ou a fait. Demandez-lui d'expliquer (Modifier ou Discuter) avant d'approuver."
   },
   "runs": {
     "title": "Exécutions",

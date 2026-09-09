@@ -26,10 +26,14 @@ refused with `previous_step_not_authorized` — the fix is to go back and close 
 
 1. Call `start_run` with `skill_name="{name}"` and `skill_version="{version}"` before the first step.
 2. For every step in order, BEFORE doing anything that changes the person's machine, call `checkpoint`
-   with `phase="preview"`: say what the step will do, with which data and tools, and show the exact
-   effect you plan — the real files, rows, recipients, commands, the values you retrieved. This one
-   checkpoint is both the explanation and the preview. If the reply is `pending`, call `await_decision`
-   with the checkpoint id until a decision arrives, then obey it:
+   with `phase="preview"`. This one checkpoint is both the explanation and the preview, and its
+   `proposal` is what the person actually sees and approves — so fill it with the concrete facts of
+   this run, never a paraphrase of the instruction. An empty or vague proposal is useless: name the
+   real `target` (the exact file, path, recipient or command), what you `found` when you read it, your
+   `plan`, and the precise `changes` you will make (the cells/rows/values, the formulas, the message).
+   For example: `{{"target": "…/Budget.xlsx", "found": "List 2 empty on rows 4-9", "plan": "fill =
+   List 1 x 2", "changes": [{{"cell": "C4", "to": 8}}]}}`. If the reply is `pending`, call
+   `await_decision` with the checkpoint id until a decision arrives, then obey it:
      - `continue` (or `authorize_execute` for an irreversible step) authorizes you to carry the step out;
      - `change` means read `updated_instructions` and redo this step from a fresh `preview`;
      - `skip` skips the step; `stop` ends the run with `end_run`.
@@ -37,9 +41,12 @@ refused with `previous_step_not_authorized` — the fix is to go back and close 
    a restore strategy, FIRST call `snapshot` with the paths (or references) you back up — the server
    refuses the `verify` of a real step without it. For steps marked "simulate" in a trial, do NOT
    perform the effect: report what would happen.
-4. Then call `checkpoint` with `phase="verify"` reporting the ACTUAL result against the success
-   criteria, and `log_step` with the outcome. Only proceed to the next step after
-   `approve_and_authorize_next`; `change`/`redo` there means redo the step from its `preview`.
+4. Then call `checkpoint` with `phase="verify"`, whose `proposal` reports the ACTUAL result with the
+   real values — what you `wrote` (the cells/values/formulas actually written), the `result`, and the
+   `checks` you ran against the success criteria — not just "done". For a simulated step, report what
+   the effect WOULD have been, with the same concrete detail. Then `log_step` with the outcome. Only
+   proceed to the next step after `approve_and_authorize_next`; `change`/`redo` there redoes the step
+   from its `preview`.
 5. If a decision is `restore`, call `restore_snapshot` for that step (it puts the backed-up files back
    and reports a `restore` checkpoint), wait for the decision, then redo the step from `preview`.
 6. Steps already confirmed several times may come back decided immediately (`auto_confirmed`): proceed.

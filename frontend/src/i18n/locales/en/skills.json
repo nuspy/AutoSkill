@@ -430,7 +430,8 @@
     "commandLost": "The install command was shown once when the trial was created. Nothing happens on this machine until you run it.",
     "showCommand": "Show the command again",
     "showCommandHint": "This issues a new trial token; the one shown before stops working.",
-    "targetNotDetected": "No machine has reported this agent yet. The list is refreshed when the CLI runs, so an agent installed since then simply may not appear — check that this is the agent you actually use."
+    "targetNotDetected": "No machine has reported this agent yet. The list is refreshed when the CLI runs, so an agent installed since then simply may not appear — check that this is the agent you actually use.",
+    "noProposalDetail": "The agent gave no detail for this step — you cannot see what it will do or did. Ask it to explain (Change or Discuss) before approving."
   },
   "runs": {
     "title": "Runs",

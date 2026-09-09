@@ -430,7 +430,8 @@
     "commandLost": "A telepítési parancs csak egyszer jelent meg, a próba létrehozásakor. Amíg nem futtatja, a gépen nem történik semmi.",
     "showCommand": "Parancs újbóli megjelenítése",
     "showCommandHint": "Ez új próba-tokent ad ki; a korábban mutatott érvénytelenné válik.",
-    "targetNotDetected": "Egyetlen gép sem jelentette még ezt az ügynököt. A lista a CLI futásakor frissül, így egy azóta telepített ügynök egyszerűen hiányozhat — ellenőrizze, hogy valóban ezt az ügynököt használja-e."
+    "targetNotDetected": "Egyetlen gép sem jelentette még ezt az ügynököt. A lista a CLI futásakor frissül, így egy azóta telepített ügynök egyszerűen hiányozhat — ellenőrizze, hogy valóban ezt az ügynököt használja-e.",
+    "noProposalDetail": "Az ügynök nem adott részletet erről a lépésről — nem látod, mit fog tenni vagy tett. Kérd meg, hogy magyarázza el (Módosítás vagy Megbeszélés) a jóváhagyás előtt."
   },
   "runs": {
     "title": "Futások",

@@ -311,8 +311,20 @@ function WaitingCard({ detail }: { detail: { runs: Run[]; steps: StepDefinition[
 }
 
 function ProposalView({ proposal }: { proposal: Record<string, unknown> }) {
-  const entries = Object.entries(proposal).filter(([, v]) => v !== null && v !== undefined && v !== "");
-  if (!entries.length) return null;
+  const { t } = useTranslation(["skills"]);
+  // `auto_confirmed` is a server flag, not something the agent said about the step — never show it as
+  // "detail". What remains is what the agent chose to tell the person.
+  const entries = Object.entries(proposal).filter(([k, v]) => k !== "auto_confirmed" && v !== null && v !== undefined && v !== "");
+  if (!entries.length) {
+    // An empty proposal means the agent explained nothing — the person is being asked to approve a
+    // step they cannot see. Say so plainly rather than showing an empty card, and point at the way out.
+    return (
+      <p className="flex items-start gap-2 rounded-lg bg-warning/10 px-3 py-2 text-sm text-warning">
+        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+        {t("skills:trials.noProposalDetail")}
+      </p>
+    );
+  }
   return (
     <dl className="space-y-2 text-sm">
       {entries.map(([k, v]) => (

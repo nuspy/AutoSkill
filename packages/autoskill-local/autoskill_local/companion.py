@@ -111,10 +111,26 @@ def start_run(
 def checkpoint(
     run_id: str, step_key: str, phase: str, proposal: dict | None = None, iteration: int | None = None
 ) -> dict:
-    """Register a step phase (explain | preview | execute | verify) and get the decision, or 'pending'.
+    """Register a step's gate (phase = 'preview' before, 'verify' after) and get the decision.
 
-    In an interactive trial the person decides from the AutoSkill web UI: when the result is pending,
-    call await_decision with the checkpoint_id until a decision arrives, then obey it.
+    The `proposal` is what the person sees and decides on. An empty proposal is useless to them — a
+    card that says only the step's name tells them nothing to approve. Fill it with the concrete facts
+    of THIS run, never a paraphrase of the instruction:
+
+    phase='preview' (before you act) — describe exactly what you are about to do:
+        {"target": "C:/Users/.../Documents/Budget.xlsx",   # the real file / resource / recipient
+         "found": "Sheet1, 20 rows; List 2 empty on rows 4-9, 11-21",   # what you actually read
+         "plan": "fill List 2 = List 1 * 2 on the 16 empty rows; add =SUM on row 22",
+         "changes": [{"cell": "C4", "from": "", "to": 8}, {"cell": "C5", "from": "", "to": 10}]}
+
+    phase='verify' (after you acted) — report what ACTUALLY happened, with the real values:
+        {"result": "filled 16 cells, added SUM row",
+         "written": [{"cell": "C4", "value": 8}, {"cell": "C5", "value": 10}],
+         "checks": "List 1 SUM=120 in B22, List 2 SUM=240 in C22; matches expected"}
+
+    Include the numbers, paths, rows, and formulas — enough that the person can judge the step without
+    seeing your screen. In an interactive trial they decide from the AutoSkill web UI: when the result
+    is 'pending', call await_decision with the checkpoint_id until a decision arrives, then obey it.
     """
 
     def go():
