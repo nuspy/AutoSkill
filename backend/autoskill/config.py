@@ -58,10 +58,13 @@ class Settings(BaseSettings):
     # Local engines only: True lets a request load the chosen model when the GPU is idle, False
     # limits the VRAM rule to using what is already in memory.
     llmswitch_load_models: bool = True
-    # How long to wait for one completion. A local reasoning model writes thousands of tokens
-    # before the answer, at a speed measured in tens of tokens per second: minutes, not seconds.
-    # Only the wait for the response is this long — connecting still times out quickly.
-    llm_request_timeout_seconds: float = 900.0
+    # How long to wait for one completion. A local reasoning model writes thousands of tokens before
+    # the answer at tens of tokens per second, so this is generous — but not 15 minutes: at 900s a
+    # single hung or runaway generation (a reasoning model with no token cap can loop and generate
+    # without end) stalled a whole interview step for the full quarter hour before the retry, which
+    # then answered in seconds. Paired with a token cap (llm_output_limit_*), a real call finishes
+    # well inside this and a stuck one is abandoned in minutes, not a quarter of an hour.
+    llm_request_timeout_seconds: float = 240.0
 
     @property
     def dist_dir(self) -> Path:

@@ -31,6 +31,7 @@ class OpenAICompatProvider:
         api_key: str | None = None,
         capabilities: Capabilities | None = None,
         extra_headers: dict[str, str] | None = None,
+        extra_body: dict[str, Any] | None = None,
         timeout: float = 900.0,
         transport: httpx.AsyncBaseTransport | None = None,
     ) -> None:
@@ -38,6 +39,11 @@ class OpenAICompatProvider:
         self.base_url = base_url.rstrip("/")
         self.api_key = api_key
         self.capabilities = capabilities or Capabilities(tools=True, json_schema=True)
+        # Merged into every request body. Used to carry engine-specific switches an OpenAI endpoint
+        # would reject but a local one understands — notably `chat_template_kwargs.enable_thinking`,
+        # which turns off a reasoning model's chain-of-thought. AutoSkill's calls are constrained JSON
+        # extraction, where thinking adds tens of seconds per call and little else.
+        self._extra_body = extra_body or {}
         self._headers = {"Content-Type": "application/json", **(extra_headers or {})}
         if api_key:
             self._headers["Authorization"] = f"Bearer {api_key}"
