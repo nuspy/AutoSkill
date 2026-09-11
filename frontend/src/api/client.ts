@@ -58,6 +58,14 @@ export async function api<T>(path: string, options: RequestOptions = {}): Promis
   };
   const res = await fetch(`${BASE}${path}`, init);
   if (res.status === 401 && auth && retry) {
+    // If the session token already changed while this request was in flight, another request has
+    // refreshed it: just retry with the current one. Calling refresh again here is what caused the
+    // spurious logout — during a long wait the access token expires, several polling requests 401 at
+    // once, and a second refresh fires with the cookie the first one already rotated away. That
+    // rotated cookie is invalid, so the refresh 401s and the app logged the person out, even though
+    // the new cookie (and session) was perfectly valid. Retrying with the fresh token avoids it.
+    const current = useSession.getState().accessToken;
+    if (current && current !== token) return api<T>(path, { ...options, retry: false });
     const fresh = await refreshAccessToken();
     if (fresh) return api<T>(path, { ...options, retry: false });
     useSession.getState().clear();
