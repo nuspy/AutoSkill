@@ -24,6 +24,37 @@ Two run modes, chosen in `autoskill.env`:
 | single-process (default) | SQLite or Postgres | `AUTOSKILL_JOBS=inline`, `AUTOSKILL_EVENTS=memory` | `autoskill-api` only |
 | with worker | Postgres | `AUTOSKILL_JOBS=arq`, `AUTOSKILL_EVENTS=redis`, `AUTOSKILL_REDIS_URL` | `autoskill-api` + `autoskill-worker` |
 
+### Choosing the database
+
+`install.sh` asks, the first time it writes `autoskill.env`, whether to use SQLite or PostgreSQL.
+SQLite is one file and zero setup, but it has a **single writer**: a long interview or trial holds
+the database for the length of an LLM call, and a login arriving meanwhile fails with *"database is
+locked"*. PostgreSQL has no such contention and is recommended for anything beyond one casual user.
+
+The prompt can be pre-answered for automation (CI stays on SQLite because there is no terminal):
+
+```bash
+AUTOSKILL_DB=postgres AUTOSKILL_PG_URL='postgresql+asyncpg://autoskill:PW@localhost:5432/autoskill' \
+    sudo ./deploy/install.sh /opt/autoskill
+# or, most direct: AUTOSKILL_DATABASE_URL='postgresql+asyncpg://...' sudo ./deploy/install.sh ...
+```
+
+**Moving existing data from SQLite to PostgreSQL.** If you switch an install that already ran on
+SQLite, the schema is created on Postgres by the migrations, and the rows are carried over by
+`deploy/migrate_sqlite_to_postgres.py` — `install.sh` offers to run it when it finds an SQLite file
+alongside a Postgres URL (or run it by hand):
+
+```bash
+AUTOSKILL_DATABASE_URL='postgresql+asyncpg://autoskill:PW@localhost:5432/autoskill' \
+    venv/bin/alembic -c backend/alembic.ini upgrade head          # schema onto Postgres
+venv/bin/python deploy/migrate_sqlite_to_postgres.py \
+    --source sqlite+aiosqlite:///path/to/autoskill.db \
+    --target postgresql+asyncpg://autoskill:PW@localhost:5432/autoskill   # then the data
+```
+
+It copies every table in foreign-key order inside one transaction, empties each target table first
+(so it is safe to re-run), and refuses to run if the two schemas are at different migration revisions.
+
 The first account registered through the web UI becomes the administrator. Re-running `install.sh` updates
 the code, rebuilds the frontend and applies migrations.
 

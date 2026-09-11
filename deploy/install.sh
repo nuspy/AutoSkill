@@ -41,19 +41,48 @@ mkdir -p "${TARGET}/data/dist"
 "${TARGET}/venv/bin/pip" wheel --no-deps -q -w "${TARGET}/data/dist" "${TARGET}/app/packages/autoskill-local"
 
 if [ ! -f "${TARGET}/autoskill.env" ]; then
+  # --- database choice, asked explicitly -----------------------------------------------------
+  # SQLite is one file and zero setup, but it has a single writer: a long interview or trial holds
+  # the database for the length of an LLM call, and an ordinary login then times out with "database
+  # is locked". PostgreSQL has no such contention. The choice is asked here rather than assumed.
+  # It can be pre-answered for automation: AUTOSKILL_DATABASE_URL set outright wins; otherwise
+  # AUTOSKILL_DB=sqlite|postgres (with AUTOSKILL_PG_URL for postgres). Without a terminal it stays on
+  # SQLite, so CI and deploy/smoke.sh are unaffected.
+  DEFAULT_SQLITE="sqlite+aiosqlite:///${TARGET}/data/autoskill.db"
+  PG_EXAMPLE="postgresql+asyncpg://autoskill:PASSWORD@localhost:5432/autoskill"
+  if [ -n "${AUTOSKILL_DATABASE_URL:-}" ]; then
+    DB_URL="${AUTOSKILL_DATABASE_URL}"
+  elif [ "${AUTOSKILL_DB:-}" = "sqlite" ]; then
+    DB_URL="${DEFAULT_SQLITE}"
+  elif [ "${AUTOSKILL_DB:-}" = "postgres" ]; then
+    DB_URL="${AUTOSKILL_PG_URL:-${PG_EXAMPLE}}"
+  elif [ -t 0 ]; then
+    echo
+    echo "Which database should AutoSkill use?"
+    echo "  1) SQLite      one file, zero setup. Fine for one user; a long interview or trial can"
+    echo "                 briefly lock it (SQLite has a single writer)."
+    echo "  2) PostgreSQL  concurrent, no locking. Recommended for real use."
+    printf "Choose [1]: "; read -r _db_choice
+    if [ "${_db_choice}" = "2" ]; then
+      printf "PostgreSQL connection URL [%s]: " "${PG_EXAMPLE}"; read -r DB_URL
+      [ -z "${DB_URL}" ] && DB_URL="${PG_EXAMPLE}"
+    else
+      DB_URL="${DEFAULT_SQLITE}"
+    fi
+  else
+    DB_URL="${DEFAULT_SQLITE}"
+  fi
+  case "${DB_URL}" in postgres*) echo "==> Database: PostgreSQL" ;; *) echo "==> Database: SQLite" ;; esac
+
   echo "==> Creating ${TARGET}/autoskill.env (edit it before starting the services)"
   cat > "${TARGET}/autoskill.env" <<ENV
 AUTOSKILL_ENV=prod
 AUTOSKILL_SECRET_KEY=$(python3 -c 'import secrets;print(secrets.token_urlsafe(48))')
-# Single-process mode (no Redis): SQLite + inline jobs. Switch to Postgres + arq when you add a worker.
-AUTOSKILL_DATABASE_URL=sqlite+aiosqlite:///${TARGET}/data/autoskill.db
+# Chosen at install time. SQLite is single-writer; PostgreSQL is concurrent. A worker (arq) additionally
+# needs Redis (AUTOSKILL_JOBS=arq, AUTOSKILL_EVENTS=redis, AUTOSKILL_REDIS_URL) — see deploy/README.md.
+AUTOSKILL_DATABASE_URL=${DB_URL}
 AUTOSKILL_JOBS=inline
 AUTOSKILL_EVENTS=memory
-# With worker: uncomment and run autoskill-worker.service
-# AUTOSKILL_DATABASE_URL=postgresql+asyncpg://autoskill:PASSWORD@localhost:5432/autoskill
-# AUTOSKILL_REDIS_URL=redis://localhost:6379/0
-# AUTOSKILL_JOBS=arq
-# AUTOSKILL_EVENTS=redis
 AUTOSKILL_DATA_DIR=${TARGET}/data
 AUTOSKILL_PUBLIC_URL=http://localhost
 AUTOSKILL_CORS_ORIGINS='["http://localhost"]'
@@ -82,6 +111,30 @@ fi
 
 echo "==> Database migrations"
 (cd "${TARGET}/app" && set -a && . "${TARGET}/autoskill.env" && set +a && "${TARGET}/venv/bin/alembic" upgrade head)
+
+# If the schema now lives in PostgreSQL but an SQLite database with data is sitting there, offer to
+# carry the rows over. The schema was just created above, so this only copies data. Non-interactive
+# runs skip it (set AUTOSKILL_MIGRATE_DATA=1 to copy without asking).
+SQLITE_FILE="${TARGET}/data/autoskill.db"
+CURRENT_DB_URL="$(. "${TARGET}/autoskill.env" >/dev/null 2>&1; printf '%s' "${AUTOSKILL_DATABASE_URL:-}")"
+case "${CURRENT_DB_URL}" in
+  postgres*)
+    if [ -s "${SQLITE_FILE}" ]; then
+      do_copy=0
+      if [ "${AUTOSKILL_MIGRATE_DATA:-}" = "1" ]; then do_copy=1
+      elif [ -t 0 ]; then
+        printf "==> An SQLite database exists at %s. Copy its data into PostgreSQL now? [y/N]: " "${SQLITE_FILE}"
+        read -r _ans; [ "${_ans}" = "y" ] || [ "${_ans}" = "Y" ] && do_copy=1
+      fi
+      if [ "${do_copy}" = "1" ]; then
+        echo "==> Copying SQLite data into PostgreSQL"
+        (cd "${TARGET}/app" && set -a && . "${TARGET}/autoskill.env" && set +a \
+          && "${TARGET}/venv/bin/python" "${REPO_DIR}/deploy/migrate_sqlite_to_postgres.py" \
+             --source "sqlite+aiosqlite:///${SQLITE_FILE}" --target "${AUTOSKILL_DATABASE_URL}")
+      fi
+    fi
+    ;;
+esac
 
 if [ "${SKIP_SYSTEMD}" = "1" ]; then
   echo "==> Done (systemd skipped). Start with: ${TARGET}/venv/bin/uvicorn autoskill.main:app --app-dir ${TARGET}/app --timeout-keep-alive 1800"
