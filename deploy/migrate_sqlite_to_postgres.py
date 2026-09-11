@@ -43,6 +43,17 @@ async def _revision(conn) -> str | None:
         return None
 
 
+async def _foreign_keys(tc) -> list[tuple[str, str, str]]:
+    """Every foreign key on the target as (table, constraint name, definition)."""
+    rows = await tc.execute(
+        text(
+            "SELECT conrelid::regclass::text AS tbl, conname, pg_get_constraintdef(oid) AS def "
+            "FROM pg_constraint WHERE contype = 'f'"
+        )
+    )
+    return [(t.split(".")[-1].strip('"'), n, d) for t, n, d in rows]
+
+
 async def migrate(source_url: str, target_url: str, *, batch: int = 500) -> None:
     src = create_async_engine(source_url)
     tgt = create_async_engine(target_url)
@@ -60,26 +71,61 @@ async def migrate(source_url: str, target_url: str, *, batch: int = 500) -> None
                     "Migrate both to the same revision before copying."
                 )
 
-        # Parents before children, so every foreign key already points at a row that exists. The
-        # source is copied inside one target transaction: it all lands, or nothing does.
-        tables = [t for t in Base.metadata.sorted_tables if t.name != ALEMBIC]
+        by_name = {t.name: t for t in Base.metadata.sorted_tables if t.name != ALEMBIC}
+        # One transaction: drop the foreign keys, copy every row in any order, then put the keys back.
+        # SQLite does not enforce foreign keys unless asked, so a real database often carries dangling
+        # references (an api_key whose device row was deleted); Postgres does enforce them and would
+        # reject the copy row by row. Dropping the constraints for the copy sidesteps the ordering
+        # problem entirely, and re-adding them NOT VALID keeps every existing row while still enforcing
+        # every future write — with the dangling ones named in the output so they are not a silent loss.
         async with src.connect() as sc, tgt.begin() as tc:
-            for tbl in reversed(tables):  # children first for the delete, so no FK blocks it
-                await tc.execute(delete(tbl))
+            fks = await _foreign_keys(tc)
+            for tbl, name, _ in fks:
+                await tc.execute(text(f'ALTER TABLE "{tbl}" DROP CONSTRAINT "{name}"'))
             total = 0
-            for tbl in tables:
+            for name, tbl in by_name.items():
+                await tc.execute(delete(tbl))
                 rows = [dict(r) for r in (await sc.execute(select(tbl))).mappings()]
-                if rows:
-                    for i in range(0, len(rows), batch):
-                        await tc.execute(insert(tbl), rows[i : i + batch])
+                for i in range(0, len(rows), batch):
+                    await tc.execute(insert(tbl), rows[i : i + batch])
                 total += len(rows)
-                print(f"  {tbl.name}: {len(rows)}")
-            print(f"copied {total} rows across {len(tables)} tables")
-        # Postgres sequences (SERIAL/identity) are not advanced by an explicit-id insert; AutoSkill
-        # uses string ids everywhere, so there are none to reset. If that ever changes, reset them here.
+                print(f"  {name}: {len(rows)}")
+            for tbl, name, definition in fks:
+                await tc.execute(text(f'ALTER TABLE "{tbl}" ADD CONSTRAINT "{name}" {definition} NOT VALID'))
+            print(f"copied {total} rows across {len(by_name)} tables; {len(fks)} foreign keys restored")
+            # Report references that point at nothing — data SQLite let through, now visible.
+            dangling = 0
+            for tbl, name, definition in fks:
+                bad = (await tc.execute(text(f'SELECT count(*) FROM "{tbl}" t WHERE NOT ({_fk_holds(definition)})'))).scalar_one()
+                if bad:
+                    dangling += bad
+                    print(f"  ! {tbl}.{name}: {bad} row(s) reference a missing parent (kept; constraint NOT VALID)")
+            if dangling:
+                print(f"{dangling} dangling reference(s) carried over — clean them and VALIDATE the constraints if wanted")
+        # AutoSkill uses string ids throughout, so there are no sequences to reset after an id insert.
     finally:
         await src.dispose()
         await tgt.dispose()
+
+
+def _fk_holds(definition: str) -> str:
+    """A boolean SQL expression that is true when a row's foreign key is satisfied, from the FK def.
+
+    `pg_get_constraintdef` reads `FOREIGN KEY (col[, ...]) REFERENCES parent(pcol[, ...])`. Turned into
+    `(col IS NULL OR EXISTS (SELECT 1 FROM parent WHERE parent.pcol = t.col))` it counts the rows whose
+    reference points at nothing — a NULL reference is always fine.
+    """
+    import re
+
+    m = re.search(r"FOREIGN KEY \(([^)]+)\) REFERENCES ([^\s(]+)\s*\(([^)]+)\)", definition)
+    if not m:
+        return "TRUE"
+    cols = [c.strip().strip('"') for c in m.group(1).split(",")]
+    parent = m.group(2)
+    pcols = [c.strip().strip('"') for c in m.group(3).split(",")]
+    null_ok = " OR ".join(f't."{c}" IS NULL' for c in cols)
+    joins = " AND ".join(f'p."{pc}" = t."{c}"' for c, pc in zip(cols, pcols, strict=False))
+    return f'({null_ok} OR EXISTS (SELECT 1 FROM {parent} p WHERE {joins}))'
 
 
 def main() -> None:
