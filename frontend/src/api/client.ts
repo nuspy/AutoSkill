@@ -35,6 +35,25 @@ async function refreshAccessToken(): Promise<string | null> {
   return refreshing;
 }
 
+let silentTimer: ReturnType<typeof setInterval> | null = null;
+
+/**
+ * Keep the session from ever expiring under the person while they use it.
+ *
+ * The access token lives 15 minutes; a step that takes longer — a slow interview, a trial — used to
+ * let it lapse mid-wait, and the person was bounced to login. Refreshing it in the background well
+ * before it expires means it is always fresh, so from their side it simply never expires. Each
+ * refresh rotates the 30-day refresh token forward too, so the session slides along for as long as
+ * the tab is open. It only refreshes while a session exists, and shares the single-flight guard
+ * above, so it never races an on-demand refresh. Idempotent: calling it twice keeps one timer.
+ */
+export function startSilentRefresh(everyMs = 10 * 60 * 1000): void {
+  if (silentTimer) return;
+  silentTimer = setInterval(() => {
+    if (useSession.getState().accessToken) void refreshAccessToken();
+  }, everyMs);
+}
+
 export interface RequestOptions extends Omit<RequestInit, "body"> {
   body?: unknown;
   auth?: boolean;
