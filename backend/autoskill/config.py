@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     jobs: Literal["inline", "arq"] = "inline"
     events: Literal["memory", "redis"] = "memory"
     data_dir: Path = Path("./data")
-    public_url: str = "http://localhost:8000"
+    public_url: str = "http://localhost:8100"
     cors_origins: list[str] = ["http://localhost:5173", "http://localhost:3000"]
     # The browser extension this server pairs with. It goes into the setup script, which registers the
     # native messaging host to accept that id and no other — so an operator running their own AutoSkill
@@ -65,6 +65,14 @@ class Settings(BaseSettings):
     # then answered in seconds. Paired with a token cap (llm_output_limit_*), a real call finishes
     # well inside this and a stuck one is abandoned in minutes, not a quarter of an hour.
     llm_request_timeout_seconds: float = 240.0
+    # Local reasoning models write a chain of thought before the answer, and left unbounded they fill
+    # the whole token cap with it: a single constrained-JSON call was measured generating ~5,500
+    # tokens (36s at 150 tok/s). `chat_template_kwargs.thinking_budget` asks the engine to cap that
+    # reasoning, and it goes only to local engines (an OpenAI/Gemini endpoint rejects the key); 0
+    # disables it. Best-effort, not a guarantee: some builds honour it, but qwen3.5-a3b in LM Studio
+    # ignores it under structured output (measured). The reliable per-turn win is calling the model
+    # fewer times — see the conditional supervisor in services/procedures/defs/interview.py.
+    llm_thinking_budget: int = 512
 
     @property
     def dist_dir(self) -> Path:

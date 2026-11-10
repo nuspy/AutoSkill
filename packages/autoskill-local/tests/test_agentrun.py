@@ -307,7 +307,24 @@ def test_nothing_loaded_falls_back_to_the_configured_default(monkeypatch):
     assert agentrun._autodetect_loaded_model(get_target("hermes")) is None
 
 
-def test_run_uses_the_loaded_model_when_none_was_asked_for(monkeypatch):
+def test_run_keeps_the_agents_own_model_by_default(monkeypatch):
+    """Default: no override. The agent runs on its own configured model, so it is not forced onto a
+    small local one that would re-prefill its whole tool list every turn."""
+    monkeypatch.delenv("AUTOSKILL_TRIAL_USE_LOADED_MODEL", raising=False)
+    monkeypatch.setattr(LocalTarget, "run_modes", lambda _self: ["oneshot"])
+    called = {"auto": False}
+    monkeypatch.setattr(agentrun, "_autodetect_loaded_model",
+                        lambda _t: called.update(auto=True) or ("lmstudio", "qwen-35b"))
+    seen = {}
+    monkeypatch.setattr(agentrun, "run_oneshot",
+                        lambda tid, prompt, **kw: seen.update(kw) or {"mode": "oneshot", "status": "ok"})
+    agentrun.run("hermes", "do it")
+    assert seen.get("model") == "" and seen.get("provider") == "", "no model override without the opt-in"
+    assert called["auto"] is False, "autodetect is not even consulted by default"
+
+
+def test_run_uses_the_loaded_model_when_opted_in(monkeypatch):
+    monkeypatch.setenv("AUTOSKILL_TRIAL_USE_LOADED_MODEL", "1")
     monkeypatch.setattr(LocalTarget, "run_modes", lambda _self: ["oneshot"])
     monkeypatch.setattr(agentrun, "_autodetect_loaded_model", lambda _t: ("lmstudio", "qwen-35b"))
     seen = {}

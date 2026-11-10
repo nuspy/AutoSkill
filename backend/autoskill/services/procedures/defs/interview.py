@@ -194,24 +194,27 @@ async def compute_gates_step(ctx: ProcedureContext):
 
 
 async def supervise(ctx: ProcedureContext):
-    """LLM supervisor decides proceed / need_more / block; code enforces the gates."""
+    """Route the interview from the deterministic gates; consult the LLM only when a judgment is owed.
+
+    The gates are computed by code and authoritative: any failing gate means need_more, none means
+    proceed, and `first_failing` already names the lowest one to aim at. An LLM supervisor here only
+    re-derives that same decision — which the code then overrides anyway (see below) — at the cost of
+    a full generation on a local reasoning model (~36s: it writes thousands of thinking tokens for a
+    choice the gates have already made). So the common turn skips the call entirely and lets `ask`
+    word the question against the lowest failing gate. The LLM is consulted only at the points where
+    its judgment actually changes the outcome, not the wording:
+      - the very first pass, right after intake (turn 0): a feasibility check on the whole initial
+        description, so a task that cannot be automated at all ("I water the office plants") is
+        blocked at the start instead of after a round of pointless questions.
+      - the deterministic path is about to END the interview with no failing gate left to aim at —
+        every remaining failure is a gate that repeated asking will not close (`first_failing` skips
+        those, so it returns None): proceed on what we have, or block the task as un-automatable?
+      - the turn budget is about to run out: block, with a real reason.
+    """
     interview = await _session(ctx)
     knowledge = await _knowledge(ctx, interview)
     assert knowledge is not None
-    gates = ctx.state.get("gates", [])
     max_turns = int(ctx.state.get("max_turns", MAX_TURNS_DEFAULT))
-    prompt = render(
-        "interview_supervisor",
-        gates=gates,
-        # A compact view, not the whole document: the supervisor reads it to decide what is missing,
-        # and the gate results above are already authoritative, so it never needs the long prose.
-        knowledge_json=json.dumps(compact_view(knowledge.doc), ensure_ascii=False),
-        turn_count=interview.turn_count,
-        max_turns=max_turns,
-        library=await library_catalog(ctx.session),
-    )
-    result = await _llm(ctx, interview, "supervisor", prompt, SupervisorDecision, temperature=0.0)
-    decision: SupervisorDecision = result.value
     doc = KnowledgeDocModel.model_validate(knowledge.doc)
     # A gate that has been aimed at repeatedly and still will not close is not going to close by
     # asking a seventh time: the model is failing to record the shape the gate checks for, and no
@@ -222,6 +225,37 @@ async def supervise(ctx: ProcedureContext):
     attempts: dict[str, int] = dict(ctx.state.get("gate_attempts") or {})
     stuck = tuple(gate_id for gate_id, tries in attempts.items() if tries >= MAX_GATE_ATTEMPTS)
     failing = first_failing(compute_gates(doc), skip=("G8", *stuck))
+    near_budget = interview.turn_count >= max_turns - 1
+
+    # --- fast path: past the first pass, a failing gate to aim at, turns to spare -> no LLM ---
+    if failing is not None and not near_budget and interview.turn_count > 0:
+        attempts[failing.id] = attempts.get(failing.id, 0) + 1
+        ctx.state["gate_attempts"] = attempts
+        ctx.state["target_gate"] = failing.id
+        ctx.state["guidance"] = failing.detail or ""
+        ctx.state["suggested"] = None  # `ask` writes the question; there is no supervisor hint here
+        record = {
+            "decision": "need_more",
+            "effective": "need_more",
+            "failing_gate": failing.id,
+            "exhausted_gates": list(stuck),
+        }
+        ctx.state["supervisor"] = record
+        return Next("ask", decision=record)
+
+    # --- judgment owed: the interview is ending or out of turns -> consult the LLM ------------
+    prompt = render(
+        "interview_supervisor",
+        gates=ctx.state.get("gates", []),
+        # A compact view, not the whole document: the supervisor reads it to decide what is missing,
+        # and the gate results above are already authoritative, so it never needs the long prose.
+        knowledge_json=json.dumps(compact_view(knowledge.doc), ensure_ascii=False),
+        turn_count=interview.turn_count,
+        max_turns=max_turns,
+        library=await library_catalog(ctx.session),
+    )
+    result = await _llm(ctx, interview, "supervisor", prompt, SupervisorDecision, temperature=0.0)
+    decision: SupervisorDecision = result.value
     # code has the final say: deterministic gates override an over-eager "proceed"
     effective = decision.decision
     if failing is not None and effective == "proceed":

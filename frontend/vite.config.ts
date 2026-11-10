@@ -21,7 +21,7 @@ export default defineConfig({
     proxy: Object.fromEntries(
       ["/api", "/dl", "/git"].map((prefix) => [
         prefix,
-        { target: process.env.VITE_API_URL || "http://localhost:8000", changeOrigin: true, agent: noKeepAlive },
+        { target: process.env.VITE_API_URL || "http://localhost:8100", changeOrigin: true, agent: noKeepAlive },
       ]),
     ),
   },

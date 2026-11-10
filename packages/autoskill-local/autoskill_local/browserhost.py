@@ -67,14 +67,27 @@ BROWSERS: dict[str, dict[str, str | None]] = {
         "darwin_marker": "Library/Application Support/Vivaldi",
     },
     "opera": {
-        # Opera reads Chrome's key on Windows, so `win_key` is None and registration falls back to it.
+        # Opera does NOT read Chrome's key on Windows — it has its own, under "Opera Software\Opera
+        # Stable". Assuming otherwise (win_key=None -> fall back to Chrome's) registered the host where
+        # Opera never looks, and the extension's popup failed with "the message port closed before a
+        # response was received". The marker is the "Opera Stable" profile specifically, so a machine
+        # with only Opera GX is not mistaken for having Opera.
         "name": "Opera",
-        "win_key": None,
+        "win_key": r"Software\Opera Software\Opera Stable\NativeMessagingHosts",
         "darwin": "Library/Application Support/com.operasoftware.Opera/NativeMessagingHosts",
         "linux": ".config/opera/NativeMessagingHosts",
-        "win_marker": "Opera Software",
+        "win_marker": r"Opera Software\Opera Stable",
         "posix_marker": ".config/opera",
         "darwin_marker": "Library/Application Support/com.operasoftware.Opera",
+    },
+    "operagx": {
+        "name": "Opera GX",
+        "win_key": r"Software\Opera Software\Opera GX Stable\NativeMessagingHosts",
+        "darwin": "Library/Application Support/com.operasoftware.OperaGX/NativeMessagingHosts",
+        "linux": ".config/opera-gx/NativeMessagingHosts",
+        "win_marker": r"Opera Software\Opera GX Stable",
+        "posix_marker": ".config/opera-gx",
+        "darwin_marker": "Library/Application Support/com.operasoftware.OperaGX",
     },
     "chromium": {
         "name": "Chromium",
@@ -107,11 +120,16 @@ def installed_browsers(home: Path | None = None) -> list[str]:
 
 
 def _win_key(browser: str) -> str | None:
-    """The HKCU key a browser reads, mapping the ones that read Chrome's onto Chrome's."""
+    """The HKCU key a browser reads its native-messaging manifests from.
+
+    Every browser in the table now carries its own key — Opera included, the hard way (see its note).
+    The Chrome fallback stays only for a hypothetical fork listed with `win_key=None`, and is a guess:
+    most forks read their own key, so a new entry should be given its real one, not left to fall back.
+    """
     meta = BROWSERS.get(browser)
     if meta is None:
         return None
-    return meta["win_key"] or BROWSERS["chrome"]["win_key"]  # Opera and other forks fall back to Chrome's
+    return meta["win_key"] or BROWSERS["chrome"]["win_key"]
 
 
 def host_executable(shim_dir: Path | None = None) -> str:

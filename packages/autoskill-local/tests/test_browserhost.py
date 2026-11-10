@@ -94,11 +94,15 @@ def test_install_defaults_to_the_browsers_that_are_actually_here(tmp_path: Path,
     assert written == [str(tmp_path / ".config/vivaldi/NativeMessagingHosts" / f"{bh.HOST_NAME}.json")]
 
 
-def test_forks_that_read_chromes_windows_key_are_written_once(monkeypatch):
-    """Opera reads Chrome's HKCU key. Registering both would write the same value twice."""
-    assert bh._win_key("opera") == bh.BROWSERS["chrome"]["win_key"]
-    assert bh._win_key("brave") != bh.BROWSERS["chrome"]["win_key"], "Brave has its own key"
-    assert bh._win_key("brave") and "BraveSoftware" in bh._win_key("brave")
+def test_each_browser_reads_its_own_windows_key():
+    """Regression: Opera does NOT read Chrome's HKCU key. Registering the host under Chrome's key left
+    Opera unable to find it — its popup failed with "the message port closed before a response was
+    received". Every browser here has its own key, spelled for that browser."""
+    opera_key = bh._win_key("opera")
+    assert opera_key and opera_key != bh.BROWSERS["chrome"]["win_key"], "Opera has its own key, not Chrome's"
+    assert "Opera Software" in opera_key
+    assert "Opera GX" in (bh._win_key("operagx") or "")
+    assert bh._win_key("brave") and "BraveSoftware" in bh._win_key("brave"), "Brave has its own key"
 
 
 def test_brave_and_vivaldi_are_known_now():

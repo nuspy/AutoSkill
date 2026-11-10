@@ -14,7 +14,7 @@ app = typer.Typer(help="AutoSkill server management")
 
 
 @app.command()
-def serve(host: str = "0.0.0.0", port: int = 8000, reload: bool = False) -> None:
+def serve(host: str = "0.0.0.0", port: int = 8100, reload: bool = False) -> None:
     uvicorn.run("autoskill.main:app", host=host, port=port, reload=reload)
 
 

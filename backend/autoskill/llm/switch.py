@@ -261,13 +261,21 @@ def build_adapter(target: Target) -> LlmProvider:
             message=f"llmswitch provider type '{target.type}' does not expose an "
             "OpenAI-compatible endpoint: AutoSkill cannot use it for inference"
         )
+    settings = get_settings()
+    # Cap a local reasoning model's chain of thought. Only local engines (LM Studio, vLLM) parse
+    # chat_template_kwargs; an OpenAI/Gemini endpoint would reject the unknown key, so it goes only
+    # to those two. See Settings.llm_thinking_budget.
+    extra_body: dict[str, Any] | None = None
+    if target.api in ("lmstudio", "vllm") and settings.llm_thinking_budget > 0:
+        extra_body = {"chat_template_kwargs": {"thinking_budget": settings.llm_thinking_budget}}
     return OpenAICompatProvider(
         model=target.model,
         base_url=target.base_url,
         api_key=target.api_key or None,
         capabilities=caps,
         extra_headers=target.extra_headers or None,
-        timeout=get_settings().llm_request_timeout_seconds,
+        extra_body=extra_body,
+        timeout=settings.llm_request_timeout_seconds,
     )
 
 

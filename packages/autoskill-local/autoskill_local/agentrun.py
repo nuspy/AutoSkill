@@ -20,6 +20,7 @@ and how they must keep working.
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import threading
 import time
@@ -210,6 +211,20 @@ def _autodetect_loaded_model(target) -> tuple[str, str] | None:
     return None
 
 
+def _use_loaded_model() -> bool:
+    """Opt-in: may a trial override the agent's own model with one already loaded in a local engine?
+
+    Off by default, so the agent and AutoSkill stay independent about the model: the agent runs on the
+    model it is configured with. That matters because an agent carries its whole tool list into every
+    request, and a cloud model both handles a long tool list and caches it between turns — while a
+    small local model does not, so pointing the agent at it re-prefills tens of thousands of tokens of
+    tool definitions each turn (seen for real: 146 tools, ~94k prompt tokens, ~17s of prefill per turn).
+    Set AUTOSKILL_TRIAL_USE_LOADED_MODEL=1 to opt back in — for when the agent's own model is not
+    reachable and the trial should fall back to whatever the person has loaded locally.
+    """
+    return os.environ.get("AUTOSKILL_TRIAL_USE_LOADED_MODEL", "").strip().lower() in ("1", "true", "yes", "on")
+
+
 def run(target_id: str, prompt: str, *, mode: str | None = None, timeout_s: int = 900, say: Progress | None = None,
         model: str = "", provider: str = ""):
     """Start the agent the best way it supports, and say plainly when it supports none.
@@ -217,12 +232,13 @@ def run(target_id: str, prompt: str, *, mode: str | None = None, timeout_s: int 
     `{"mode": "manual"}` is a real answer, not an error: the page then shows the instruction to paste,
     which is what it did for every agent before any of this existed. `model`/`provider` override the
     agent's default for this run when it supports it — a trial can then use a model that is actually
-    reachable without changing the agent's own configuration. With neither given, a model already
-    loaded in one of the agent's local engines is preferred over its configured default, so the person
-    picks the model simply by loading it (and the run does not stall waiting for a slow reload).
+    reachable without changing the agent's own configuration. With neither given, the agent runs on its
+    own configured model, keeping AutoSkill and the agent independent about that choice; only when
+    AUTOSKILL_TRIAL_USE_LOADED_MODEL is set does the run instead fall back to a model already loaded in
+    one of the agent's local engines (see `_use_loaded_model`).
     """
     target = get_target(target_id)
-    if not model and not provider:
+    if not model and not provider and _use_loaded_model():
         auto = _autodetect_loaded_model(target)
         if auto:
             provider, model = auto

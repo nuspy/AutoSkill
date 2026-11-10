@@ -44,12 +44,20 @@ function run(request, onMessage) {
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  // Only from a tab, and only from a page this extension was granted. `sender.tab` is set by the
-  // browser and cannot be forged by the page.
-  if (!sender.tab || message?.channel !== "autoskill") return undefined;
-  run({ id: message.id, op: message.op, params: message.params ?? {} }, (progress) => {
-    chrome.tabs.sendMessage(sender.tab.id, { channel: "autoskill", id: message.id, ...progress }).catch(() => {});
-  }).then(
+  // Reachable only by this extension's own code: a content script on a granted AutoSkill page
+  // (`sender.tab` set — the browser sets it and the page cannot forge it) or the extension's own
+  // popup/options page (no tab). A message from any other origin would arrive through
+  // onMessageExternal, which this extension does not use, so the channel check is the whole guard.
+  if (message?.channel !== "autoskill") return undefined;
+  // Progress is streamed back to the page that asked; the popup asks for a single result and has no
+  // tab to stream to, so there it is simply dropped.
+  const relayProgress = sender.tab
+    ? (progress) =>
+        chrome.tabs
+          .sendMessage(sender.tab.id, { channel: "autoskill", id: message.id, ...progress })
+          .catch(() => {})
+    : () => {};
+  run({ id: message.id, op: message.op, params: message.params ?? {} }, relayProgress).then(
     (result) => sendResponse({ ok: true, result }),
     (error) => sendResponse({ ok: false, code: error.code ?? "error", message: error.message, details: error.details }),
   );

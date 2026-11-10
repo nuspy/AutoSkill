@@ -16,7 +16,12 @@ Rules:
 - Prefer questions whose answer would unblock several gates. Questions must be answerable by a
   non-technical worker in one or two sentences, or by choosing an option, or by sharing a file.
 - Decision "block" only when the task is impossible or unsafe to automate as described (explain why).
-Reply with the structured decision.
+
+This is an internal gate check, not a turn of the conversation: you are NOT addressing the person here,
+so ignore the "speak warmly to the person" guidance for this step. Output only the structured decision.
+The `next_question` field carries the question wording (a later step delivers it to the person); do not
+write any greeting, prose or message outside the structured fields, and do not deliberate about the
+output format — it is the structured decision, nothing else.
 {% if library %}
 
 Shared components available in this AutoSkill server (skills, plugins and MCP servers provided by the

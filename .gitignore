@@ -24,3 +24,6 @@ data/
 .vscode/
 # scratch
 frontend/zz_test/
+
+# Local env backups (contain the local secret key)
+backend/.env.*bak

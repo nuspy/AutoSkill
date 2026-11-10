@@ -112,6 +112,11 @@ class OpenAICompatProvider:
                 "type": "json_schema",
                 "json_schema": {"name": "response", "schema": req.json_schema, "strict": False},
             }
+        # Engine-specific switches (e.g. chat_template_kwargs.thinking_budget) that a local endpoint
+        # honours and an OpenAI one ignores or rejects. Merged last, but never over what the request
+        # itself asked for — an explicit max_tokens or response_format wins.
+        for key, value in self._extra_body.items():
+            body.setdefault(key, value)
         return body
 
     async def chat(self, req: ChatRequest) -> ChatResponse:
